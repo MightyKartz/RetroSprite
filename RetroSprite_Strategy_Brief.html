@@ -1,0 +1,1331 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RetroSprite Strategy Brief - 游戏内问答伙伴与 GKP 生态</title>
+  <link rel="icon" href="data:,">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+SC:wght@400;500;600;700&family=Press+Start+2P&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --ink: #161514;
+      --muted: #6d665b;
+      --paper: #f7f0df;
+      --paper-2: #efe3c5;
+      --panel: #fff9e9;
+      --line: #27231d;
+      --green: #2f8f5b;
+      --green-dark: #1f5d42;
+      --blue: #246c9f;
+      --red: #c7503d;
+      --gold: #d39b2a;
+      --violet: #6b5aa7;
+      --shadow: 8px 8px 0 rgba(22, 21, 20, .18);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      background:
+        linear-gradient(rgba(247, 240, 223, .92), rgba(247, 240, 223, .92)),
+        radial-gradient(circle at 20px 20px, rgba(36, 108, 159, .12) 2px, transparent 2px);
+      background-size: auto, 32px 32px;
+      color: var(--ink);
+      font-family: "IBM Plex Sans SC", sans-serif;
+      line-height: 1.65;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .page {
+      overflow: hidden;
+    }
+
+    .nav {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      padding: 14px clamp(18px, 4vw, 56px);
+      background: rgba(247, 240, 223, .9);
+      border-bottom: 3px solid var(--line);
+      backdrop-filter: blur(12px);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 800;
+      letter-spacing: .02em;
+    }
+
+    .brand-mark {
+      width: 30px;
+      height: 30px;
+      border: 3px solid var(--line);
+      background:
+        linear-gradient(90deg, transparent 36%, var(--line) 36% 44%, transparent 44% 56%, var(--line) 56% 64%, transparent 64%),
+        linear-gradient(var(--green), var(--green));
+      box-shadow: 4px 4px 0 rgba(22, 21, 20, .22);
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .nav-links a {
+      padding: 6px 0;
+      border-bottom: 2px solid transparent;
+    }
+
+    .nav-links a:hover {
+      color: var(--ink);
+      border-bottom-color: var(--ink);
+    }
+
+    .hero {
+      position: relative;
+      min-height: 88vh;
+      display: grid;
+      grid-template-columns: minmax(0, 1.05fr) minmax(320px, .95fr);
+      align-items: end;
+      gap: clamp(28px, 5vw, 70px);
+      padding: clamp(56px, 8vw, 104px) clamp(18px, 5vw, 72px) clamp(40px, 7vw, 88px);
+      border-bottom: 5px solid var(--line);
+    }
+
+    .hero-media {
+      position: absolute;
+      inset: 0;
+      z-index: -2;
+      background-image:
+        linear-gradient(90deg, rgba(247, 240, 223, .95) 0%, rgba(247, 240, 223, .88) 46%, rgba(247, 240, 223, .42) 100%),
+        url("https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=2200&auto=format&fit=crop");
+      background-size: cover;
+      background-position: center;
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: -1;
+      pointer-events: none;
+      background:
+        linear-gradient(rgba(22, 21, 20, .05) 50%, transparent 50%),
+        linear-gradient(90deg, rgba(22, 21, 20, .04) 50%, transparent 50%);
+      background-size: 8px 8px;
+      mix-blend-mode: multiply;
+    }
+
+    .kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 18px;
+      padding: 8px 12px;
+      background: var(--panel);
+      border: 3px solid var(--line);
+      box-shadow: 5px 5px 0 rgba(22, 21, 20, .16);
+      font-size: 13px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .kicker::before {
+      content: "";
+      width: 12px;
+      height: 12px;
+      background: var(--red);
+      border: 2px solid var(--line);
+    }
+
+    h1, h2, h3, p {
+      margin-top: 0;
+    }
+
+    h1 {
+      max-width: 960px;
+      margin-bottom: 20px;
+      font-family: "Press Start 2P", monospace;
+      font-size: clamp(34px, 6.4vw, 92px);
+      line-height: 1.08;
+      letter-spacing: 0;
+    }
+
+    .hero-copy {
+      max-width: 760px;
+      margin-bottom: 30px;
+      color: #332f27;
+      font-size: clamp(18px, 2vw, 25px);
+      font-weight: 600;
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 42px;
+      padding: 9px 14px;
+      border: 3px solid var(--line);
+      background: var(--panel);
+      box-shadow: 4px 4px 0 rgba(22, 21, 20, .15);
+      color: var(--ink);
+      font-weight: 800;
+      font-size: 14px;
+    }
+
+    .pill.dark {
+      background: var(--ink);
+      color: var(--paper);
+    }
+
+    .device {
+      align-self: center;
+      width: min(100%, 520px);
+      margin-left: auto;
+      padding: clamp(16px, 3vw, 24px);
+      background: #24211e;
+      border: 5px solid var(--line);
+      border-radius: 26px;
+      box-shadow: 16px 18px 0 rgba(22, 21, 20, .25);
+      transform: rotate(2deg);
+    }
+
+    .device-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+      color: #f6ead2;
+      font-family: "Press Start 2P", monospace;
+      font-size: 10px;
+    }
+
+    .leds {
+      display: flex;
+      gap: 7px;
+    }
+
+    .led {
+      width: 12px;
+      height: 12px;
+      border: 2px solid var(--line);
+      border-radius: 50%;
+      background: var(--red);
+    }
+
+    .led:nth-child(2) {
+      background: var(--gold);
+    }
+
+    .led:nth-child(3) {
+      background: var(--green);
+    }
+
+    .screen {
+      position: relative;
+      min-height: 360px;
+      padding: 22px;
+      overflow: hidden;
+      background:
+        linear-gradient(rgba(22, 33, 32, .8), rgba(22, 33, 32, .8)),
+        url("https://images.unsplash.com/photo-1605901309584-818e25960b8f?q=80&w=1100&auto=format&fit=crop");
+      background-size: cover;
+      background-position: center;
+      border: 4px solid #0b0a09;
+      border-radius: 12px;
+      color: #f8f1df;
+    }
+
+    .screen::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(rgba(255,255,255,.05) 50%, transparent 50%);
+      background-size: 100% 6px;
+      opacity: .55;
+      pointer-events: none;
+    }
+
+    .chat {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      gap: 14px;
+      max-width: 360px;
+      margin-left: auto;
+    }
+
+    .bubble {
+      padding: 14px 16px;
+      border: 3px solid #f8f1df;
+      background: rgba(18, 17, 15, .84);
+      box-shadow: 5px 5px 0 rgba(0,0,0,.35);
+      font-size: 15px;
+      line-height: 1.5;
+    }
+
+    .bubble.user {
+      margin-left: 38px;
+      background: rgba(36, 108, 159, .9);
+    }
+
+    .bubble.sprite {
+      margin-right: 34px;
+      background: rgba(47, 143, 91, .92);
+    }
+
+    .sprite-label {
+      display: inline-block;
+      margin-bottom: 6px;
+      font-family: "Press Start 2P", monospace;
+      font-size: 9px;
+      color: #fff6d7;
+    }
+
+    main {
+      display: grid;
+      gap: clamp(48px, 8vw, 92px);
+      padding: clamp(48px, 7vw, 88px) clamp(18px, 5vw, 72px) 80px;
+    }
+
+    section {
+      max-width: 1180px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    .section-head {
+      display: grid;
+      grid-template-columns: minmax(0, .86fr) minmax(220px, .36fr);
+      gap: 28px;
+      align-items: end;
+      margin-bottom: 26px;
+    }
+
+    .eyebrow {
+      display: inline-block;
+      margin-bottom: 10px;
+      color: var(--red);
+      font-family: "Press Start 2P", monospace;
+      font-size: 11px;
+      line-height: 1.6;
+    }
+
+    h2 {
+      margin-bottom: 0;
+      font-size: clamp(28px, 4vw, 54px);
+      line-height: 1.08;
+      letter-spacing: 0;
+    }
+
+    .section-note {
+      margin: 0;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .split {
+      display: grid;
+      grid-template-columns: minmax(0, .92fr) minmax(320px, .72fr);
+      gap: 28px;
+      align-items: stretch;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 4px solid var(--line);
+      box-shadow: var(--shadow);
+    }
+
+    .panel.pad {
+      padding: clamp(20px, 3vw, 32px);
+    }
+
+    .verdict {
+      display: grid;
+      gap: 18px;
+      font-size: 20px;
+      font-weight: 600;
+    }
+
+    .quote {
+      padding: 22px;
+      background: var(--ink);
+      color: var(--paper);
+      border: 4px solid var(--line);
+      font-size: clamp(22px, 3vw, 36px);
+      font-weight: 800;
+      line-height: 1.25;
+    }
+
+    .quote small {
+      display: block;
+      margin-top: 12px;
+      color: #cabf9e;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .scoreboard {
+      display: grid;
+      gap: 12px;
+      padding: 18px;
+      background: #27231d;
+      color: var(--paper);
+      border: 4px solid var(--line);
+    }
+
+    .score-row {
+      display: grid;
+      grid-template-columns: 92px minmax(0, 1fr) 42px;
+      gap: 12px;
+      align-items: center;
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    .bar {
+      height: 14px;
+      background: #0d0b0a;
+      border: 2px solid #f8f1df;
+    }
+
+    .bar span {
+      display: block;
+      height: 100%;
+      background: var(--green);
+    }
+
+    .bar.blue span {
+      background: var(--blue);
+    }
+
+    .bar.gold span {
+      background: var(--gold);
+    }
+
+    .bar.red span {
+      background: var(--red);
+    }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .flow-card {
+      position: relative;
+      min-height: 168px;
+      padding: 18px 16px;
+      background: var(--panel);
+      border: 4px solid var(--line);
+      box-shadow: 6px 6px 0 rgba(22, 21, 20, .14);
+    }
+
+    .flow-card::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      right: -15px;
+      width: 18px;
+      height: 18px;
+      background: var(--red);
+      border-top: 4px solid var(--line);
+      border-right: 4px solid var(--line);
+      transform: translateY(-50%) rotate(45deg);
+      z-index: 2;
+    }
+
+    .flow-card:last-child::after {
+      display: none;
+    }
+
+    .flow-num {
+      display: inline-grid;
+      place-items: center;
+      width: 34px;
+      height: 34px;
+      margin-bottom: 12px;
+      background: var(--ink);
+      color: var(--paper);
+      border: 3px solid var(--line);
+      font-family: "Press Start 2P", monospace;
+      font-size: 11px;
+    }
+
+    .flow-card h3,
+    .repo h3,
+    .phase h3,
+    .file-node h3 {
+      margin-bottom: 8px;
+      font-size: 18px;
+      line-height: 1.25;
+    }
+
+    .flow-card p,
+    .repo p,
+    .phase p,
+    .file-node p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .funnel {
+      display: grid;
+      gap: 12px;
+    }
+
+    .funnel-step {
+      display: grid;
+      grid-template-columns: 150px minmax(0, 1fr) 108px;
+      gap: 16px;
+      align-items: center;
+      padding: 14px 16px;
+      background: var(--panel);
+      border: 3px solid var(--line);
+      box-shadow: 5px 5px 0 rgba(22, 21, 20, .12);
+    }
+
+    .funnel-step:nth-child(1) { width: 100%; }
+    .funnel-step:nth-child(2) { width: 91%; }
+    .funnel-step:nth-child(3) { width: 82%; }
+    .funnel-step:nth-child(4) { width: 72%; }
+    .funnel-step:nth-child(5) { width: 60%; }
+
+    .stage-name {
+      font-weight: 900;
+    }
+
+    .stage-desc {
+      color: var(--muted);
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .stage-cost {
+      justify-self: end;
+      padding: 5px 8px;
+      background: var(--green);
+      border: 2px solid var(--line);
+      color: #fff7e0;
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .stage-cost.warn {
+      background: var(--gold);
+      color: var(--ink);
+    }
+
+    .stage-cost.expensive {
+      background: var(--red);
+      color: #fff7e0;
+    }
+
+    .blueprint {
+      display: grid;
+      grid-template-columns: minmax(300px, .84fr) minmax(0, 1fr);
+      gap: 28px;
+      align-items: stretch;
+    }
+
+    .pack {
+      position: relative;
+      min-height: 520px;
+      padding: 28px;
+      background: #2b2a24;
+      color: var(--paper);
+      border: 5px solid var(--line);
+      box-shadow: var(--shadow);
+    }
+
+    .pack-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 22px;
+      padding-bottom: 14px;
+      border-bottom: 3px solid rgba(247, 240, 223, .35);
+    }
+
+    .pack-title strong {
+      font-family: "Press Start 2P", monospace;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .pack-badge {
+      padding: 5px 8px;
+      background: var(--green);
+      border: 2px solid #0b0a09;
+      color: #fff7e0;
+      font-size: 12px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .file-tree {
+      display: grid;
+      gap: 10px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 14px;
+    }
+
+    .tree-line {
+      display: grid;
+      grid-template-columns: 20px minmax(0, 1fr);
+      gap: 10px;
+      align-items: center;
+      padding: 9px 10px;
+      border: 2px solid rgba(247, 240, 223, .22);
+      background: rgba(255, 255, 255, .06);
+    }
+
+    .tree-dot {
+      width: 14px;
+      height: 14px;
+      border: 2px solid var(--paper);
+      background: var(--gold);
+    }
+
+    .tree-line:nth-child(3n) .tree-dot {
+      background: var(--blue);
+    }
+
+    .tree-line:nth-child(4n) .tree-dot {
+      background: var(--green);
+    }
+
+    .manifest {
+      padding: 18px;
+      overflow: auto;
+      background: #151411;
+      border: 4px solid var(--line);
+      color: #f6e8bd;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 13px;
+      line-height: 1.65;
+      box-shadow: 6px 6px 0 rgba(22, 21, 20, .18);
+    }
+
+    .manifest .key {
+      color: #8bd68c;
+    }
+
+    .manifest .str {
+      color: #f3bd63;
+    }
+
+    .file-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .file-node {
+      padding: 18px;
+      background: var(--panel);
+      border: 3px solid var(--line);
+      box-shadow: 5px 5px 0 rgba(22, 21, 20, .12);
+    }
+
+    .node-icon {
+      width: 36px;
+      height: 36px;
+      margin-bottom: 12px;
+      border: 3px solid var(--line);
+      background: var(--blue);
+      box-shadow: 4px 4px 0 rgba(22, 21, 20, .12);
+    }
+
+    .file-node:nth-child(2) .node-icon { background: var(--green); }
+    .file-node:nth-child(3) .node-icon { background: var(--gold); }
+    .file-node:nth-child(4) .node-icon { background: var(--red); }
+
+    .timeline {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 12px;
+      align-items: stretch;
+    }
+
+    .phase {
+      min-height: 230px;
+      padding: 18px;
+      background: var(--panel);
+      border: 4px solid var(--line);
+      box-shadow: 6px 6px 0 rgba(22, 21, 20, .12);
+    }
+
+    .phase-tag {
+      display: inline-block;
+      margin-bottom: 14px;
+      padding: 5px 8px;
+      background: var(--ink);
+      color: var(--paper);
+      font-family: "Press Start 2P", monospace;
+      font-size: 10px;
+      line-height: 1.5;
+    }
+
+    .repo-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .repo {
+      min-height: 204px;
+      padding: 18px;
+      background: var(--panel);
+      border: 3px solid var(--line);
+      box-shadow: 5px 5px 0 rgba(22, 21, 20, .12);
+    }
+
+    .repo-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .stars {
+      flex: 0 0 auto;
+      padding: 4px 7px;
+      background: var(--gold);
+      border: 2px solid var(--line);
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .repo a {
+      border-bottom: 2px solid var(--ink);
+    }
+
+    .callout {
+      display: grid;
+      grid-template-columns: 70px minmax(0, 1fr);
+      gap: 18px;
+      align-items: start;
+      padding: 22px;
+      background: var(--ink);
+      border: 4px solid var(--line);
+      color: var(--paper);
+      box-shadow: var(--shadow);
+    }
+
+    .callout-icon {
+      width: 62px;
+      height: 62px;
+      display: grid;
+      place-items: center;
+      background: var(--gold);
+      border: 4px solid #0b0a09;
+      color: var(--ink);
+      font-family: "Press Start 2P", monospace;
+      font-size: 20px;
+    }
+
+    .callout h2 {
+      color: var(--paper);
+    }
+
+    .callout p {
+      margin: 12px 0 0;
+      color: #d9cfb4;
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .rules {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .rule {
+      padding: 18px;
+      background: var(--panel);
+      border: 3px solid var(--line);
+      box-shadow: 5px 5px 0 rgba(22, 21, 20, .12);
+    }
+
+    .rule strong {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 17px;
+    }
+
+    .rule span {
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .source-list {
+      columns: 2;
+      column-gap: 28px;
+      padding: 0;
+      margin: 0;
+      list-style: none;
+    }
+
+    .source-list li {
+      break-inside: avoid;
+      margin-bottom: 8px;
+      padding-left: 18px;
+      position: relative;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .source-list li::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: .75em;
+      width: 8px;
+      height: 8px;
+      background: var(--red);
+      border: 2px solid var(--line);
+      transform: translateY(-50%);
+    }
+
+    .source-list a {
+      color: var(--ink);
+      font-weight: 900;
+      border-bottom: 2px solid var(--ink);
+    }
+
+    footer {
+      padding: 28px clamp(18px, 5vw, 72px);
+      background: #24211e;
+      color: var(--paper);
+      border-top: 5px solid var(--line);
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    @media (max-width: 1060px) {
+      .hero,
+      .split,
+      .blueprint,
+      .section-head {
+        grid-template-columns: 1fr;
+      }
+
+      .device {
+        margin: 0;
+        transform: none;
+      }
+
+      .flow,
+      .timeline,
+      .repo-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .flow-card::after {
+        display: none;
+      }
+
+      .rules {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .nav {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .nav-links {
+        width: 100%;
+        overflow-x: auto;
+        padding-bottom: 2px;
+      }
+
+      .hero {
+        min-height: auto;
+      }
+
+      h1 {
+        font-size: 33px;
+      }
+
+      .device {
+        border-radius: 18px;
+        padding: 12px;
+      }
+
+      .screen {
+        min-height: 310px;
+        padding: 14px;
+      }
+
+      .flow,
+      .timeline,
+      .repo-grid,
+      .file-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .funnel-step {
+        width: 100% !important;
+        grid-template-columns: 1fr;
+      }
+
+      .stage-cost {
+        justify-self: start;
+      }
+
+      .source-list {
+        columns: 1;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <nav class="nav" aria-label="页面导航">
+      <a class="brand" href="#top">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span>RetroSprite Brief</span>
+      </a>
+      <div class="nav-links">
+        <a href="#verdict">判断</a>
+        <a href="#architecture">架构</a>
+        <a href="#cost">成本</a>
+        <a href="#gkp">GKP</a>
+        <a href="#roadmap">路线</a>
+        <a href="#references">参考</a>
+      </div>
+    </nav>
+
+    <header class="hero" id="top">
+      <div class="hero-media" aria-hidden="true"></div>
+      <div>
+        <span class="kicker">Strategy brief / 2026-05-18</span>
+        <h1>RetroSprite</h1>
+        <p class="hero-copy">
+          从“攻略提示器”升级成 RetroArch 里的游戏内问答伙伴：玩家按下快捷键，用语音或文字提问，RetroSprite 基于当前游戏、画面、进度和可信知识包回答。
+        </p>
+        <div class="hero-actions" aria-label="核心定位">
+          <span class="pill dark">RetroArch AI Service First</span>
+          <span class="pill">Game-grounded Q&A</span>
+          <span class="pill">Local Knowledge Packs</span>
+          <span class="pill">Low-spoiler by Design</span>
+        </div>
+      </div>
+
+      <div class="device" aria-label="RetroSprite 问答演示">
+        <div class="device-top">
+          <span>RETROSPRITE OS</span>
+          <span class="leds" aria-hidden="true"><span class="led"></span><span class="led"></span><span class="led"></span></span>
+        </div>
+        <div class="screen">
+          <div class="chat">
+            <div class="bubble user">
+              我现在在这个镇子，NPC 说的 Moon Stone 是什么？
+            </div>
+            <div class="bubble sprite">
+              <span class="sprite-label">RETROSPRITE</span>
+              Moon Stone 是后续任务道具。轻提示：你现在先不用找它，继续调查镇北的遗迹会更自然。
+            </div>
+            <div class="bubble user">
+              可以再明确一点，但别剧透结局。
+            </div>
+            <div class="bubble sprite">
+              <span class="sprite-label">RETROSPRITE</span>
+              去旅馆右侧和蓝衣 NPC 对话。这个答案来自当前游戏知识包的第 3 章条目。
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section id="verdict">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">01 / Product judgment</span>
+            <h2>真正有意思的不是提示，而是对话。</h2>
+          </div>
+          <p class="section-note">
+            RetroSprite 的核心体验应该是“玩家主动问”，而不是系统主动打断。
+          </p>
+        </div>
+        <div class="split">
+          <div class="panel pad verdict">
+            <p>
+              复古游戏资料多、版本稳定、玩家问题重复率高，这让 RetroSprite 非常适合做成本地知识驱动的问答系统。LLM 不是知识源，而是把检索证据组织成自然回答的表达层。
+            </p>
+            <div class="quote">
+              一个在 RetroArch 里随叫随到的游戏问答伙伴。
+              <small>基于当前游戏画面和可信资料回答问题，默认低剧透，可文字或语音交互。</small>
+            </div>
+          </div>
+
+          <div class="scoreboard" aria-label="项目维度评分">
+            <div class="score-row">
+              <span>痛点</span>
+              <div class="bar"><span style="width: 92%"></span></div>
+              <span>9.2</span>
+            </div>
+            <div class="score-row">
+              <span>可行性</span>
+              <div class="bar blue"><span style="width: 86%"></span></div>
+              <span>8.6</span>
+            </div>
+            <div class="score-row">
+              <span>差异化</span>
+              <div class="bar gold"><span style="width: 88%"></span></div>
+              <span>8.8</span>
+            </div>
+            <div class="score-row">
+              <span>成本控制</span>
+              <div class="bar"><span style="width: 81%"></span></div>
+              <span>8.1</span>
+            </div>
+            <div class="score-row">
+              <span>风险</span>
+              <div class="bar red"><span style="width: 38%"></span></div>
+              <span>3.8</span>
+            </div>
+            <p style="margin: 8px 0 0; color: #d9cfb4; font-size: 14px;">
+              主要风险不在模型，而在知识包质量、版权边界、剧透控制和游戏版本识别。
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section id="architecture">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">02 / Architecture</span>
+            <h2>优先接 RetroArch AI Service，避开 Android 权限泥潭。</h2>
+          </div>
+          <p class="section-note">
+            RetroArch 已有截图 POST 到 endpoint 的 AI Service 流程，第一版应利用它，而不是从 MediaProjection 和无障碍服务起步。
+          </p>
+        </div>
+
+        <div class="flow" aria-label="RetroSprite 运行链路">
+          <div class="flow-card">
+            <span class="flow-num">1</span>
+            <h3>Hotkey</h3>
+            <p>玩家按快捷键或悬浮按钮，触发当前画面与游戏上下文。</p>
+          </div>
+          <div class="flow-card">
+            <span class="flow-num">2</span>
+            <h3>AI Service</h3>
+            <p>RetroArch 将截图、游戏 label 和请求发送到本地 endpoint。</p>
+          </div>
+          <div class="flow-card">
+            <span class="flow-num">3</span>
+            <h3>Context Builder</h3>
+            <p>组合 ROM hash、OCR、玩家问题、历史进度和剧透等级。</p>
+          </div>
+          <div class="flow-card">
+            <span class="flow-num">4</span>
+            <h3>Game Retriever</h3>
+            <p>只在当前游戏知识包中检索，先关键词，后向量。</p>
+          </div>
+          <div class="flow-card">
+            <span class="flow-num">5</span>
+            <h3>Answer</h3>
+            <p>高置信直接回答；复杂问题再调用 LLM，输出文字或语音。</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="cost">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">03 / Cost control</span>
+            <h2>把 LLM 调用做成漏斗，而不是水龙头。</h2>
+          </div>
+          <p class="section-note">
+            搜索、路由、别名匹配、缓存和模板回答都可以本地完成，LLM 只处理最后的小比例请求。
+          </p>
+        </div>
+
+        <div class="funnel" aria-label="LLM 调用漏斗">
+          <div class="funnel-step">
+            <div class="stage-name">FAQ / 模板命中</div>
+            <div class="stage-desc">高频问题预编译，直接返回短答案和来源。</div>
+            <div class="stage-cost">0 LLM</div>
+          </div>
+          <div class="funnel-step">
+            <div class="stage-name">SQLite FTS5</div>
+            <div class="stage-desc">BM25、snippet、highlight 本地完成，适合道具/NPC/地图名。</div>
+            <div class="stage-cost">0 LLM</div>
+          </div>
+          <div class="funnel-step">
+            <div class="stage-name">实体与别名</div>
+            <div class="stage-desc">多语言、错拼、粉丝译名、版本差异在 alias 表里解决。</div>
+            <div class="stage-cost">0 LLM</div>
+          </div>
+          <div class="funnel-step">
+            <div class="stage-name">混合检索</div>
+            <div class="stage-desc">模糊问题再启用 embedding 或本地重排，仍不必生成。</div>
+            <div class="stage-cost warn">可选</div>
+          </div>
+          <div class="funnel-step">
+            <div class="stage-name">证据生成</div>
+            <div class="stage-desc">只有需要综合、翻译、解释、消歧时才调用 LLM。</div>
+            <div class="stage-cost expensive">少量</div>
+          </div>
+        </div>
+      </section>
+
+      <section id="gkp">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">04 / Game Knowledge Pack</span>
+            <h2>GKP 应该像 Mod 一样安装、更新、校验和分享。</h2>
+          </div>
+          <p class="section-note">
+            核心资产不是 App 壳，而是高质量、低剧透、可本地检索、可引用来源的游戏知识包生态。
+          </p>
+        </div>
+
+        <div class="blueprint">
+          <div class="pack" aria-label="GKP 文件结构">
+            <div class="pack-title">
+              <strong>chrono_trigger_snes_en.gkp</strong>
+              <span class="pack-badge">SIGNED</span>
+            </div>
+            <div class="file-tree">
+              <div class="tree-line"><span class="tree-dot"></span><span>manifest.json</span></div>
+              <div class="tree-line"><span class="tree-dot"></span><span>knowledge/entities.jsonl</span></div>
+              <div class="tree-line"><span class="tree-dot"></span><span>knowledge/quests.jsonl</span></div>
+              <div class="tree-line"><span class="tree-dot"></span><span>sources/citations.jsonl</span></div>
+              <div class="tree-line"><span class="tree-dot"></span><span>spoiler_graph.json</span></div>
+              <div class="tree-line"><span class="tree-dot"></span><span>aliases.json</span></div>
+              <div class="tree-line"><span class="tree-dot"></span><span>qa_goldens.jsonl</span></div>
+              <div class="tree-line"><span class="tree-dot"></span><span>index/optional_prebuilt.sqlite</span></div>
+            </div>
+          </div>
+
+          <div>
+            <pre class="manifest" aria-label="manifest 示例"><span class="key">{</span>
+  <span class="key">"schema_version"</span>: <span class="str">"0.1"</span>,
+  <span class="key">"pack_id"</span>: <span class="str">"chrono_trigger_snes_en"</span>,
+  <span class="key">"game"</span>: {
+    <span class="key">"title"</span>: <span class="str">"Chrono Trigger"</span>,
+    <span class="key">"platform"</span>: <span class="str">"SNES"</span>,
+    <span class="key">"region"</span>: [<span class="str">"US"</span>],
+    <span class="key">"rom_hashes"</span>: [<span class="str">"sha1:..."</span>]
+  },
+  <span class="key">"languages"</span>: [<span class="str">"en"</span>, <span class="str">"zh-CN"</span>],
+  <span class="key">"spoiler_policy"</span>: <span class="str">"progressive"</span>,
+  <span class="key">"license"</span>: <span class="str">"CC-BY-SA-4.0"</span>,
+  <span class="key">"sources_required"</span>: true
+<span class="key">}</span></pre>
+          </div>
+        </div>
+
+        <div class="file-grid" style="margin-top: 24px;">
+          <div class="file-node">
+            <div class="node-icon"></div>
+            <h3>知识和索引分离</h3>
+            <p>贡献者上传结构化数据；设备安装时生成 SQLite FTS5 或向量索引，后续可替换检索技术。</p>
+          </div>
+          <div class="file-node">
+            <div class="node-icon"></div>
+            <h3>来源和许可证必填</h3>
+            <p>每条事实绑定 source_refs，避免整篇复制商业攻略，支持追踪和审核。</p>
+          </div>
+          <div class="file-node">
+            <div class="node-icon"></div>
+            <h3>剧透图是一级数据</h3>
+            <p>每个实体、任务、答案模板都标注 progress_gate 与 spoiler_level。</p>
+          </div>
+          <div class="file-node">
+            <div class="node-icon"></div>
+            <h3>Golden Questions 回归</h3>
+            <p>每次更新都跑常见问题测试，确保答案更准，而不是资料更多但体验更差。</p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="callout">
+          <div class="callout-icon">GKP</div>
+          <div>
+            <h2>开放玩家上传是对的，但 GKP 不能执行代码。</h2>
+            <p>
+              让社区贡献数据、别名、修正和测试题；官方 registry 负责 schema 校验、签名、来源检查、版本 diff 和信任等级。
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section id="roadmap">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">05 / Roadmap</span>
+            <h2>先证明“少数游戏里比直接问 AI 更准”。</h2>
+          </div>
+          <p class="section-note">
+            第一版不要追求全游戏覆盖；选 2-3 类典型复古游戏，把知识包标准和问答体验磨出来。
+          </p>
+        </div>
+
+        <div class="timeline">
+          <div class="phase">
+            <span class="phase-tag">PHASE 0</span>
+            <h3>协议验证</h3>
+            <p>Android 本地 HTTP endpoint 接 RetroArch AI Service，收到截图后返回固定文本。</p>
+          </div>
+          <div class="phase">
+            <span class="phase-tag">PHASE 1</span>
+            <h3>问答 MVP</h3>
+            <p>文字提问、当前游戏识别、SQLite FTS5、低剧透短答案和来源引用。</p>
+          </div>
+          <div class="phase">
+            <span class="phase-tag">PHASE 2</span>
+            <h3>GKP v0</h3>
+            <p>为 JRPG、动作冒险、宝可梦类各做一个实验知识包，跑 golden tests。</p>
+          </div>
+          <div class="phase">
+            <span class="phase-tag">PHASE 3</span>
+            <h3>语音与缓存</h3>
+            <p>加入 ASR/TTS、语义缓存、进度记忆和“更明确/少剧透”连续追问。</p>
+          </div>
+          <div class="phase">
+            <span class="phase-tag">PHASE 4</span>
+            <h3>社区 Registry</h3>
+            <p>开放上传、lint、签名、信任等级、版本 diff 和 pack 更新机制。</p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">06 / Guardrails</span>
+            <h2>三个产品护栏，决定它像伙伴还是像噪声。</h2>
+          </div>
+          <p class="section-note">
+            玩家正在游戏，不是在读论文。回答要短、准、可追问。
+          </p>
+        </div>
+
+        <div class="rules">
+          <div class="rule">
+            <strong>默认低剧透</strong>
+            <span>先给方向，再让玩家选择“更明确”或“直接答案”。</span>
+          </div>
+          <div class="rule">
+            <strong>没有证据就追问</strong>
+            <span>检索置信度低时，不硬答；要求确认版本、地点或章节。</span>
+          </div>
+          <div class="rule">
+            <strong>答案保持游戏节奏</strong>
+            <span>语音输出控制在一句话，长解释进入文字面板。</span>
+          </div>
+        </div>
+      </section>
+
+      <section id="references">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">07 / Literature & GitHub signals</span>
+            <h2>相关文献和高星项目给出的方向很清楚。</h2>
+          </div>
+          <p class="section-note">
+            RAG 负责事实约束，FTS/BM25 负责低成本命中，知识包标准负责长期生态。
+          </p>
+        </div>
+
+        <div class="repo-grid" aria-label="高星项目参考">
+          <div class="repo">
+            <div class="repo-top"><h3><a href="https://github.com/libretro/RetroArch">RetroArch</a></h3><span class="stars">13.1k</span></div>
+            <p>生态入口。优先接 AI Service，而不是重做模拟器集成。</p>
+          </div>
+          <div class="repo">
+            <div class="repo-top"><h3><a href="https://www.sqlite.org/fts5.html">SQLite FTS5</a></h3><span class="stars">local</span></div>
+            <p>本地全文检索、BM25、snippet，适合 Android MVP。</p>
+          </div>
+          <div class="repo">
+            <div class="repo-top"><h3><a href="https://github.com/facebookresearch/faiss">FAISS</a></h3><span class="stars">40.1k</span></div>
+            <p>高性能向量检索参考；可用于后续离线构建或高级检索。</p>
+          </div>
+          <div class="repo">
+            <div class="repo-top"><h3><a href="https://github.com/qdrant/qdrant">Qdrant</a></h3><span class="stars">31.4k</span></div>
+            <p>混合检索、payload 过滤、RRF 融合给 GKP 后台以启发。</p>
+          </div>
+          <div class="repo">
+            <div class="repo-top"><h3><a href="https://github.com/meilisearch/meilisearch">Meilisearch</a></h3><span class="stars">57.6k</span></div>
+            <p>拼写容错、同义词、facets 是玩家搜索体验的关键。</p>
+          </div>
+          <div class="repo">
+            <div class="repo-top"><h3><a href="https://github.com/quickwit-oss/tantivy">Tantivy</a></h3><span class="stars">15.2k</span></div>
+            <p>Lucene 风格全文检索库，适合作为离线构建工具参考。</p>
+          </div>
+          <div class="repo">
+            <div class="repo-top"><h3><a href="https://github.com/zilliztech/GPTCache">GPTCache</a></h3><span class="stars">8.0k</span></div>
+            <p>语义缓存能降低重复问题成本，提高掌机侧响应速度。</p>
+          </div>
+          <div class="repo">
+            <div class="repo-top"><h3><a href="https://github.com/infiniflow/ragflow">RAGFlow</a></h3><span class="stars">80.7k</span></div>
+            <p>文档理解、chunk 可视化、引用追踪适合 GKP 生产后台。</p>
+          </div>
+        </div>
+
+        <div class="panel pad" style="margin-top: 26px;">
+          <ul class="source-list">
+            <li><a href="https://docs.libretro.com/guides/ai-service/">RetroArch AI Service</a>：截图 endpoint 是 RetroSprite 最省力的入口。</li>
+            <li><a href="https://arxiv.org/abs/2005.11401">RAG</a>：事实型回答应访问外部可检索知识，而不是依赖模型参数。</li>
+            <li><a href="https://arxiv.org/abs/2004.04906">DPR</a>：dense retrieval 适合开放问答，但应作为 BM25 的补充。</li>
+            <li><a href="https://arxiv.org/abs/2310.11511">Self-RAG</a>：按需检索，而不是每次固定塞入大量 passage。</li>
+            <li><a href="https://arxiv.org/abs/2401.15884">CRAG</a>：先评估检索质量，再决定追问、扩展检索或生成。</li>
+            <li><a href="https://arxiv.org/abs/2401.18059">RAPTOR</a>：章节级摘要树适合离线构建知识包。</li>
+            <li><a href="https://arxiv.org/abs/2309.15217">Ragas</a>：RAG 要评估检索、忠实度和生成质量。</li>
+            <li><a href="https://support.google.com/googleplay/android-developer/answer/10964491">Google Play Accessibility Policy</a>：无障碍服务不适合作为 AI 自主操作捷径。</li>
+          </ul>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      RetroSprite Strategy Brief. 结论：先做 RetroArch 内的游戏问答伙伴，再用标准化 GKP 建立长期内容生态。
+    </footer>
+  </div>
+</body>
+</html>

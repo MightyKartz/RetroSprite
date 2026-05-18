@@ -1,0 +1,541 @@
+================================================================================
+                    RETROARCH AI SERVICE PROTOCOL SPECIFICATION
+                              精确 HTTP 协议规范
+================================================================================
+
+基于官方文档 + 源代码分析 (task_translation.c, config.def.h, translation_defines.h)
+
+================================================================================
+1. HTTP 请求协议
+================================================================================
+
+[HTTP 方法]
+  POST
+
+[URL 构造规则]
+  基础 URL: 用户配置的 ai_service_url (例: http://localhost:4404/)
+  
+  查询参数添加规则:
+    1. 如果基础 URL 已包含 ?, 则用 & 连接新参数; 否则用 ?
+    2. 始终添加 output= 参数 (必需)
+    3. 如果配置了 source_lang, 添加 source_lang= 参数 (可选)
+    4. 如果配置了 target_lang, 添加 target_lang= 参数 (可选)
+
+  完整 URL 示例:
+    http://localhost:4404/?output=image,png
+    http://localhost:4404/?output=text&source_lang=jpn&target_lang=en
+    http://localhost:4404/service?api_key=ABC&output=sound,wav&target_lang=en
+
+[Request Headers 隐含]
+  Content-Type: application/json (隐式, 由 curl/HTTP 库处理)
+
+[Request Body - JSON 格式]
+  所有字段在 JSON 对象中, 无 URL 编码
+
+  必需字段:
+    "image": "<base64 编码的 PNG 图像>"
+      - PNG 格式(不是 BMP!)
+      - BGR24 色空间(蓝-绿-红, 24bit)
+      - Base64 编码的文件字节(不是原始像素数据)
+      - 创建过程: BGR24 像素 → PNG 编码 → Base64
+
+  可选字段:
+    "label": "<system_id>__<content_id>"
+      - 游戏标识, 格式: 系统ID + __ + 游戏ID
+      - 示例: "snes__super_metroid", "nes__mario_bros"
+      - 如果未提供, 该字段可能被省略
+    
+    "coords": [x, y, width, height]
+      - 图像在视口中的坐标 (源代码中有引用)
+      - 可能被用于上下文信息
+    
+    "viewport": [width, height]
+      - 视口大小信息
+      - 可能被用于上下文信息
+
+    "state": { /* 输入状态对象, 总是包含 */ }
+      - 嵌套 JSON 对象, 包含游戏控制器状态
+      
+[Request Body - State 字段详解]
+  state 对象包含:
+    "paused": 1 | 0          (必需) - 游戏是否暂停
+    "a": 0|1, "b": 0|1, "x": 0|1, "y": 0|1  - 面板按钮
+    "select": 0|1, "start": 0|1              - 特殊按钮
+    "up": 0|1, "down": 0|1, "left": 0|1, "right": 0|1  - 方向键
+    "l": 0|1, "r": 0|1                       - 肩部按钮
+    "l2": 0|1, "r2": 0|1                     - 扩展肩部按钮
+    "l3": 0|1, "r3": 0|1                     - 摇杆点击
+
+  所有值为整数 0 或 1, 表示按钮是否被按下
+
+[Request Body 完整示例]
+{
+  "image": "iVBORw0KGgoAAAANSUhEUgAAAAUA...(base64编码的PNG)...==",
+  "label": "snes__super_metroid",
+  "state": {
+    "paused": 1,
+    "a": 0,
+    "b": 0,
+    "x": 0,
+    "y": 0,
+    "select": 0,
+    "start": 0,
+    "up": 0,
+    "down": 0,
+    "left": 0,
+    "right": 0,
+    "l": 0,
+    "r": 0,
+    "l2": 0,
+    "r2": 0,
+    "l3": 0,
+    "r3": 0
+  }
+}
+
+================================================================================
+2. 输出格式 (Output Parameter)
+================================================================================
+
+根据 ai_service_mode 配置项决定:
+
+  模式 0 (图像模式 - Image Mode):
+    output=image,png
+    或(如果支持透明): output=image,png,png-a
+
+  模式 1 (语音模式 - Speech/Sound Mode):
+    output=sound,wav
+
+  模式 2 (叙述者模式 - Narrator Mode / TTS):
+    output=text
+
+  模式 3 (图像+语音 - Combined Mode):
+    output=sound,wav,image,png
+    或: output=sound,wav,image,png,png-a
+
+注: 配置中 mode = 1 为默认值 (DEFAULT_AI_SERVICE_MODE = 1)
+
+================================================================================
+3. HTTP 响应协议
+================================================================================
+
+[Response Status]
+  200 OK (成功)
+  其他状态码被视为错误
+
+[Response Headers]
+  Content-Type: application/json
+
+[Response Body - JSON 格式]
+  所有字段可选(至少一个必须存在)
+
+{
+  "image": "<base64_encoded_image>",
+  "sound": "<base64_encoded_wav>",
+  "text": "<text_string>",
+  "text_position": 1 or 2,
+  "press": ["a", "b", "start"],
+  "auto": "auto" or "continue",
+  "error": "<error_message>"
+}
+
+[Response 字段说明]
+
+  "image" (可选, Base64 字符串)
+    - 覆盖图像, Base64 编码
+    - 格式: PNG, BMP, 或 PNG with alpha channel (PNG-A)
+    - 色空间: 24-bit BGR 或 32-bit BGRA
+    - 预期: 当 output 包含 "image" 时
+    - 用途: 作为游戏画面的叠加层显示
+
+  "sound" (可选, Base64 字符串)
+    - 音频数据, Base64 编码
+    - 格式: WAV (PCM)
+    - 预期: 当 output 包含 "sound,wav" 时
+    - 用途: 在 Speech 或 Combined 模式下播放
+
+  "text" (可选, 字符串)
+    - 文本内容
+    - 预期: 当 output 包含 "text" 时
+    - 用途: 在 Text/Narrator 模式下显示或用 TTS 朗读
+
+  "text_position" (可选, 整数)
+    - 字幕位置提示
+    - 值: 1 = 底部 (默认), 2 = 顶部
+    - 用途: 控制文本在屏幕上的放置位置
+
+  "press" (可选, 字符串数组或逗号分隔的字符串)
+    - 要模拟按下的按钮
+    - 有效值: "a", "b", "x", "y", "select", "start", "up", "down", 
+             "left", "right", "l", "r", "l2", "r2", "l3", "r3",
+             "pause", "unpause"
+    - 用途: 让服务远程控制游戏
+
+  "auto" (可选, 字符串)
+    - 自动轮询控制
+    - 值: "auto" = 继续自动轮询, "continue" = 跳过此结果但继续轮询
+    - 不存在或其他值 = 停止自动轮询
+    - 用途: 在自动模式下控制请求流
+
+  "error" (可选, 字符串)
+    - 错误消息
+    - 若存在此字段, 其他所有字段被忽略
+    - 错误信息被显示给用户
+    - 示例: "No text found.", "Service error: OCR failed"
+
+================================================================================
+4. RetroArch 配置参数
+================================================================================
+
+[retroarch.cfg 配置项]
+
+  ai_service_enabled = "false"
+    默认值: false
+    功能: 启用/禁用 AI 服务功能
+
+  ai_service_url = "http://localhost:4404/"
+    默认值: "http://localhost:4404/"
+    功能: AI 服务端点 URL (支持自定义 endpoint)
+
+  ai_service_mode = "1"
+    默认值: 1
+    值:
+      0 = Image Mode (图像模式)
+      1 = Speech Mode (语音/音频模式)
+      2 = Narrator Mode (叙述者/TTS 模式)
+      3 = Combined Image+Speech Mode
+
+  ai_service_pause = "false"
+    默认值: false
+    功能: 调用 AI 服务时是否暂停游戏
+
+  ai_service_source_lang = "0"
+    默认值: 0
+    值: 0-81 (对应 enum translation_lang)
+    0 = 自动检测, 1 = 英文, 7 = 日文, 等等
+
+  ai_service_target_lang = "0"
+    默认值: 0
+    0 = 英文(默认), 1 = 英文, 2 = 西班牙文, 等等
+
+  ai_service_backend = "http"
+    值: "http" (默认), "apple" (仅 macOS/iOS)
+    功能: 选择服务后端
+
+  ai_service_poll_delay = "200"
+    默认值: 200 (毫秒)
+    功能: 自动模式下请求之间的延迟
+
+================================================================================
+5. 发送流程 (Source Code Flow - task_translation.c)
+================================================================================
+
+RetroArch 发送请求的实现步骤:
+
+  1. 捕获当前游戏帧 (BGR24 格式, 大小为 width x height)
+  
+  2. PNG 编码:
+     - 使用 rpng_save_image_bgr24_string() 编码为 PNG 字节
+     - 处理图像翻转 (使用负 stride)
+  
+  3. Base64 编码:
+     - 使用 base64() 函数将 PNG 字节转换为 Base64 字符串
+  
+  4. JSON 构建:
+     - 使用 rjsonwriter 库构建 JSON
+     - 添加字段: "image", "label" (可选), "state"
+     - State 包含所有 16 个 retropad 按钮
+  
+  5. URL 构造:
+     - 从配置读取 ai_service_url
+     - 检查是否已包含 '?'
+     - 添加 output, source_lang, target_lang 参数
+  
+  6. HTTP POST:
+     - 调用 task_push_http_post_transfer()
+     - 传递 URL, JSON buffer, 回调函数指针
+
+  7. 异步回调处理:
+     - 当 HTTP 响应返回时调用 handle_translation_cb()
+     - 解析 JSON 响应
+     - Base64 解码 image/sound 字段
+     - 调用响应处理程序显示/播放结果
+
+================================================================================
+6. 响应处理 (Response Parsing)
+================================================================================
+
+RetroArch 接收响应的处理步骤:
+
+  1. HTTP 响应接收
+  
+  2. JSON 解析:
+     - 使用 rjson 库解析 JSON
+     - 遍历所有 key-value 对
+     - 支持的字段: image, sound, text, error, auto, press
+  
+  3. Base64 解码:
+     - image 字段: unbase64() → 原始图像文件字节
+     - sound 字段: unbase64() → 原始 WAV 字节
+  
+  4. 验证:
+     - 如果 error 字段存在, 显示错误并停止处理
+     - 如果至少有一个输出字段, 继续处理
+  
+  5. 根据模式处理:
+     - Mode 0: 使用 image 创建 GFX 组件 overlay
+     - Mode 1: 使用 sound 播放音频
+     - Mode 2: 使用 text 调用 TTS 或显示文本
+     - Mode 3: image + sound 组合处理
+  
+  6. 自动模式:
+     - 如果 auto == "auto", 继续轮询
+     - 如果 auto == "continue", 跳过显示但继续轮询
+
+================================================================================
+7. 截图编码细节 (Image Encoding Details)
+================================================================================
+
+[输入格式 (从 emulator)]
+  - 原始像素: BGR24 (Bayer-Green-Red, 24-bit 无压缩)
+  - 每像素 3 字节: B(蓝) G(绿) R(红)
+  - 扫描线顺序: 从上到下
+
+[编码过程]
+  
+  Step 1: PNG 编码
+    输入: BGR24 像素数组 (width * height * 3 字节)
+    处理: 
+      - 调用 rpng_save_image_bgr24_string()
+      - 处理图像翻转 (使用 height-1 * width * 3 + 负 stride)
+      - 生成完整的 PNG 文件格式字节流
+    输出: PNG 文件字节数组
+
+  Step 2: Base64 编码
+    输入: PNG 文件字节
+    处理: base64() 函数
+    输出: Base64 字符串 (4n 长度, 仅包含 A-Za-z0-9+/= )
+
+  Step 3: JSON 包装
+    输入: Base64 字符串
+    处理: 作为 JSON 字符串值包含
+    输出: JSON 中的 "image" 字段
+
+[重要注意事项]
+  - 不是直接发送原始 BGR24 像素!
+  - 不是发送 BMP (历史遗留, 已弃用)!
+  - 必须是完整的 PNG 文件格式 (包含 PNG 签名, IHDR chunk 等)
+  - Base64 编码保证可靠传输 (JSON 安全)
+
+================================================================================
+8. 自动模式 (Automatic Mode) 详解
+================================================================================
+
+[启动条件]
+  - 用户第一次按下 AI Service 热键时启动自动模式
+  - ai_service_mode != 0 (必须是 Speech/Narrator/Combined)
+  - ai_service_poll_delay 控制轮询频率 (默认 200ms)
+
+[轮询流程]
+  
+  启用自动模式
+    ↓
+  发送 AI Service 请求 1
+    ↓
+  等待响应 + 等待 poll_delay
+    ↓
+  收到响应: 检查 "auto" 字段
+    ├─ "auto": "auto"      → 显示/播放结果 → 等待 poll_delay → 发送请求 2
+    ├─ "auto": "continue"  → 跳过显示 → 等待 poll_delay → 发送请求 2
+    └─ 无 "auto" 字段      → 停止轮询
+    ↓
+  用户第二次按下热键 或 进入菜单
+    ↓
+  禁用自动模式
+
+[poll_delay 配置]
+  - 参数: ai_service_poll_delay (毫秒)
+  - 默认: 200ms
+  - 作用: 控制请求频率, 防止 CPU 过载
+  - 增大值: 降低反应速度但减轻 CPU 负载
+
+================================================================================
+9. RetroArch 版本差异
+================================================================================
+
+[版本历史]
+  1.7.8 (2018)
+    - 首次引入 AI Service
+    - 仅支持图像和文本
+    - 使用 BMP 格式
+
+  1.15.0 (2020)
+    - 添加自动模式支持
+    - 支持语音/音频输出
+    - 支持 TTS (文本到语音)
+
+  1.16.0+ (2021+)
+    - PNG 格式替代 BMP
+    - 改进错误处理
+    - 扩展语言支持
+
+[当前版本 (Master)]
+  - 所有功能完全支持
+  - 推荐使用最新版本
+
+================================================================================
+10. Ktor 实现检查清单
+================================================================================
+
+POST 端点实现:
+
+[ ] 1. HTTP 方法和路由
+      - 接收 POST 请求
+      - 解析查询参数: source_lang, target_lang, output
+      - 验证 output 参数非空
+
+[ ] 2. 请求体解析
+      - 解析 JSON 请求体
+      - 提取 "image" 字段 (必需)
+      - 提取 "label", "state" 字段
+      - 验证 JSON 结构
+
+[ ] 3. 图像解码
+      - Base64 解码 "image" 字段
+      - 验证 PNG 文件格式 (检查 PNG 签名)
+      - 解析 PNG IHDR chunk 获取尺寸
+      - 或直接使用现有库 (如 PIL, ImageMagick)
+
+[ ] 4. 处理逻辑
+      - 根据 output 参数确定处理类型
+      - 处理 "image" 输出: 图像处理/OCR/翻译
+      - 处理 "sound,wav" 输出: 音频合成/TTS
+      - 处理 "text" 输出: 文本翻译/提取
+
+[ ] 5. 响应构建
+      - 构建 JSON 响应对象
+      - Base64 编码输出图像/音频
+      - 验证所有必需字段存在或根据 output 参数提供
+      - 提供 error 字段处理 (若发生错误)
+
+[ ] 6. 高级功能
+      - 实现 "auto" 字段 (用于自动模式)
+      - 实现 "press" 字段 (若需要远程控制)
+      - 实现 "text_position" 字段
+      - 支持 "continue" 值用于空结果
+
+[ ] 7. 错误处理
+      - HTTP 级错误: 返回适当的状态码 + JSON error 字段
+      - JSON 格式错误: 返回 400 Bad Request
+      - 处理错误: 返回 200 + "error" 字段
+      - 记录错误日志用于调试
+
+[ ] 8. 性能和兼容性
+      - 支持大图像处理 (720p, 1080p)
+      - 实现请求超时处理
+      - 支持自定义 URL (带 query params)
+      - 兼容不同的 output 格式组合
+
+================================================================================
+11. 已知实现参考
+================================================================================
+
+[VGTranslate (官方参考实现)]
+  GitHub: https://gitlab.com/spherebeaker/vgtranslate
+  特性:
+    - Google Cloud Vision API (OCR)
+    - Google Text-to-Speech
+    - Python 实现
+    - Docker 部署
+  URL: http://localhost:4404/
+
+[ZTranslate (商业服务)]
+  网站: https://ztranslate.net/
+  特性:
+    - 商业 OCR/翻译服务
+    - Windows/Linux 客户端
+    - API Key 认证
+  URL: http://ztranslate.net/service?api_key=<KEY>
+
+[VGTranslate Local (社区分支 - objaction)]
+  GitHub: https://github.com/objaction/vgtranslate_local
+  特性:
+    - OpenAI API 集成 (GPT-4 Vision)
+    - PaddleOCR (开源 OCR)
+    - 本地部署
+    - 更少的依赖
+  URL: http://localhost:4404/
+
+================================================================================
+12. 协议示例 - 完整请求/响应
+================================================================================
+
+[请求示例]
+POST http://localhost:4404/?output=text&source_lang=jpn&target_lang=en
+Content-Type: application/json
+
+{
+  "image": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+  "label": "snes__chrono_trigger",
+  "state": {
+    "paused": 1,
+    "a": 0,
+    "b": 0,
+    "x": 0,
+    "y": 0,
+    "select": 0,
+    "start": 1,
+    "up": 0,
+    "down": 0,
+    "left": 0,
+    "right": 0,
+    "l": 0,
+    "r": 0,
+    "l2": 0,
+    "r2": 0,
+    "l3": 0,
+    "r3": 0
+  }
+}
+
+[响应示例 - 文本模式]
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "text": "時は永遠に流れた...→Time flowed eternally..."
+}
+
+[响应示例 - 自动模式]
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "text": "翻訳テキスト",
+  "auto": "auto"
+}
+
+[响应示例 - 错误情况]
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "error": "Failed to detect text in image"
+}
+
+================================================================================
+总结
+================================================================================
+
+RetroArch AI Service 协议是一个标准化的 HTTP POST 接口规范:
+
+1. 请求: POST + JSON (image base64 + state)
+2. 查询参数: output (必需), source_lang/target_lang (可选)
+3. 图像格式: PNG (Base64 编码), BGR24 色空间
+4. 响应: JSON (image/sound/text/error 字段)
+5. 自动模式: 通过 "auto" 字段控制轮询
+6. 灵活配置: 支持自定义 URL 和多种输出模式
+
+该规范已被广泛采用, 支持在线和离线服务实现。
+
+================================================================================

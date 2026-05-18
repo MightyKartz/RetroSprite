@@ -1,0 +1,55 @@
+- generic [ref=e2] [box=0,-1409,390,11190]:
+  - navigation "页面导航" [ref=e3] [box=0,-1409,390,124]:
+    - link "RetroSprite Brief" [ref=e4] [cursor=pointer] [box=18,-1395,176,30]:
+      - /url: "#top"
+      - generic [ref=e6] [box=60,-1393,134,26]: RetroSprite Brief
+    - generic [ref=e7] [box=18,-1341,354,39]:
+      - link "判断" [ref=e8] [cursor=pointer] [box=18,-1341,28,37]:
+        - /url: "#verdict"
+      - link "架构" [ref=e9] [cursor=pointer] [box=64,-1341,28,37]:
+        - /url: "#architecture"
+      - link "成本" [ref=e10] [cursor=pointer] [box=110,-1341,28,37]:
+        - /url: "#cost"
+      - link "GKP" [ref=e11] [cursor=pointer] [box=156,-1341,30,37]:
+        - /url: "#gkp"
+      - link "路线" [ref=e12] [cursor=pointer] [box=204,-1341,28,37]:
+        - /url: "#roadmap"
+      - link "参考" [ref=e13] [cursor=pointer] [box=250,-1341,28,37]:
+        - /url: "#references"
+  - banner [ref=e14] [box=0,-1285,390,1150]:
+    - generic [ref=e16] [box=20,-1229,363,490]:
+      - generic [ref=e17] [box=20,-1229,258,43]: Strategy brief / 2026-05-18
+      - heading "RetroSprite" [level=1] [ref=e18] [box=20,-1167,363,36]
+      - paragraph [ref=e19] [box=20,-1112,363,119]: 从“攻略提示器”升级成 RetroArch 里的游戏内问答伙伴：玩家按下快捷键，用语音或文字提问，RetroSprite 基于当前游戏、画面、进度和可信知识包回答。
+      - generic "核心定位" [ref=e20] [box=20,-963,363,224]
+    - generic "RetroSprite 问答演示" [ref=e25] [box=20,-711,363,531]:
+      - generic [ref=e27] [box=37,-694,140,17]: RETROSPRITE OS
+      - generic [ref=e33] [box=55,-645,293,431]
+  - main [ref=e40] [box=0,-135,390,9808]:
+    - generic [ref=e41] [box=20,-87,483,843]:
+      - generic [ref=e42] [box=20,-87,483,143]
+      - generic [ref=e47] [box=20,82,483,674]
+    - generic [ref=e79] [box=20,804,483,1095]:
+      - generic [ref=e80] [box=20,804,483,173]
+      - generic "RetroSprite 运行链路" [ref=e85] [box=20,1003,483,896]
+    - generic [ref=e106] [box=20,1947,483,994]:
+      - generic [ref=e107] [box=20,1947,483,173]
+      - generic "LLM 调用漏斗" [ref=e112] [box=20,2147,483,794]
+    - generic [ref=e133] [box=20,2989,483,1877]:
+      - generic [ref=e134] [box=20,2989,483,173]
+      - generic [ref=e139] [box=20,3189,483,968]
+      - generic [ref=e171] [box=20,4180,483,686]
+    - generic [ref=e189] [box=20,4914,483,214]:
+      - generic [ref=e190] [box=46,4940,62,62]: GKP
+      - generic [ref=e191] [box=134,4940,343,162]
+    - generic [ref=e194] [box=20,5176,483,1397]:
+      - generic [ref=e195] [box=20,5176,483,173]
+      - generic [ref=e200] [box=20,5375,483,1198]
+    - generic [ref=e221] [box=20,6621,483,514]:
+      - generic [ref=e222] [box=20,6621,483,147]
+      - generic [ref=e227] [box=20,6794,483,341]
+    - generic [ref=e234] [box=20,7183,483,2411]:
+      - generic [ref=e235] [box=20,7183,483,173]
+      - generic "高星项目参考" [ref=e240] [box=20,7383,483,1730]
+      - list [ref=e290] [box=44,9163,435,407]
+  - contentinfo [ref=e307] [box=0,9674,390,107]: RetroSprite Strategy Brief. 结论：先做 RetroArch 内的游戏问答伙伴，再用标准化 GKP 建立长期内容生态。

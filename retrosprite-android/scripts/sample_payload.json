@@ -1,0 +1,23 @@
+{
+  "image": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=",
+  "label": "snes__super_mario_world",
+  "state": {
+    "paused": 1,
+    "a": 0,
+    "b": 0,
+    "x": 0,
+    "y": 0,
+    "select": 0,
+    "start": 0,
+    "up": 0,
+    "down": 0,
+    "left": 0,
+    "right": 0,
+    "l": 0,
+    "r": 0,
+    "l2": 0,
+    "r2": 0,
+    "l3": 0,
+    "r3": 0
+  }
+}

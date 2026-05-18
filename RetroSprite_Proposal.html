@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RetroSprite - 复古游戏 AI 伴侣项目提案</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;700&family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background-color: #0f172a;
+            color: #e2e8f0;
+        }
+        .font-retro {
+            font-family: 'Press Start 2P', cursive;
+        }
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .floating {
+            animation: floating 3s ease-in-out infinite;
+        }
+        @keyframes floating {
+            0% { transform: translate(0,  0px); }
+            50%  { transform: translate(0, -15px); }
+            100%   { transform: translate(0, -0px); }
+        }
+        .gradient-text {
+            background: linear-gradient(to right, #4facfe 0%, #00f2fe 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+    </style>
+</head>
+<body class="antialiased min-h-screen">
+
+    <!-- Hero Section -->
+    <header class="relative overflow-hidden py-20 sm:py-32 bg-slate-900 text-center">
+        <div class="absolute inset-0 z-0">
+            <img src="https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=2000&auto=format&fit=crop" alt="Retro Gaming Background" class="w-full h-full object-cover opacity-20">
+            <div class="absolute inset-0 bg-gradient-to-b from-transparent to-slate-900"></div>
+        </div>
+        <div class="relative z-10 max-w-5xl mx-auto px-4">
+            <div class="floating inline-block mb-6 text-6xl">👾</div>
+            <h1 class="text-4xl md:text-6xl font-extrabold tracking-tight mb-4 font-retro gradient-text">RetroSprite</h1>
+            <p class="text-xl md:text-2xl text-slate-300 mb-8 max-w-3xl mx-auto">Your AI-powered companion for classic games.<br><span class="text-lg opacity-80">专属 Android 平台的 RetroArch 智能悬浮伴侣</span></p>
+            <div class="flex justify-center gap-4">
+                <span class="px-4 py-2 rounded-full bg-blue-600 text-white font-semibold shadow-lg shadow-blue-500/30">Open Source</span>
+                <span class="px-4 py-2 rounded-full border border-blue-400 text-blue-400 font-semibold">BYOK (自带 API Key)</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Core Concept -->
+    <section class="py-16 max-w-6xl mx-auto px-4">
+        <h2 class="text-3xl font-bold mb-10 text-center flex items-center justify-center gap-3">
+            <span>💡</span> 核心理念
+        </h2>
+        <div class="grid md:grid-cols-2 gap-8 items-center">
+            <div class="glass-panel p-8 rounded-2xl">
+                <h3 class="text-2xl font-bold mb-4 text-blue-400">告别切屏，同屏陪伴</h3>
+                <p class="text-slate-300 leading-relaxed mb-4">
+                    传统攻略需要频繁切换浏览器，导致体验割裂甚至模拟器闪退。RetroSprite 作为一个<strong>独立 Android 悬浮窗应用</strong>运行于 RetroArch 之上。
+                </p>
+                <ul class="space-y-3 text-slate-300">
+                    <li class="flex gap-2"><span>✅</span> <strong>不侵入核心：</strong> 利用 Android 无障碍服务与屏幕采集，无需修改高门槛的 C/C++ 模拟器内核。</li>
+                    <li class="flex gap-2"><span>✅</span> <strong>BYOK 模式：</strong> 用户自带 API Key，接入喜欢的 LLM（如 GPT-4o-mini 或 DeepSeek），开发者零服务器成本。</li>
+                    <li class="flex gap-2"><span>✅</span> <strong>极高扩展性：</strong> 完美适配目前火爆的 Android 开源掌机（如 Retroid, Odin 等）市场。</li>
+                </ul>
+            </div>
+            <div class="relative rounded-2xl overflow-hidden shadow-2xl">
+                <img src="https://images.unsplash.com/photo-1605901309584-818e25960b8f?q=80&w=800&auto=format&fit=crop" alt="Code and AI" class="w-full h-full object-cover">
+                <div class="absolute inset-0 bg-blue-900/30 mix-blend-multiply"></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Architecture Design -->
+    <section class="py-16 bg-slate-800/50">
+        <div class="max-w-6xl mx-auto px-4">
+            <h2 class="text-3xl font-bold mb-12 text-center">⚙️ 系统架构设计</h2>
+            <div class="grid md:grid-cols-3 gap-8">
+                <!-- Perception -->
+                <div class="glass-panel p-6 rounded-2xl hover:-translate-y-2 transition-transform duration-300">
+                    <div class="text-4xl mb-4">👁️</div>
+                    <h3 class="text-xl font-bold mb-3 text-cyan-400">1. 感知层 (Perception)</h3>
+                    <p class="text-sm text-slate-400 mb-4">如同助手的眼睛，实时获取游戏状态。</p>
+                    <ul class="text-sm text-slate-300 space-y-2">
+                        <li>• <strong>MediaProjection API</strong>：静默采集屏幕画面流。</li>
+                        <li>• <strong>端侧 OCR</strong>：使用 Google ML Kit 或 PaddleOCR 识别屏幕关键文本（等级、地图、对话）。</li>
+                        <li>• <strong>视觉理解</strong>：定期将截图发送至 Vision LLM 判断当前游戏场景。</li>
+                    </ul>
+                </div>
+                <!-- Brain -->
+                <div class="glass-panel p-6 rounded-2xl hover:-translate-y-2 transition-transform duration-300 relative overflow-hidden">
+                    <div class="absolute -right-4 -top-4 text-8xl opacity-10 font-retro">AI</div>
+                    <div class="text-4xl mb-4">🧠</div>
+                    <h3 class="text-xl font-bold mb-3 text-purple-400">2. 大脑层 (Brain)</h3>
+                    <p class="text-sm text-slate-400 mb-4">利用 LLM 的非结构化信息处理能力。</p>
+                    <ul class="text-sm text-slate-300 space-y-2">
+                        <li>• <strong>自定义大模型</strong>：支持 OpenAI 格式的 API 接入。</li>
+                        <li>• <strong>本地知识库 (RAG)</strong>：将百科攻略向量化，匹配当前 OCR 识别到的关键字提取上下文。</li>
+                        <li>• <strong>动态 Prompt</strong>：“你是一个资深玩家助手，根据画面给出一句关键提示”。</li>
+                    </ul>
+                </div>
+                <!-- Interaction -->
+                <div class="glass-panel p-6 rounded-2xl hover:-translate-y-2 transition-transform duration-300">
+                    <div class="text-4xl mb-4">✨</div>
+                    <h3 class="text-xl font-bold mb-3 text-green-400">3. 交互层 (Interaction)</h3>
+                    <p class="text-sm text-slate-400 mb-4">优雅且沉浸的用户界面展示。</p>
+                    <ul class="text-sm text-slate-300 space-y-2">
+                        <li>• <strong>Kotlin + Compose</strong>：构建现代化的 Android 悬浮界面。</li>
+                        <li>• <strong>无障碍控制</strong>：利用 Accessibility Service 实现顶层覆盖，且无需“绘制悬浮窗”等敏感权限。</li>
+                        <li>• <strong>UDP 联调</strong>：向 RetroArch 发送指令（保存/读取/暂停）。</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Evolution Roadmap -->
+    <section class="py-16 max-w-6xl mx-auto px-4">
+        <h2 class="text-3xl font-bold mb-10 text-center">🚀 产品演进路线 (Roadmap)</h2>
+        <div class="bg-slate-800 rounded-3xl p-8 md:p-12 shadow-xl border border-slate-700">
+            <div class="relative border-l-4 border-blue-500 pl-8 ml-4 space-y-12">
+                
+                <!-- MVP -->
+                <div class="relative">
+                    <div class="absolute -left-[43px] bg-blue-500 w-6 h-6 rounded-full border-4 border-slate-800"></div>
+                    <h3 class="text-2xl font-bold text-white mb-2">Phase 1: 气泡形态 (MVP 阶段)</h3>
+                    <p class="text-slate-400 mb-4">极简实现，跑通核心逻辑。类似 Android 的通知气泡或悬浮球。</p>
+                    <div class="flex gap-4 items-center bg-slate-900 p-4 rounded-xl w-fit">
+                        <div class="w-12 h-12 rounded-full bg-blue-600 flex items-center justify-center text-xl shadow-lg shadow-blue-500/50">💬</div>
+                        <div>
+                            <p class="text-sm text-slate-300">"卡隆镇右边的水井里藏着一个宝箱哦！"</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- V2 -->
+                <div class="relative">
+                    <div class="absolute -left-[43px] bg-purple-500 w-6 h-6 rounded-full border-4 border-slate-800"></div>
+                    <h3 class="text-2xl font-bold text-white mb-2">Phase 2: 宠物形态 (沉浸式陪伴)</h3>
+                    <p class="text-slate-400 mb-4">引入 Lottie 动画或 Live2D 技术，让气泡变成一个有情绪的“赛博宠物”。</p>
+                    <div class="flex gap-4 items-center bg-slate-900 p-4 rounded-xl w-fit border border-purple-500/30">
+                        <div class="w-16 h-16 relative flex items-center justify-center">
+                            <span class="text-4xl floating relative z-10">🧚‍♀️</span>
+                            <div class="absolute inset-0 bg-purple-500/20 blur-xl rounded-full"></div>
+                        </div>
+                        <div>
+                            <p class="text-sm font-bold text-purple-300">Navi (思考中...)</p>
+                            <p class="text-xs text-slate-400 mt-1">你的血量见底了！快使用背包里的回复药！</p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- Naming Brainstorm -->
+    <section class="py-16 bg-slate-900 border-t border-slate-800">
+        <div class="max-w-6xl mx-auto px-4 text-center">
+            <h2 class="text-3xl font-bold mb-8">🏷️ 项目命名头脑风暴</h2>
+            <div class="flex flex-wrap justify-center gap-4">
+                <span class="px-6 py-3 bg-slate-800 border border-slate-700 rounded-lg text-xl font-bold hover:border-blue-500 transition-colors">RetroSprite <span class="text-sm font-normal text-slate-400 block">推荐主名：复古小精灵</span></span>
+                <span class="px-6 py-3 bg-slate-800 border border-slate-700 rounded-lg text-xl font-bold hover:border-blue-500 transition-colors">NaviAI <span class="text-sm font-normal text-slate-400 block">致敬塞尔达时之笛</span></span>
+                <span class="px-6 py-3 bg-slate-800 border border-slate-700 rounded-lg text-xl font-bold hover:border-blue-500 transition-colors">PixelSeer <span class="text-sm font-normal text-slate-400 block">洞悉画面的像素先知</span></span>
+                <span class="px-6 py-3 bg-slate-800 border border-slate-700 rounded-lg text-xl font-bold hover:border-blue-500 transition-colors">Glance.emu <span class="text-sm font-normal text-slate-400 block">极客风：模拟器之眼</span></span>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="py-8 text-center text-slate-500 border-t border-slate-800 text-sm">
+        <p>Generated via Gemini AI • A Conceptual Proposal for Android Retro Gaming Community</p>
+    </footer>
+
+</body>
+</html>

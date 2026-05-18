@@ -1,0 +1,4 @@
+.DS_Store
+
+# Local browser automation traces/cache.
+.playwright-mcp/

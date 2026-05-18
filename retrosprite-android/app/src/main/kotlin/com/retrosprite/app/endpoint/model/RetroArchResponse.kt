@@ -33,6 +33,6 @@ data class RetroArchResponse(
 /** Tiny payload returned by the `/health` route — useful for diagnostics surfaces. */
 @Serializable
 data class HealthResponse(
-    val status: String = "ok",
-    val version: String = "0.1.0",
+    val status: String,
+    val version: String,
 )

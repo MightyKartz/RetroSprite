@@ -20,6 +20,7 @@ import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -97,6 +98,7 @@ class RetroArchEndpointServer(
  *  - `coerceInputValues`  → fall back to defaults for the wrong shape (e.g. `null` for an Int).
  *  - `encodeDefaults`     → omit `null` fields so the response stays minimal on the wire.
  */
+@OptIn(ExperimentalSerializationApi::class)
 internal val retroArchJson: Json = Json {
     ignoreUnknownKeys = true
     coerceInputValues = true
@@ -117,7 +119,7 @@ fun Application.retroArchModule(
     }
     routing {
         get("/health") {
-            call.respond(HealthResponse())
+            call.respond(HealthResponse(status = "ok", version = "0.1.0"))
         }
 
         post("/") {

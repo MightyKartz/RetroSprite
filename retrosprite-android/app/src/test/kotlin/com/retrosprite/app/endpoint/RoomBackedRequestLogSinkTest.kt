@@ -2,10 +2,13 @@ package com.retrosprite.app.endpoint
 
 import com.retrosprite.app.data.models.RequestLogDomain
 import com.retrosprite.app.data.repository.RequestLogRepository
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -42,10 +45,13 @@ class RoomBackedRequestLogSinkTest {
         override suspend fun count(): Int = state.value.size
     }
 
+    private fun TestScope.sinkScope(): CoroutineScope =
+        CoroutineScope(backgroundScope.coroutineContext + UnconfinedTestDispatcher(testScheduler))
+
     @Test
     fun `append goes through repository and is reflected in entries flow`() = runTest {
         val repo = FakeRepository()
-        val sink = RoomBackedRequestLogSink(repository = repo, scope = backgroundScope)
+        val sink = RoomBackedRequestLogSink(repository = repo, scope = sinkScope())
 
         sink.append(
             RequestLogEntry(
@@ -77,7 +83,7 @@ class RoomBackedRequestLogSinkTest {
     @Test
     fun `null system in domain becomes empty string in endpoint entry`() = runTest {
         val repo = FakeRepository()
-        val sink = RoomBackedRequestLogSink(repository = repo, scope = backgroundScope)
+        val sink = RoomBackedRequestLogSink(repository = repo, scope = sinkScope())
 
         // Bypass append() to seed the repository with a null-system row.
         repo.append(
@@ -104,7 +110,7 @@ class RoomBackedRequestLogSinkTest {
     @Test
     fun `clear empties the underlying flow`() = runTest {
         val repo = FakeRepository()
-        val sink = RoomBackedRequestLogSink(repository = repo, scope = backgroundScope)
+        val sink = RoomBackedRequestLogSink(repository = repo, scope = sinkScope())
 
         sink.append(
             RequestLogEntry(

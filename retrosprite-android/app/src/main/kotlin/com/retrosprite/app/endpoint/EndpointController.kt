@@ -47,7 +47,7 @@ object EndpointController {
 
     /** Controls which generator the next server start will use. Task #5 swaps this. */
     @Volatile
-    var responseGenerator: ResponseGenerator = PlaceholderResponseGenerator()
+    private var responseGenerator: ResponseGenerator = PlaceholderResponseGenerator()
 
     /**
      * Replace the default in-memory [RequestLogSink] with a Room-backed sink (or any

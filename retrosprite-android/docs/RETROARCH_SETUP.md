@@ -10,6 +10,8 @@ RetroSprite Android 应用就是这个「自行配置的 URL」对应的本地�
 
 Phase 0 阶段我们只验证「链路打通」：RetroArch 能成功把数据送达 RetroSprite，RetroSprite 返回固定占位文本，玩家在 Diagnostics 屏可以看到完整的请求记录。
 
+> AVD 备注（2026-05-19）：官方 RetroArch Android APK 在 `RetroSprite_API_34` 中可安装、可运行 2048 core，RetroSprite endpoint 也可通过手工 POST 验证；但通过 ADB 注入键盘/gamepad/overlay/network command 尚未成功触发 AI Service 请求。Android 端最终验收仍建议使用真机 + 实体手柄/键盘，或 RetroArch debug build 排查触发链路。详见 [RETROARCH_ANDROID_AI_SERVICE_FINDINGS.md](./RETROARCH_ANDROID_AI_SERVICE_FINDINGS.md)。
+
 ## 前置条件
 
 - 已安装 **RetroSprite Android** 应用（Phase 0 Debug 构建即可）。

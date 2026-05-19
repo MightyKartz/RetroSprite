@@ -64,7 +64,10 @@ adb forward tcp:8080 tcp:8080
 | [docs/RETROARCH_SETUP.md](./docs/RETROARCH_SETUP.md) | RetroArch AI Service 完整配置步骤 + 故障排查 |
 | [docs/PHASE0_VERIFICATION.md](./docs/PHASE0_VERIFICATION.md) | Phase 0 验收清单（自动化 + 手动） |
 | [docs/PROTOCOL_REFERENCE.md](./docs/PROTOCOL_REFERENCE.md) | RetroArch AI Service 请求 / 响应字段速查 |
+| [docs/NEXT_IMPLEMENTATION_PLAN.md](./docs/NEXT_IMPLEMENTATION_PLAN.md) | 下一阶段实施计划、任务板与验证门槛 |
+| [docs/RETROARCH_ANDROID_AI_SERVICE_FINDINGS.md](./docs/RETROARCH_ANDROID_AI_SERVICE_FINDINGS.md) | RetroArch Android 官方 APK 首次联调记录 |
 | [scripts/test_endpoint.sh](./scripts/test_endpoint.sh) | 一键 curl 冒烟脚本 |
+| [scripts/android_avd_smoke.sh](./scripts/android_avd_smoke.sh) | AVD/真机上的 RetroSprite endpoint 冒烟脚本 |
 | [scripts/sample_payload.json](./scripts/sample_payload.json) | 标准请求体样本 |
 | [../RetroSprite_Development_Plan.md](../RetroSprite_Development_Plan.md) | 项目整体规划 |
 | [../.qoder/skills/retrosprite-dev/SKILL.md](../.qoder/skills/retrosprite-dev/SKILL.md) | 项目开发约束与方向 |

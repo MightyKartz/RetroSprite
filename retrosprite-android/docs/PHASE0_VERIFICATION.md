@@ -107,6 +107,8 @@ cd retrosprite-android
 - [ ] 发送畸形 JSON 后，App 没有崩溃、没有 ANR、Diagnostics 屏依然可正常打开。
 - [ ] 在 RetroArch 配置 AI Service URL（参见 [RETROARCH_SETUP.md](./RETROARCH_SETUP.md)），载入任意游戏，按下 AI Service 热键，Diagnostics 屏出现来自 RetroArch 的请求记录。
 
+> 2026-05-19 AVD 实测备注：`RetroSprite_API_34` 上官方 RetroArch Android APK 已安装、2048 core 可运行、RetroSprite endpoint 可通过手工 POST 写入日志；但 ADB 键盘/gamepad/overlay/network-command 自动触发均未让 RetroArch 发出 AI Service 请求。该项仍需真机/实体输入或 RetroArch debug build 继续确认。详见 [RETROARCH_ANDROID_AI_SERVICE_FINDINGS.md](./RETROARCH_ANDROID_AI_SERVICE_FINDINGS.md)。
+
 ## 性能基线（参考，非阻塞）
 
 Phase 0 不做严格 SLA，仅作回归参照：
@@ -130,6 +132,7 @@ Phase 0 阶段下列功能尚未实现，**不在验收范围内**：
 - 不支持跨设备访问（默认仅 `127.0.0.1`），如需 PC 调试请使用 `adb forward` / `adb reverse`。
 - 不支持语音输入、不支持 RetroArch 的 `Sound Mode`。
 - 不做 ROM 合法性、字段越界等高级校验，仅保证不崩溃。
+- 官方 RetroArch Android APK 的 AI Service 热键触发在 `RetroSprite_API_34` AVD 中尚未完成验证；当前自动化仅覆盖 endpoint 协议和手工模拟请求。
 
 ---
 

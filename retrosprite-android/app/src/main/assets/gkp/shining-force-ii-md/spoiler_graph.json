@@ -1,0 +1,16 @@
+{
+  "default_gate": "start",
+  "gates": [
+    {"gate_id": "start", "label": "开局", "description": "不超过开局和基础系统说明"},
+    {"gate_id": "new_granseal", "label": "新格兰西尔", "description": "已经来到 New Granseal，可接受早中期系统物品提示"},
+    {"gate_id": "pacalon", "label": "帕卡隆", "description": "已经到达 Pacalon 一带，可接受对应城镇和道具提示"},
+    {"gate_id": "elven_town", "label": "精灵村", "description": "已经发现 Elven Town，可接受隐藏村落相关道具提示"},
+    {"gate_id": "cavern_of_darkness", "label": "黑暗洞窟", "description": "已经到达 Cavern of Darkness，可接受洞窟内道具提示"}
+  ],
+  "edges": [
+    {"from": "start", "to": "new_granseal"},
+    {"from": "new_granseal", "to": "pacalon"},
+    {"from": "pacalon", "to": "elven_town"},
+    {"from": "elven_town", "to": "cavern_of_darkness"}
+  ]
+}

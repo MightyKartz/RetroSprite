@@ -19,20 +19,24 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.GraphicEq
+import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenu
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldDefaults
@@ -42,19 +46,25 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.retrosprite.app.ui.viewmodel.DEFAULT_LLM_MAX_TOKENS
+import com.retrosprite.app.ui.viewmodel.DEFAULT_LLM_TIMEOUT_SECONDS
+import com.retrosprite.app.ui.components.CopyToClipboardButton
 import com.retrosprite.app.ui.components.SectionCard
 import com.retrosprite.app.ui.theme.RetroSpriteTheme
 import com.retrosprite.app.ui.viewmodel.UiAboutInfo
 import com.retrosprite.app.ui.viewmodel.UiLlmProvider
+import com.retrosprite.app.ui.viewmodel.UiOverlayPermissionState
 import com.retrosprite.app.ui.viewmodel.UiSettings
 import com.retrosprite.app.ui.viewmodel.UiSpoilerLevel
 import com.retrosprite.app.ui.viewmodel.rememberUiDependencies
@@ -66,17 +76,34 @@ fun SettingsScreen(
 ) {
     val deps = rememberUiDependencies()
     val viewModel: SettingsViewModel = viewModel(
-        factory = SettingsViewModel.factory(deps.settingsStore, deps.endpoint, deps.about)
+        factory = SettingsViewModel.factory(
+            deps.settingsStore,
+            deps.endpoint,
+            deps.llmConfigTest,
+            deps.overlayPermission,
+            deps.about,
+        )
     )
     val settings by viewModel.settings.collectAsState(initial = UiSettings())
+    val overlayPermissionState by viewModel.overlayPermissionState.collectAsState()
+    val llmTestState by viewModel.llmTestState.collectAsState()
+
+    LaunchedEffect(Unit) {
+        viewModel.refreshOverlayPermission()
+    }
 
     SettingsContent(
         contentPadding = contentPadding,
         settings = settings,
+        llmTestState = llmTestState,
+        overlayPermissionState = overlayPermissionState,
         about = viewModel.about,
         onApplyPort = viewModel::applyPort,
         onApplyLlm = viewModel::applyLlmConfig,
+        onTestLlm = viewModel::testLlmConfig,
         onApplySpoiler = viewModel::applySpoilerLevel,
+        onOpenOverlayPermission = viewModel::openOverlayPermissionSettings,
+        onRefreshOverlayPermission = viewModel::refreshOverlayPermission,
         modifier = modifier
     )
 }
@@ -85,10 +112,15 @@ fun SettingsScreen(
 private fun SettingsContent(
     contentPadding: PaddingValues,
     settings: UiSettings,
+    llmTestState: SettingsLlmTestState,
+    overlayPermissionState: UiOverlayPermissionState,
     about: UiAboutInfo,
     onApplyPort: (Int) -> Unit,
-    onApplyLlm: (UiLlmProvider, String, String, String) -> Unit,
+    onApplyLlm: (UiLlmProvider, String, String, String, Int, Int) -> Unit,
+    onTestLlm: (UiLlmProvider, String, String, String, Int, Int) -> Unit,
     onApplySpoiler: (UiSpoilerLevel) -> Unit,
+    onOpenOverlayPermission: () -> Unit,
+    onRefreshOverlayPermission: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -100,10 +132,86 @@ private fun SettingsContent(
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
         EndpointSection(currentPort = settings.port, onApply = onApplyPort)
-        LlmSection(settings = settings, onApply = onApplyLlm)
+        LlmSection(
+            settings = settings,
+            testState = llmTestState,
+            onApply = onApplyLlm,
+            onTest = onTestLlm,
+        )
         SpoilerSection(level = settings.spoilerLevel, onApply = onApplySpoiler)
+        OverlayPermissionSection(
+            state = overlayPermissionState,
+            onOpenSettings = onOpenOverlayPermission,
+            onRefresh = onRefreshOverlayPermission,
+        )
+        RetroArchSetupSection(port = settings.port)
         AboutSection(about = about)
         Spacer(Modifier.height(8.dp))
+    }
+}
+
+@Composable
+private fun OverlayPermissionSection(
+    state: UiOverlayPermissionState,
+    onOpenSettings: () -> Unit,
+    onRefresh: () -> Unit,
+) {
+    SectionCard(title = "游戏内语音 Overlay") {
+        Column(
+            modifier = Modifier.testTag("settings_overlay_permission_section"),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Filled.GraphicEq,
+                    contentDescription = null,
+                    tint = if (state.isGranted) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.error
+                    },
+                    modifier = Modifier.size(22.dp),
+                )
+                Spacer(Modifier.width(10.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        text = if (state.isGranted) "已启用游戏内语音波形" else "需要开启显示在其他应用上层",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        text = state.message,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = onOpenSettings,
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("settings_overlay_permission_button"),
+                    enabled = !state.isGranted,
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.OpenInNew,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text("打开系统授权")
+                }
+                OutlinedButton(
+                    onClick = onRefresh,
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("settings_overlay_permission_refresh_button"),
+                ) {
+                    Text("刷新状态")
+                }
+            }
+        }
     }
 }
 
@@ -131,7 +239,7 @@ private fun EndpointSection(currentPort: Int, onApply: (Int) -> Unit) {
                 )
                 Button(
                     onClick = {
-                        val p = portInput.toIntOrNull() ?: 8080
+                        val p = portInput.toIntOrNull() ?: 4_404
                         onApply(p)
                     },
                     colors = ButtonDefaults.buttonColors(
@@ -146,27 +254,74 @@ private fun EndpointSection(currentPort: Int, onApply: (Int) -> Unit) {
     }
 }
 
+@Composable
+private fun RetroArchSetupSection(port: Int) {
+    val aiServiceUrl = remember(port) { "http://localhost:$port" }
+    SectionCard(title = "RETROARCH 设置助手") {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(
+                text = "在 RetroArch 中进入 Settings → Accessibility → AI Service，保持默认地址或按下面的值设置。",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            RetroArchSetupLine("AI Service", "ON")
+            RetroArchSetupLine("AI Service Mode", "Image Mode")
+            RetroArchSetupLine("AI Service URL", aiServiceUrl)
+            RetroArchSetupLine("AI Service Output", "Text 或 Subtitles")
+            CopyToClipboardButton(
+                textToCopy = aiServiceUrl,
+                label = "复制 AI Service URL",
+                successMessage = "已复制 AI Service URL",
+                clipLabel = "RetroArch AI Service URL",
+                modifier = Modifier.testTag("settings_retroarch_ai_url_copy"),
+            )
+        }
+    }
+}
+
+@Composable
+private fun RetroArchSetupLine(label: String, value: String) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(
+            text = label.uppercase(),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun LlmSection(
     settings: UiSettings,
-    onApply: (UiLlmProvider, String, String, String) -> Unit
+    testState: SettingsLlmTestState,
+    onApply: (UiLlmProvider, String, String, String, Int, Int) -> Unit,
+    onTest: (UiLlmProvider, String, String, String, Int, Int) -> Unit,
 ) {
     var provider by remember(settings.llmProvider) { mutableStateOf(settings.llmProvider) }
     var apiKey by remember(settings.llmApiKey) { mutableStateOf(settings.llmApiKey) }
-    var baseUrl by remember(settings.llmBaseUrl) { mutableStateOf(settings.llmBaseUrl) }
-    var model by remember(settings.llmModel) { mutableStateOf(settings.llmModel) }
+    var baseUrl by remember(settings.llmBaseUrl, settings.llmProvider) {
+        mutableStateOf(settings.llmBaseUrl.ifBlank { settings.llmProvider.defaultBaseUrl })
+    }
+    var model by remember(settings.llmModel, settings.llmProvider) {
+        mutableStateOf(settings.llmModel.ifBlank { settings.llmProvider.defaultModel })
+    }
+    var timeoutSeconds by remember(settings.llmTimeoutSeconds) {
+        mutableStateOf(settings.llmTimeoutSeconds.toString())
+    }
+    var maxTokens by remember(settings.llmMaxTokens) {
+        mutableStateOf(settings.llmMaxTokens.toString())
+    }
     var keyVisible by remember { mutableStateOf(false) }
     var dropdownOpen by remember { mutableStateOf(false) }
 
     SectionCard(title = "LLM PROVIDER") {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(
-                text = "\u4ec5 UI \u9884\u89c8\uff0cPhase 1 \u63a5\u5165\u540e\u751f\u6548\u3002",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
             // Provider selector via the M3-recommended ExposedDropdownMenuBox.
             ExposedDropdownMenuBox(
                 expanded = dropdownOpen,
@@ -194,6 +349,10 @@ private fun LlmSection(
                             text = { Text(p.displayName) },
                             onClick = {
                                 provider = p
+                                if (p != UiLlmProvider.Custom) {
+                                    baseUrl = p.defaultBaseUrl
+                                    model = p.defaultModel
+                                }
                                 dropdownOpen = false
                             }
                         )
@@ -241,15 +400,138 @@ private fun LlmSection(
                 colors = retroFieldColors()
             )
 
-            Button(
-                onClick = { onApply(provider, apiKey, baseUrl, model) },
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = timeoutSeconds,
+                    onValueChange = { value ->
+                        timeoutSeconds = value.filter { it.isDigit() }.take(3)
+                    },
+                    label = { Text("\u8d85\u65f6 (\u79d2)") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.weight(1f),
+                    colors = retroFieldColors()
                 )
-            ) {
-                Text("\u4fdd\u5b58\u914d\u7f6e")
+                OutlinedTextField(
+                    value = maxTokens,
+                    onValueChange = { value ->
+                        maxTokens = value.filter { it.isDigit() }.take(4)
+                    },
+                    label = { Text("Max Tokens") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.weight(1f),
+                    colors = retroFieldColors()
+                )
+            }
+
+            val parsedTimeout = timeoutSeconds.toIntOrNull() ?: DEFAULT_LLM_TIMEOUT_SECONDS
+            val parsedMaxTokens = maxTokens.toIntOrNull() ?: DEFAULT_LLM_MAX_TOKENS
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = {
+                        onApply(
+                            provider,
+                            apiKey,
+                            baseUrl,
+                            model,
+                            parsedTimeout,
+                            parsedMaxTokens,
+                        )
+                    },
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    )
+                ) {
+                    Text("\u4fdd\u5b58\u914d\u7f6e")
+                }
+                OutlinedButton(
+                    onClick = {
+                        onTest(
+                            provider,
+                            apiKey,
+                            baseUrl,
+                            model,
+                            parsedTimeout,
+                            parsedMaxTokens,
+                        )
+                    },
+                    enabled = !testState.isRunning,
+                    modifier = Modifier.weight(1f).testTag("settings_llm_test_button"),
+                ) {
+                    if (testState.isRunning) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                        Spacer(Modifier.width(6.dp))
+                    }
+                    Text(if (testState.isRunning) "\u6d4b\u8bd5\u4e2d" else "\u6d4b\u8bd5\u914d\u7f6e")
+                }
+            }
+
+            LlmTestResultBox(testState)
+        }
+    }
+}
+
+@Composable
+private fun LlmTestResultBox(state: SettingsLlmTestState) {
+    val result = state.result ?: return
+    val borderColor = if (result.ok) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+    val bgColor = if (result.ok) {
+        MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)
+    } else {
+        MaterialTheme.colorScheme.error.copy(alpha = 0.10f)
+    }
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("settings_llm_test_result")
+            .clip(RoundedCornerShape(10.dp))
+            .background(bgColor)
+            .border(1.dp, borderColor.copy(alpha = 0.55f), RoundedCornerShape(10.dp))
+            .padding(horizontal = 14.dp, vertical = 12.dp)
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+                text = if (result.ok) "LLM TEST OK" else "LLM TEST FAILED",
+                style = MaterialTheme.typography.labelLarge,
+                color = borderColor,
+            )
+            Text(
+                text = "\u6a21\u578b\uff1a${result.provider} / ${result.model}",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = "\u9884\u7b97\uff1a${result.maxTokens} tok \u00b7 timeout ${result.timeoutMs}ms \u00b7 latency ${result.latencyMs}ms",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            if (result.tokensIn > 0 || result.tokensOut > 0) {
+                Text(
+                    text = "Token\uff1ain ${result.tokensIn} / out ${result.tokensOut}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            result.responsePreview?.let {
+                Text(
+                    text = "\u54cd\u5e94\uff1a$it",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            result.errorMessage?.let {
+                Text(
+                    text = "LLM \u9519\u8bef\uff1a$it",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
             }
         }
     }
@@ -395,10 +677,15 @@ private fun SettingsPreview() {
         SettingsContent(
             contentPadding = PaddingValues(),
             settings = UiSettings(),
+            llmTestState = SettingsLlmTestState(),
+            overlayPermissionState = UiOverlayPermissionState(isGranted = false),
             about = UiAboutInfo(),
             onApplyPort = {},
-            onApplyLlm = { _, _, _, _ -> },
-            onApplySpoiler = {}
+            onApplyLlm = { _, _, _, _, _, _ -> },
+            onTestLlm = { _, _, _, _, _, _ -> },
+            onApplySpoiler = {},
+            onOpenOverlayPermission = {},
+            onRefreshOverlayPermission = {},
         )
     }
 }

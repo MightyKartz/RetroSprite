@@ -1,0 +1,30 @@
+{
+  "language": "zh",
+  "aliases": [
+    {"term": "光明力量2", "entity_id": "note.game-identity", "weight": 1.0},
+    {"term": "光明與黑暗續戰篇Ⅱ", "entity_id": "note.game-identity", "weight": 1.0},
+    {"term": "Shining Force II", "entity_id": "note.game-identity", "weight": 1.0},
+    {"term": "SF2", "entity_id": "note.game-identity", "weight": 0.9},
+    {"term": "战斗", "entity_id": "mechanic.tactical-battle", "weight": 1.0},
+    {"term": "倒下", "entity_id": "mechanic.defeat-revive", "weight": 1.0},
+    {"term": "复活", "entity_id": "mechanic.defeat-revive", "weight": 1.0},
+    {"term": "转职", "entity_id": "mechanic.promotion-level", "weight": 1.0},
+    {"term": "特殊转职", "entity_id": "mechanic.special-promotion", "weight": 1.0},
+    {"term": "转职道具", "entity_id": "mechanic.special-promotion", "weight": 1.0},
+    {"term": "勇者之证", "entity_id": "item.warrior-pride", "weight": 1.0},
+    {"term": "飞马之翼", "entity_id": "item.pegasus-wing", "weight": 1.0},
+    {"term": "活力球", "entity_id": "item.vigor-ball", "weight": 1.0},
+    {"term": "秘传书", "entity_id": "item.secret-book", "weight": 1.0},
+    {"term": "银战车", "entity_id": "item.silver-tank", "weight": 1.0},
+    {"term": "Granseal", "entity_id": "location.granseal", "weight": 1.0},
+    {"term": "格兰西尔", "entity_id": "location.granseal", "weight": 1.0},
+    {"term": "古代之塔", "entity_id": "location.ancient-tower", "weight": 0.8},
+    {"term": "不要剧透", "entity_id": "quest.early-direction", "weight": 1.0},
+    {"term": "下一步", "entity_id": "quest.early-direction", "weight": 1.0},
+    {"term": "练谁", "entity_id": "strategy.first-party", "weight": 0.9},
+    {"term": "Bowie", "entity_id": "npc.bowie", "weight": 1.0},
+    {"term": "博伊", "entity_id": "npc.bowie", "weight": 1.0},
+    {"term": "Astral", "entity_id": "npc.astral", "weight": 1.0},
+    {"term": "阿斯特拉尔", "entity_id": "npc.astral", "weight": 1.0}
+  ]
+}

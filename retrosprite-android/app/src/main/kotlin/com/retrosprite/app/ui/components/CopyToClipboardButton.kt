@@ -72,7 +72,7 @@ private fun CopyButtonPreview() {
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            CopyToClipboardButton(textToCopy = "http://192.168.1.42:8080")
+            CopyToClipboardButton(textToCopy = "http://localhost:4404")
         }
     }
 }

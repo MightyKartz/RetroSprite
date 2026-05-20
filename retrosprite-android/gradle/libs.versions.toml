@@ -8,6 +8,7 @@ ksp = "1.9.22-1.0.17"
 core-ktx = "1.12.0"
 appcompat = "1.6.1"
 activity-compose = "1.8.2"
+documentfile = "1.0.1"
 
 # Compose
 compose-bom = "2024.02.00"
@@ -36,6 +37,8 @@ workmanager = "2.9.0"
 # Kotlin Libraries
 kotlinx-serialization = "1.6.2"
 kotlinx-coroutines = "1.7.3"
+sherpa-onnx-android = "6.25.21"
+sherpa-onnx-runtime = "6.16.7"
 
 # Testing
 junit = "4.13.2"
@@ -49,6 +52,7 @@ turbine = "1.0.0"
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "core-ktx" }
 androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
 androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activity-compose" }
+androidx-documentfile = { group = "androidx.documentfile", name = "documentfile", version.ref = "documentfile" }
 
 # Compose
 androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "compose-bom" }
@@ -89,6 +93,7 @@ ktor-server-test-host = { group = "io.ktor", name = "ktor-server-test-host", ver
 # OkHttp / Retrofit
 okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
 okhttp-logging-interceptor = { group = "com.squareup.okhttp3", name = "logging-interceptor", version.ref = "okhttp" }
+okhttp-mockwebserver = { group = "com.squareup.okhttp3", name = "mockwebserver", version.ref = "okhttp" }
 retrofit = { group = "com.squareup.retrofit2", name = "retrofit", version.ref = "retrofit" }
 retrofit-kotlinx-serialization = { group = "com.jakewharton.retrofit", name = "retrofit2-kotlinx-serialization-converter", version.ref = "retrofit-kotlinx-serialization" }
 
@@ -109,6 +114,8 @@ kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-
 kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "kotlinx-coroutines" }
 kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "kotlinx-coroutines" }
+sherpa-onnx-android = { group = "com.bihe0832.android", name = "lib-sherpa-onnx", version.ref = "sherpa-onnx-android" }
+sherpa-onnx-runtime = { group = "com.bihe0832.android", name = "lib-onnx", version.ref = "sherpa-onnx-runtime" }
 
 # Testing
 junit = { group = "junit", name = "junit", version.ref = "junit" }

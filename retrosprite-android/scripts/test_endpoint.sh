@@ -6,12 +6,12 @@
 # Targets bash 3.2+ so it runs on stock macOS without Homebrew bash.
 #
 # Usage:
-#   ./scripts/test_endpoint.sh                # POST against http://127.0.0.1:8080
+#   ./scripts/test_endpoint.sh                # POST against http://127.0.0.1:4404
 #   PORT=8081 ./scripts/test_endpoint.sh      # override port
 #   STRESS=200 ./scripts/test_endpoint.sh     # change stress request count
 #   NO_COLOR=1 ./scripts/test_endpoint.sh     # disable ANSI colors
 #   # From host to AVD / device (recommended):
-#   #   adb forward tcp:8080 tcp:8080
+#   #   adb forward tcp:4404 tcp:4404
 #   #   HOST=127.0.0.1 ./scripts/test_endpoint.sh
 #
 # Notes:
@@ -30,7 +30,7 @@ set -u
 # check and surface a roll-up PASS/FAIL report at the end.
 
 HOST="${HOST:-127.0.0.1}"
-PORT="${PORT:-8080}"
+PORT="${PORT:-4404}"
 STRESS="${STRESS:-100}"
 BASE="http://${HOST}:${PORT}"
 
@@ -97,8 +97,8 @@ case "$POST_BODY" in
   *)            fail "POST / response missing text field" ;;
 esac
 case "$POST_BODY" in
-  *RetroSprite*) pass "Response text mentions RetroSprite (Phase 0 ack)" ;;
-  *)             fail "Response text does not mention RetroSprite" ;;
+  *"\"error\""*) fail "POST / returned an error field for a valid request" ;;
+  *)             pass "POST / valid request does not return an error field" ;;
 esac
 
 # ---- Test 3: malformed JSON ------------------------------------------------

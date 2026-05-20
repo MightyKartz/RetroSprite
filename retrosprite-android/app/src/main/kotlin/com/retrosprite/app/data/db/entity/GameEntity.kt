@@ -14,6 +14,9 @@ import androidx.room.PrimaryKey
 @Entity(
     tableName = "games",
     indices = [
+        Index(value = ["pack_id"]),
+        Index(value = ["provenance"]),
+        Index(value = ["enabled"]),
         Index(value = ["rom_sha1"]),
         Index(value = ["rom_crc32"]),
         Index(value = ["platform", "title"])
@@ -23,6 +26,9 @@ data class GameEntity(
     @PrimaryKey
     @ColumnInfo(name = "game_id")
     val gameId: String,
+
+    @ColumnInfo(name = "pack_id", defaultValue = "''")
+    val packId: String,
 
     @ColumnInfo(name = "title")
     val title: String,
@@ -52,6 +58,26 @@ data class GameEntity(
     /** "official" | "community" | "personal" */
     @ColumnInfo(name = "trust_level")
     val trustLevel: String,
+
+    /** "bundled" | "external" | "registry" | "unknown" */
+    @ColumnInfo(name = "provenance", defaultValue = "'unknown'")
+    val provenance: String,
+
+    /** "unsigned" | "declared" | "verified" | "failed" | "unknown" */
+    @ColumnInfo(name = "signature_status", defaultValue = "'unsigned'")
+    val signatureStatus: String,
+
+    @ColumnInfo(name = "signature_key_id")
+    val signatureKeyId: String?,
+
+    @ColumnInfo(name = "content_digest")
+    val contentDigest: String?,
+
+    @ColumnInfo(name = "enabled", defaultValue = "1")
+    val enabled: Boolean,
+
+    @ColumnInfo(name = "disabled_at")
+    val disabledAt: Long?,
 
     @ColumnInfo(name = "installed_at")
     val installedAt: Long

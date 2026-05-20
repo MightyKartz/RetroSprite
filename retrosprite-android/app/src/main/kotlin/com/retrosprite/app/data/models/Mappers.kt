@@ -16,6 +16,7 @@ private val stringListConverter = StringListConverter()
 // region RequestLog
 fun RequestLogEntity.toDomain(): RequestLogDomain = RequestLogDomain(
     id = id,
+    requestKey = requestKey,
     timestamp = timestamp,
     label = label,
     system = system,
@@ -23,12 +24,27 @@ fun RequestLogEntity.toDomain(): RequestLogDomain = RequestLogDomain(
     imageSize = imageSize,
     paused = paused,
     outputMode = outputMode,
+    question = question,
+    questionSource = questionSource,
     responseText = responseText,
-    errorMessage = errorMessage
+    errorMessage = errorMessage,
+    durationMillis = durationMillis,
+    llmStatus = llmStatus,
+    llmProvider = llmProvider,
+    llmModel = llmModel,
+    llmMaxTokens = llmMaxTokens,
+    llmTimeoutMs = llmTimeoutMs,
+    llmLatencyMs = llmLatencyMs,
+    llmTokensIn = llmTokensIn,
+    llmTokensOut = llmTokensOut,
+    llmError = llmError,
+    feedback = feedback,
+    feedbackTimestamp = feedbackTimestamp,
 )
 
 fun RequestLogDomain.toEntity(): RequestLogEntity = RequestLogEntity(
     id = id,
+    requestKey = requestKey,
     timestamp = timestamp,
     label = label,
     system = system,
@@ -36,14 +52,29 @@ fun RequestLogDomain.toEntity(): RequestLogEntity = RequestLogEntity(
     imageSize = imageSize,
     paused = paused,
     outputMode = outputMode,
+    question = question,
+    questionSource = questionSource,
     responseText = responseText,
-    errorMessage = errorMessage
+    errorMessage = errorMessage,
+    durationMillis = durationMillis,
+    llmStatus = llmStatus,
+    llmProvider = llmProvider,
+    llmModel = llmModel,
+    llmMaxTokens = llmMaxTokens,
+    llmTimeoutMs = llmTimeoutMs,
+    llmLatencyMs = llmLatencyMs,
+    llmTokensIn = llmTokensIn,
+    llmTokensOut = llmTokensOut,
+    llmError = llmError,
+    feedback = feedback,
+    feedbackTimestamp = feedbackTimestamp,
 )
 // endregion
 
 // region Game
 fun GameEntity.toDomain(): GameDomain = GameDomain(
     gameId = gameId,
+    packId = packId.ifBlank { gameId },
     title = title,
     platform = platform,
     region = region,
@@ -53,11 +84,18 @@ fun GameEntity.toDomain(): GameDomain = GameDomain(
     packVersion = packVersion,
     schemaVersion = schemaVersion,
     trustLevel = trustLevel,
+    provenance = provenance,
+    signatureStatus = signatureStatus,
+    signatureKeyId = signatureKeyId,
+    contentDigest = contentDigest,
+    isEnabled = enabled,
+    disabledAt = disabledAt,
     installedAt = installedAt
 )
 
 fun GameDomain.toEntity(): GameEntity = GameEntity(
     gameId = gameId,
+    packId = packId.ifBlank { gameId },
     title = title,
     platform = platform,
     region = region,
@@ -67,6 +105,12 @@ fun GameDomain.toEntity(): GameEntity = GameEntity(
     packVersion = packVersion,
     schemaVersion = schemaVersion,
     trustLevel = trustLevel,
+    provenance = provenance,
+    signatureStatus = signatureStatus,
+    signatureKeyId = signatureKeyId,
+    contentDigest = contentDigest,
+    enabled = isEnabled,
+    disabledAt = disabledAt,
     installedAt = installedAt
 )
 // endregion

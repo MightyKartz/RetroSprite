@@ -1,11 +1,13 @@
 # RetroSprite Phase 0 + Phase 1 基础脚手架 — 交付报告
 
+> 历史快照说明：本文记录早期 Phase 0/Phase 1 脚手架交付状态，部分目录结构、测试数量和实现边界已随 M1-M5 开发推进发生变化。当前实施状态与下一步工作请以 [NEXT_IMPLEMENTATION_PLAN.md](./NEXT_IMPLEMENTATION_PLAN.md)、[TEST_COVERAGE.md](./TEST_COVERAGE.md) 和源码为准。
+
 ## 1. 完成范围
 
 | 阶段 | 目标 | 状态 |
 |---|---|---|
 | Phase 0 协议验证 | RetroArch AI Service 与 Android 本地 endpoint 通信链路可行性验证 | 完成 |
-| Phase 0 协议验证 | Ktor CIO 嵌入式 HTTP 服务器（绑定 127.0.0.1:8080） | 完成 |
+| Phase 0 协议验证 | Ktor CIO 嵌入式 HTTP 服务器（默认绑定 127.0.0.1:4404） | 完成 |
 | Phase 0 协议验证 | POST / 接收 RetroArch 请求（image/label/state），返回兼容 JSON | 完成 |
 | Phase 0 协议验证 | GET /health 健康检查端点 | 完成 |
 | Phase 0 协议验证 | 异常路径统一 200 + {"error":...} 处理 | 完成 |
@@ -153,7 +155,7 @@ scripts/
 │   RetroArch Desktop     │
 │   (AI Service 启用)      │
 └────────────┬────────────┘
-             │ HTTP POST http://127.0.0.1:8080/
+             │ HTTP POST http://localhost:4404/
              │ Content-Type: application/json
              │ ?output=text
              │ Body: { "image": "base64...", "label": "snes__zelda", "state": {...} }
@@ -266,14 +268,14 @@ gradle wrapper --gradle-version 8.5
 # 2. 启动 App，点击「启动 Endpoint」按钮
 
 # 3. 设置端口转发（真机连 USB 时）
-adb forward tcp:8080 tcp:8080
+adb forward tcp:4404 tcp:4404
 
 # 4. 验证 health 端点
-curl http://127.0.0.1:8080/health
+curl http://localhost:4404/health
 # 预期: {"status":"ok","version":"0.1.0"}
 
 # 5. 发送模拟 RetroArch 请求
-curl -X POST "http://127.0.0.1:8080/?output=text" \
+curl -X POST "http://localhost:4404/?output=text" \
   -H "Content-Type: application/json" \
   -d @scripts/sample_payload.json
 # 预期: {"text":"..."}
@@ -281,8 +283,8 @@ curl -X POST "http://127.0.0.1:8080/?output=text" \
 
 ### 6.4 RetroArch 端配置
 
-1. 打开 RetroArch → Settings → AI Service
-2. 设置 AI Service URL: `http://127.0.0.1:8080/`
+1. 打开 RetroArch → Settings → Accessibility → AI Service
+2. 设置 AI Service URL: `http://localhost:4404`
 3. 设置 AI Service Output: `Text`
 4. 启用 AI Service: ON
 5. 运行任意游戏 → 按 AI Service 热键（默认 F8）→ 确认 overlay 显示返回文本

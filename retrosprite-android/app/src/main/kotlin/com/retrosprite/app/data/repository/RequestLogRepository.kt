@@ -18,6 +18,13 @@ interface RequestLogRepository : RequestLogSink {
 
     /** Returns the number of logs currently persisted. */
     suspend fun count(): Int
+
+    /** Attaches local-only feedback to the row with the given stable request key. */
+    suspend fun updateFeedback(
+        requestKey: String,
+        feedback: String,
+        timestamp: Long,
+    ): Int
 }
 
 /**
@@ -44,4 +51,14 @@ class DefaultRequestLogRepository(
     }
 
     override suspend fun count(): Int = dao.count()
+
+    override suspend fun updateFeedback(
+        requestKey: String,
+        feedback: String,
+        timestamp: Long,
+    ): Int {
+        val cleanKey = requestKey.trim()
+        if (cleanKey.isBlank()) return 0
+        return dao.updateFeedbackByRequestKey(cleanKey, feedback, timestamp)
+    }
 }

@@ -20,6 +20,11 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
+        ndk {
+            // Current target devices are RG 476H and Apple Silicon AVD, both arm64-v8a.
+            // Keep sherpa-onnx/onnxruntime APK size modest instead of packaging every ABI.
+            abiFilters += listOf("arm64-v8a")
+        }
     }
 
     buildTypes {
@@ -66,12 +71,15 @@ android {
         }
         getByName("androidTest") {
             java.srcDirs("src/androidTest/kotlin")
+            assets.srcDirs("$projectDir/schemas")
         }
     }
 
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            excludes += "/META-INF/LICENSE*"
+            excludes += "/META-INF/NOTICE*"
             excludes += "/META-INF/INDEX.LIST"
             excludes += "/META-INF/io.netty.versions.properties"
         }
@@ -143,6 +151,7 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.documentfile)
 
     // Lifecycle
     implementation(libs.androidx.lifecycle.runtime.ktx)
@@ -198,9 +207,18 @@ dependencies {
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.coroutines.android)
 
+    // Local offline ASR (sherpa-onnx JNI + Android ABIs)
+    implementation(libs.sherpa.onnx.android) {
+        isTransitive = false
+    }
+    implementation(libs.sherpa.onnx.runtime) {
+        isTransitive = false
+    }
+
     // Unit Testing
     testImplementation(libs.junit)
     testImplementation(libs.mockk)
+    testImplementation(libs.okhttp.mockwebserver)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.turbine)
     testImplementation(libs.androidx.room.testing)

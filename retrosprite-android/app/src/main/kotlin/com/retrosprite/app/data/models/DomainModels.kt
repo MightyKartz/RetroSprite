@@ -9,6 +9,7 @@ package com.retrosprite.app.data.models
  */
 data class RequestLogDomain(
     val id: Long = 0L,
+    val requestKey: String = "",
     val timestamp: Long,
     val label: String,
     val system: String?,
@@ -16,13 +17,28 @@ data class RequestLogDomain(
     val imageSize: Int,
     val paused: Boolean,
     val outputMode: String,
+    val question: String? = null,
+    val questionSource: String? = null,
     val responseText: String,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val durationMillis: Long = 0L,
+    val llmStatus: String? = null,
+    val llmProvider: String? = null,
+    val llmModel: String? = null,
+    val llmMaxTokens: Int? = null,
+    val llmTimeoutMs: Long? = null,
+    val llmLatencyMs: Long? = null,
+    val llmTokensIn: Int = 0,
+    val llmTokensOut: Int = 0,
+    val llmError: String? = null,
+    val feedback: String? = null,
+    val feedbackTimestamp: Long? = null,
 )
 
 /** Domain representation of a registered game header. */
 data class GameDomain(
     val gameId: String,
+    val packId: String = gameId,
     val title: String,
     val platform: String,
     val region: String?,
@@ -32,6 +48,12 @@ data class GameDomain(
     val packVersion: String,
     val schemaVersion: String,
     val trustLevel: String,
+    val provenance: String = "unknown",
+    val signatureStatus: String = "unsigned",
+    val signatureKeyId: String? = null,
+    val contentDigest: String? = null,
+    val isEnabled: Boolean = true,
+    val disabledAt: Long? = null,
     val installedAt: Long
 )
 

@@ -1,6 +1,12 @@
 package com.retrosprite.app.domain
 
 import com.retrosprite.app.domain.models.SpoilerLevel
+import com.retrosprite.app.domain.models.LlmCallTrace
+
+data class QueryPipelineResult(
+    val text: String,
+    val llmTrace: LlmCallTrace = LlmCallTrace(),
+)
 
 /**
  * Top-level orchestration for one AI-Service request.
@@ -39,4 +45,24 @@ interface QueryPipeline {
         spoilerLevel: SpoilerLevel = SpoilerLevel.LIGHT,
         language: String = "zh",
     ): String
+
+    suspend fun answerDetailed(
+        label: String,
+        romHash: String? = null,
+        question: String? = null,
+        screenshot: String? = null,
+        state: Map<String, Int>? = null,
+        spoilerLevel: SpoilerLevel = SpoilerLevel.LIGHT,
+        language: String = "zh",
+    ): QueryPipelineResult = QueryPipelineResult(
+        text = answer(
+            label = label,
+            romHash = romHash,
+            question = question,
+            screenshot = screenshot,
+            state = state,
+            spoilerLevel = spoilerLevel,
+            language = language,
+        )
+    )
 }

@@ -44,6 +44,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -70,11 +71,14 @@ fun DiagnosticsScreen(
     )
     val status by viewModel.status.collectAsStateWithLifecycle()
     val items by viewModel.log.collectAsStateWithLifecycle(initialValue = emptyList())
+    var sourceFilter by remember { mutableStateOf(DiagnosticsSourceFilter.All) }
 
     DiagnosticsContent(
         contentPadding = contentPadding,
         status = status,
         items = items,
+        sourceFilter = sourceFilter,
+        onSourceFilterSelected = { sourceFilter = it },
         onCheckHealth = viewModel::checkHealth,
         onConnectionTest = viewModel::runConnectionTest,
         onClear = viewModel::clearLog,
@@ -87,6 +91,8 @@ private fun DiagnosticsContent(
     contentPadding: PaddingValues,
     status: UiEndpointStatus,
     items: List<UiRequestLogItem>,
+    sourceFilter: DiagnosticsSourceFilter,
+    onSourceFilterSelected: (DiagnosticsSourceFilter) -> Unit,
     onCheckHealth: () -> Unit,
     onConnectionTest: () -> Unit,
     onClear: () -> Unit,
@@ -110,7 +116,13 @@ private fun DiagnosticsContent(
                     ToolsCard(status, onCheckHealth, onConnectionTest)
                 }
                 Box(modifier = Modifier.weight(1.2f)) {
-                    LogCard(items = items, onItemClick = { detail = it }, onClear = onClear)
+                    LogCard(
+                        items = items,
+                        sourceFilter = sourceFilter,
+                        onSourceFilterSelected = onSourceFilterSelected,
+                        onItemClick = { detail = it },
+                        onClear = onClear,
+                    )
                 }
             }
         } else {
@@ -121,7 +133,13 @@ private fun DiagnosticsContent(
                 verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
                 ToolsCard(status, onCheckHealth, onConnectionTest)
-                LogCard(items = items, onItemClick = { detail = it }, onClear = onClear)
+                LogCard(
+                    items = items,
+                    sourceFilter = sourceFilter,
+                    onSourceFilterSelected = onSourceFilterSelected,
+                    onItemClick = { detail = it },
+                    onClear = onClear,
+                )
             }
         }
 
@@ -144,6 +162,72 @@ private fun DiagnosticsContent(
                             style = MaterialTheme.typography.labelLarge,
                             color = if (item.ok) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
                         )
+                        Text(
+                            text = "\u94fe\u8def\uff1a${item.pipelineStage.uppercase()}  \u00b7  LLM ${item.llmStatus.uppercase()}",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        if (item.pipelineStage == GKP_DISABLED_STAGE) {
+                            Text(
+                                text = "\u8bca\u65ad\uff1a\u5df2\u5339\u914d\u5230\u77e5\u8bc6\u5305\uff0c\u4f46\u8be5\u5305\u5df2\u5728 Packs \u4e2d\u7981\u7528\uff1b\u672c\u6b21\u6ca1\u6709\u8bfb\u53d6\u77e5\u8bc6\u6216\u8c03\u7528 LLM\u3002",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                        item.feedback?.let {
+                            Text(
+                                text = "反馈：${it.displayName}",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        item.question?.let {
+                            Text(
+                                text = "问题：$it",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        item.questionSource?.let {
+                            Text(
+                                text = "问题来源：${it.displayNameForQuestionSource()}",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        if (item.llmProvider != null || item.llmModel != null) {
+                            Text(
+                                text = "模型：${listOfNotNull(item.llmProvider, item.llmModel).joinToString(" / ")}",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Text(
+                            text = "预算：${item.llmMaxTokens?.let { "$it tok" } ?: "-"}  ·  timeout ${item.llmTimeoutMs?.toString() ?: "-"} ms  ·  latency ${item.llmLatencyMs?.toString() ?: "-"} ms",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        if (item.llmTokensIn > 0 || item.llmTokensOut > 0) {
+                            Text(
+                                text = "Token：in ${item.llmTokensIn} / out ${item.llmTokensOut}",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        item.llmError?.let {
+                            Text(
+                                text = "LLM 错误：$it",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                        if (item.sourceIds.isNotEmpty()) {
+                            Text(
+                                text = "\u6765\u6e90\uff1a${item.sourceIds.joinToString(", ")}",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -224,11 +308,20 @@ private fun ToolsCard(
 @Composable
 private fun LogCard(
     items: List<UiRequestLogItem>,
+    sourceFilter: DiagnosticsSourceFilter,
+    onSourceFilterSelected: (DiagnosticsSourceFilter) -> Unit,
     onItemClick: (UiRequestLogItem) -> Unit,
     onClear: () -> Unit
 ) {
+    val sourceCounts = items.diagnosticsSourceCounts()
+    val filteredItems = items.filterByDiagnosticsSource(sourceFilter)
+    val title = if (sourceFilter == DiagnosticsSourceFilter.All) {
+        "请求日志 (${items.size})"
+    } else {
+        "请求日志 (${filteredItems.size}/${items.size})"
+    }
     SectionCard(
-        title = "\u8bf7\u6c42\u65e5\u5fd7 (${items.size})",
+        title = title,
         contentPadding = PaddingValues(0.dp),
         trailing = {
             TextButton(onClick = onClear) {
@@ -245,18 +338,91 @@ private fun LogCard(
             }
         }
     ) {
+        SourceFilterBar(
+            selected = sourceFilter,
+            counts = sourceCounts,
+            onSelected = onSourceFilterSelected,
+        )
         if (items.isEmpty()) {
             EmptyLog()
+        } else if (filteredItems.isEmpty()) {
+            EmptyFilteredLog(sourceFilter)
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxWidth().height(440.dp),
                 contentPadding = PaddingValues(vertical = 4.dp)
             ) {
-                items(items, key = { it.id }) { item ->
+                items(filteredItems, key = { it.id }) { item ->
                     LogItemRow(item = item, onClick = { onItemClick(item) })
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun SourceFilterBar(
+    selected: DiagnosticsSourceFilter,
+    counts: DiagnosticsSourceCounts,
+    onSelected: (DiagnosticsSourceFilter) -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 10.dp)
+            .testTag("diagnostics_source_filters"),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Text(
+            text = "来源筛选",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        DiagnosticsSourceFilter.values().toList().chunked(SOURCE_FILTERS_PER_ROW).forEach { rowFilters ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                rowFilters.forEach { filter ->
+                    val isSelected = selected == filter
+                    OutlinedButton(
+                        onClick = { onSelected(filter) },
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("diagnostics_filter_${filter.id}"),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            containerColor = if (isSelected) {
+                                MaterialTheme.colorScheme.primaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.surface
+                            },
+                            contentColor = if (isSelected) {
+                                MaterialTheme.colorScheme.onPrimaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.onSurface
+                            },
+                        ),
+                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp),
+                    ) {
+                        Text(
+                            text = "${filter.displayName} ${counts.countFor(filter)}",
+                            style = MaterialTheme.typography.labelSmall,
+                            maxLines = 1,
+                        )
+                    }
+                }
+                repeat(SOURCE_FILTERS_PER_ROW - rowFilters.size) {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
+            }
+        }
+        Text(
+            text = "当前：${selected.displayName} ${counts.countFor(selected)} / ${counts.all}",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.testTag("diagnostics_filter_summary"),
+        )
     }
 }
 
@@ -266,6 +432,7 @@ private fun LogItemRow(item: UiRequestLogItem, onClick: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .testTag("diagnostics_log_item_${item.id}")
             .clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 12.dp)
     ) {
@@ -287,7 +454,36 @@ private fun LogItemRow(item: UiRequestLogItem, onClick: () -> Unit) {
                 Tag(text = "PAUSED")
                 Spacer(Modifier.width(4.dp))
             }
+            if (item.isDebug) {
+                Tag(text = "DEBUG")
+                Spacer(Modifier.width(4.dp))
+            }
+            if (item.rawOutputMode.startsWith("app:")) {
+                Tag(text = "APP")
+                Spacer(Modifier.width(4.dp))
+            }
+            if (item.questionSource == QUESTION_SOURCE_PENDING_HOTKEY) {
+                Tag(text = "PENDING")
+                Spacer(Modifier.width(4.dp))
+            } else if (item.question != null) {
+                Tag(text = "QUESTION")
+                Spacer(Modifier.width(4.dp))
+            }
+            item.feedback?.let {
+                Tag(text = it.diagnosticsTag)
+                Spacer(Modifier.width(4.dp))
+            }
             Tag(text = item.outputMode.name.uppercase())
+            Spacer(Modifier.width(4.dp))
+            Tag(text = item.pipelineStage.uppercase())
+            item.llmProvider?.let {
+                Spacer(Modifier.width(4.dp))
+                Tag(text = it.uppercase())
+            }
+            if (item.sourceIds.isNotEmpty()) {
+                Spacer(Modifier.width(4.dp))
+                Tag(text = "SRC ${item.sourceIds.size}")
+            }
             Spacer(Modifier.weight(1f))
             Text(
                 text = "${item.imageBytes / 1024} KB",
@@ -354,6 +550,26 @@ private fun EmptyLog() {
     }
 }
 
+@Composable
+private fun EmptyFilteredLog(sourceFilter: DiagnosticsSourceFilter) {
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(28.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(
+            text = "// ${sourceFilter.displayName} 来源暂无请求",
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            text = "切回“全部”查看完整日志，或触发对应来源后再检查。",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
 private fun relTime(ts: Long): String {
     val diff = (System.currentTimeMillis() - ts).coerceAtLeast(0L)
     return when {
@@ -362,6 +578,18 @@ private fun relTime(ts: Long): String {
         diff < 3_600_000 -> "${diff / 60_000} \u5206\u949f\u524d"
         else -> "${diff / 3_600_000} \u5c0f\u65f6\u524d"
     }
+}
+
+private const val GKP_DISABLED_STAGE: String = "gkp_disabled"
+private const val QUESTION_SOURCE_PENDING_HOTKEY: String = "pending_hotkey"
+private const val SOURCE_FILTERS_PER_ROW: Int = 3
+
+private fun String.displayNameForQuestionSource(): String = when (this) {
+    "app" -> "App 内提问"
+    "debug" -> "Debug ask"
+    "pending_hotkey" -> "Pending hotkey"
+    "retroarch" -> "RetroArch 请求"
+    else -> this
 }
 
 @Suppress("unused")
@@ -378,12 +606,14 @@ private fun DiagnosticsPreview() {
             contentPadding = PaddingValues(),
             status = UiEndpointStatus(
                 phase = UiEndpointPhase.Running,
-                port = 8080,
-                baseUrl = "http://192.168.1.42:8080",
+                port = 4_404,
+                baseUrl = "http://localhost:4404",
                 lastHealthCheckMillis = System.currentTimeMillis() - 12_000,
                 lastHealthOk = true
             ),
             items = previewItems(),
+            sourceFilter = DiagnosticsSourceFilter.All,
+            onSourceFilterSelected = {},
             onCheckHealth = {},
             onConnectionTest = {},
             onClear = {}
@@ -402,10 +632,12 @@ private fun DiagnosticsEmptyPreview() {
             contentPadding = PaddingValues(),
             status = UiEndpointStatus(
                 phase = UiEndpointPhase.Running,
-                port = 8080,
-                baseUrl = "http://192.168.1.42:8080"
+                port = 4_404,
+                baseUrl = "http://localhost:4404"
             ),
             items = emptyList(),
+            sourceFilter = DiagnosticsSourceFilter.All,
+            onSourceFilterSelected = {},
             onCheckHealth = {},
             onConnectionTest = {},
             onClear = {}

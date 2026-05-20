@@ -1,0 +1,43 @@
+{
+  "schema_version": "gkp.v0",
+  "pack_id": "community.shining-force-ii-md",
+  "pack_version": "0.1.2",
+  "default_language": "zh",
+  "game": {
+    "game_id": "shining_force_ii_md",
+    "title": "Shining Force II / 光明力量2",
+    "platform": "md",
+    "region": null,
+    "languages": ["zh", "en"],
+    "retroarch_system_ids": ["md", "genesis", "megadrive", "mega_drive"],
+    "retroarch_labels": [
+      "md__Shining Force II",
+      "genesis__Shining Force II",
+      "megadrive__Shining Force II",
+      "md__光明力量2",
+      "mega_drive__光明力量2",
+      "Sega - Mega Drive - Genesis__光明力量2",
+      "md__光明與黑暗續戰篇Ⅱ 古代的封印"
+    ],
+    "rom_identity": {
+      "crc32": null,
+      "sha1": null
+    }
+  },
+  "trust_level": "community",
+  "min_app_version": "0.1.0",
+  "generated_at": "2026-05-20T00:00:00Z",
+  "contents": {
+    "knowledge": [
+      "knowledge/mechanics.jsonl",
+      "knowledge/items.jsonl",
+      "knowledge/locations.jsonl",
+      "knowledge/quests.jsonl",
+      "knowledge/entities.jsonl"
+    ],
+    "citations": "sources/citations.jsonl",
+    "aliases": "aliases.json",
+    "spoiler_graph": "spoiler_graph.json",
+    "qa_goldens": "qa_goldens.jsonl"
+  }
+}

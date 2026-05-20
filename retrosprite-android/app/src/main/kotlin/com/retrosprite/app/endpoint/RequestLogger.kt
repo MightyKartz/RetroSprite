@@ -1,6 +1,7 @@
 package com.retrosprite.app.endpoint
 
 import android.util.Log
+import com.retrosprite.app.endpoint.model.ResponseDiagnostics
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -21,9 +22,63 @@ data class RequestLogEntry(
     val imageBytes: Int,
     val paused: Boolean,
     val outputMode: String,
+    val question: String? = null,
+    val questionSource: String? = null,
     val responseText: String,
     val errorMessage: String? = null,
-)
+    val durationMillis: Long = 0L,
+    val llmStatusOverride: String? = null,
+    val llmProvider: String? = null,
+    val llmModel: String? = null,
+    val llmMaxTokens: Int? = null,
+    val llmTimeoutMs: Long? = null,
+    val llmLatencyMs: Long? = null,
+    val llmTokensIn: Int = 0,
+    val llmTokensOut: Int = 0,
+    val llmError: String? = null,
+    val feedback: String? = null,
+    val feedbackTimestamp: Long? = null,
+) {
+    val isDebugRequest: Boolean
+        get() = outputMode.startsWith(DEBUG_OUTPUT_PREFIX)
+
+    val sourceIds: List<String>
+        get() = extractSourceIds(responseText)
+
+    val pipelineStage: String
+        get() = when {
+            errorMessage != null -> "error"
+            sourceIds.isNotEmpty() -> "evidence"
+            responseText.contains(GKP_DISABLED_MARKER) -> "gkp_disabled"
+            responseText.contains(NO_EVIDENCE_MARKER) -> "no_evidence"
+            isDebugRequest -> "debug"
+            else -> "unknown"
+        }
+
+    val llmStatus: String
+        get() = llmStatusOverride ?: when {
+            errorMessage != null -> "skipped"
+            sourceIds.size >= 2 -> "used"
+            else -> "skipped"
+        }
+}
+
+private const val DEBUG_OUTPUT_PREFIX = "debug:"
+private const val SOURCE_PREFIX = "来源："
+private const val GKP_DISABLED_MARKER = "知识包已禁用"
+private const val NO_EVIDENCE_MARKER = "没有足够证据"
+
+private fun extractSourceIds(responseText: String): List<String> {
+    val sourceLine = responseText
+        .lineSequence()
+        .firstOrNull { it.trim().startsWith(SOURCE_PREFIX) }
+        ?: return emptyList()
+    return sourceLine.substringAfter(SOURCE_PREFIX)
+        .split(',', '，')
+        .map { it.trim() }
+        .filter { it.isNotEmpty() }
+        .distinct()
+}
 
 /**
  * Persistence strategy for log entries.
@@ -72,8 +127,14 @@ class RequestLogger(
         outputMode: String,
         responseText: String,
         errorMessage: String? = null,
+        durationMillis: Long = 0L,
+        diagnostics: ResponseDiagnostics = ResponseDiagnostics(),
+        question: String? = diagnostics.question,
+        questionSource: String? = diagnostics.questionSource,
     ): RequestLogEntry {
         val parsed = LabelParser.parse(label)
+        val cleanQuestion = question?.trim()?.takeIf { it.isNotEmpty() }
+        val cleanQuestionSource = questionSource?.trim()?.takeIf { it.isNotEmpty() }
         val entry = RequestLogEntry(
             label = label,
             system = parsed.system,
@@ -81,15 +142,28 @@ class RequestLogger(
             imageBytes = decodedBase64Length(imageBase64),
             paused = paused,
             outputMode = outputMode,
+            question = cleanQuestion,
+            questionSource = cleanQuestionSource,
             responseText = responseText,
             errorMessage = errorMessage,
+            durationMillis = durationMillis,
+            llmStatusOverride = diagnostics.llmStatus,
+            llmProvider = diagnostics.llmProvider,
+            llmModel = diagnostics.llmModel,
+            llmMaxTokens = diagnostics.llmMaxTokens,
+            llmTimeoutMs = diagnostics.llmTimeoutMs,
+            llmLatencyMs = diagnostics.llmLatencyMs,
+            llmTokensIn = diagnostics.llmTokensIn,
+            llmTokensOut = diagnostics.llmTokensOut,
+            llmError = diagnostics.llmError,
         )
         sink.append(entry)
         Log.d(
             TAG,
             "RetroArch req: system=${entry.system} game=${entry.game} " +
                 "imgBytes=${entry.imageBytes} paused=${entry.paused} " +
-                "out=${entry.outputMode} err=${entry.errorMessage ?: "-"}",
+                "out=${entry.outputMode} llm=${entry.llmStatus} " +
+                "duration=${entry.durationMillis}ms err=${entry.errorMessage ?: "-"}",
         )
         return entry
     }
@@ -119,5 +193,6 @@ class RequestLogger(
             }
             return (len * 3 / 4) - padding
         }
+
     }
 }

@@ -6,6 +6,7 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
+import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.retrosprite.app.data.db.converters.StringListConverter
 import com.retrosprite.app.data.db.dao.GameDao
@@ -20,7 +21,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 /**
  * Root Room database for RetroSprite.
  *
- * Schema v1 entities:
+ * Schema v6 entities:
  *  - request_logs (RequestLogEntity)
  *  - games        (GameEntity)
  *  - knowledge    (KnowledgeEntity)
@@ -37,7 +38,7 @@ import java.util.concurrent.atomic.AtomicBoolean
         GameEntity::class,
         KnowledgeEntity::class
     ],
-    version = 1,
+    version = 6,
     exportSchema = true
 )
 @TypeConverters(StringListConverter::class)
@@ -119,10 +120,96 @@ abstract class RetroSpriteDatabase : RoomDatabase() {
                 )
             }
 
-            val db = builder.addCallback(callback).build()
+            val db = builder
+                .addMigrations(*MIGRATIONS)
+                .addCallback(callback)
+                .build()
             holder[0] = db
             return db
         }
+
+        private val MIGRATION_1_2: Migration = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE request_logs ADD COLUMN duration_millis INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE request_logs ADD COLUMN llm_status TEXT")
+                db.execSQL("ALTER TABLE request_logs ADD COLUMN llm_provider TEXT")
+                db.execSQL("ALTER TABLE request_logs ADD COLUMN llm_model TEXT")
+                db.execSQL("ALTER TABLE request_logs ADD COLUMN llm_max_tokens INTEGER")
+                db.execSQL("ALTER TABLE request_logs ADD COLUMN llm_timeout_ms INTEGER")
+                db.execSQL("ALTER TABLE request_logs ADD COLUMN llm_latency_ms INTEGER")
+                db.execSQL("ALTER TABLE request_logs ADD COLUMN llm_tokens_in INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE request_logs ADD COLUMN llm_tokens_out INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE request_logs ADD COLUMN llm_error TEXT")
+            }
+        }
+
+        private val MIGRATION_2_3: Migration = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE request_logs ADD COLUMN request_key TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE request_logs ADD COLUMN feedback TEXT")
+                db.execSQL("ALTER TABLE request_logs ADD COLUMN feedback_timestamp INTEGER")
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_request_logs_request_key " +
+                        "ON request_logs(request_key)"
+                )
+            }
+        }
+
+        private val MIGRATION_3_4: Migration = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE games ADD COLUMN pack_id TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE games ADD COLUMN provenance TEXT NOT NULL DEFAULT 'unknown'")
+                db.execSQL("ALTER TABLE games ADD COLUMN signature_status TEXT NOT NULL DEFAULT 'unsigned'")
+                db.execSQL("ALTER TABLE games ADD COLUMN signature_key_id TEXT")
+                db.execSQL("ALTER TABLE games ADD COLUMN content_digest TEXT")
+                db.execSQL(
+                    """
+                    UPDATE games
+                    SET pack_id = CASE game_id
+                        WHEN '2048' THEN 'sample.2048'
+                        WHEN 'relay_station' THEN 'sample.relay-station'
+                        ELSE game_id
+                    END
+                    WHERE pack_id = ''
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    """
+                    UPDATE games
+                    SET provenance = CASE
+                        WHEN game_id IN ('2048', 'relay_station') THEN 'bundled'
+                        ELSE 'external'
+                    END
+                    WHERE provenance = 'unknown'
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_games_pack_id ON games(pack_id)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_games_provenance ON games(provenance)")
+            }
+        }
+
+        private val MIGRATION_4_5: Migration = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE games ADD COLUMN enabled INTEGER NOT NULL DEFAULT 1")
+                db.execSQL("ALTER TABLE games ADD COLUMN disabled_at INTEGER")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_games_enabled ON games(enabled)")
+            }
+        }
+
+        private val MIGRATION_5_6: Migration = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE request_logs ADD COLUMN question TEXT")
+                db.execSQL("ALTER TABLE request_logs ADD COLUMN question_source TEXT")
+            }
+        }
+
+        internal val MIGRATIONS: Array<Migration> = arrayOf(
+            MIGRATION_1_2,
+            MIGRATION_2_3,
+            MIGRATION_3_4,
+            MIGRATION_4_5,
+            MIGRATION_5_6,
+        )
 
         private fun installFts(db: SupportSQLiteDatabase) {
             if (!SQLiteCapabilities.supportsFts5(db)) {

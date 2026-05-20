@@ -3,6 +3,7 @@ package com.retrosprite.app.endpoint
 import com.retrosprite.app.endpoint.model.RetroArchRequest
 import com.retrosprite.app.endpoint.model.RetroArchResponse
 import com.retrosprite.app.endpoint.model.RetroArchState
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -16,6 +17,7 @@ import org.junit.Test
  * **and** that they tolerate the partial / forward-compatible payloads we expect to receive
  * from real RetroArch builds in the wild.
  */
+@OptIn(ExperimentalSerializationApi::class)
 class RetroArchModelTest {
 
     private val json = Json {
@@ -56,9 +58,23 @@ class RetroArchModelTest {
         val req = json.decodeFromString(RetroArchRequest.serializer(), payload)
         assertEquals("iVBORw0KGgo=", req.image)
         assertEquals("snes__zelda", req.label)
+        assertEquals("", req.question)
+        assertEquals("", req.spoilerLevel)
         assertTrue(req.state.isPaused)
         assertEquals(1, req.state.b)
         assertEquals(1, req.state.up)
+    }
+
+    @Test
+    fun `request accepts optional debug question field`() {
+        val req = json.decodeFromString(
+            RetroArchRequest.serializer(),
+            """{"label":"2048__","question":"两个 2 怎么合并？","spoiler_level":"direct","state":{}}""",
+        )
+
+        assertEquals("2048__", req.label)
+        assertEquals("两个 2 怎么合并？", req.question)
+        assertEquals("direct", req.spoilerLevel)
     }
 
     @Test

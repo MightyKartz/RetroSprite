@@ -16,7 +16,7 @@
 # -----------------------------------------------------------------------------
 
 set -q HOST;    or set HOST 127.0.0.1
-set -q PORT;    or set PORT 8080
+set -q PORT;    or set PORT 4404
 set -q STRESS;  or set STRESS 100
 set BASE "http://$HOST:$PORT"
 
@@ -83,10 +83,10 @@ if string match -q "*\"text\"*" -- "$POST_BODY"
 else
     fail "POST / response missing text field"
 end
-if string match -q "*RetroSprite*" -- "$POST_BODY"
-    pass "Response text mentions RetroSprite (Phase 0 ack)"
+if string match -q "*\"error\"*" -- "$POST_BODY"
+    fail "POST / returned an error field for a valid request"
 else
-    fail "Response text does not mention RetroSprite"
+    pass "POST / valid request does not return an error field"
 end
 
 # ---- Test 3: malformed JSON ------------------------------------------------

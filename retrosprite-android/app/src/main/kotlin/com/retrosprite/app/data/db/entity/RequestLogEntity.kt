@@ -14,7 +14,10 @@ import androidx.room.PrimaryKey
  */
 @Entity(
     tableName = "request_logs",
-    indices = [Index(value = ["timestamp"])]
+    indices = [
+        Index(value = ["timestamp"]),
+        Index(value = ["request_key"])
+    ]
 )
 data class RequestLogEntity(
     @PrimaryKey(autoGenerate = true)
@@ -22,6 +25,9 @@ data class RequestLogEntity(
 
     @ColumnInfo(name = "timestamp")
     val timestamp: Long,
+
+    @ColumnInfo(name = "request_key")
+    val requestKey: String = "",
 
     @ColumnInfo(name = "label")
     val label: String,
@@ -41,9 +47,51 @@ data class RequestLogEntity(
     @ColumnInfo(name = "output_mode")
     val outputMode: String,
 
+    @ColumnInfo(name = "question")
+    val question: String? = null,
+
+    @ColumnInfo(name = "question_source")
+    val questionSource: String? = null,
+
     @ColumnInfo(name = "response_text")
     val responseText: String,
 
     @ColumnInfo(name = "error_message")
-    val errorMessage: String?
+    val errorMessage: String?,
+
+    @ColumnInfo(name = "duration_millis")
+    val durationMillis: Long = 0L,
+
+    @ColumnInfo(name = "llm_status")
+    val llmStatus: String? = null,
+
+    @ColumnInfo(name = "llm_provider")
+    val llmProvider: String? = null,
+
+    @ColumnInfo(name = "llm_model")
+    val llmModel: String? = null,
+
+    @ColumnInfo(name = "llm_max_tokens")
+    val llmMaxTokens: Int? = null,
+
+    @ColumnInfo(name = "llm_timeout_ms")
+    val llmTimeoutMs: Long? = null,
+
+    @ColumnInfo(name = "llm_latency_ms")
+    val llmLatencyMs: Long? = null,
+
+    @ColumnInfo(name = "llm_tokens_in")
+    val llmTokensIn: Int = 0,
+
+    @ColumnInfo(name = "llm_tokens_out")
+    val llmTokensOut: Int = 0,
+
+    @ColumnInfo(name = "llm_error")
+    val llmError: String? = null,
+
+    @ColumnInfo(name = "feedback")
+    val feedback: String? = null,
+
+    @ColumnInfo(name = "feedback_timestamp")
+    val feedbackTimestamp: Long? = null
 )

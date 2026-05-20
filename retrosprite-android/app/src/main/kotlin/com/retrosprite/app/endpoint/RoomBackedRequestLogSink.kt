@@ -29,11 +29,10 @@ import kotlinx.coroutines.launch
  *  - The Room observation is a single long-lived collector that mirrors the
  *    most recent `observeLimit` entries into [_entries].
  *
- * Round-trip caveat: the endpoint's `RequestLogEntry.id` is a UUID string, but
- * Room uses an auto-increment `Long`. We do **not** preserve the UUID on the
- * write path (it would require a schema change in Task 4); instead, on read we
- * synthesise a stable string id from the row's primary key. UI keys remain
- * stable per-row, which is all Compose needs for `LazyColumn` reuse.
+ * Round-trip note: Room keeps its auto-increment `Long` primary key, while
+ * `request_key` preserves the endpoint's UUID string. Feedback uses that
+ * stable request key so Home can update the matching row after an app-side
+ * question returns.
  */
 class RoomBackedRequestLogSink(
     private val repository: RequestLogRepository,
@@ -65,8 +64,7 @@ class RoomBackedRequestLogSink(
 
 /** Maps the data-layer domain row into the endpoint-layer entry consumed by UI. */
 internal fun RequestLogDomain.toEndpointEntry(): RequestLogEntry = RequestLogEntry(
-    // Stable per-row id; Room PK doubles as the UI key.
-    id = "row-$id",
+    id = requestKey.ifBlank { "row-$id" },
     timestamp = timestamp,
     label = label,
     system = system.orEmpty(),
@@ -74,16 +72,31 @@ internal fun RequestLogDomain.toEndpointEntry(): RequestLogEntry = RequestLogEnt
     imageBytes = imageSize,
     paused = paused,
     outputMode = outputMode,
+    question = question,
+    questionSource = questionSource,
     responseText = responseText,
     errorMessage = errorMessage,
+    durationMillis = durationMillis,
+    llmStatusOverride = llmStatus,
+    llmProvider = llmProvider,
+    llmModel = llmModel,
+    llmMaxTokens = llmMaxTokens,
+    llmTimeoutMs = llmTimeoutMs,
+    llmLatencyMs = llmLatencyMs,
+    llmTokensIn = llmTokensIn,
+    llmTokensOut = llmTokensOut,
+    llmError = llmError,
+    feedback = feedback,
+    feedbackTimestamp = feedbackTimestamp,
 )
 
 /**
- * Maps an endpoint entry into the data-layer domain row. The endpoint's UUID
- * string is intentionally dropped — Room generates the canonical identity.
+ * Maps an endpoint entry into the data-layer domain row. Room still generates
+ * the numeric identity; `requestKey` preserves the endpoint UUID for UI actions.
  */
 internal fun RequestLogEntry.toDomainModel(): RequestLogDomain = RequestLogDomain(
     id = 0L, // auto-increment
+    requestKey = id,
     timestamp = timestamp,
     label = label,
     system = system.ifEmpty { null },
@@ -91,6 +104,20 @@ internal fun RequestLogEntry.toDomainModel(): RequestLogDomain = RequestLogDomai
     imageSize = imageBytes,
     paused = paused,
     outputMode = outputMode,
+    question = question,
+    questionSource = questionSource,
     responseText = responseText,
     errorMessage = errorMessage,
+    durationMillis = durationMillis,
+    llmStatus = llmStatus,
+    llmProvider = llmProvider,
+    llmModel = llmModel,
+    llmMaxTokens = llmMaxTokens,
+    llmTimeoutMs = llmTimeoutMs,
+    llmLatencyMs = llmLatencyMs,
+    llmTokensIn = llmTokensIn,
+    llmTokensOut = llmTokensOut,
+    llmError = llmError,
+    feedback = feedback,
+    feedbackTimestamp = feedbackTimestamp,
 )

@@ -4,8 +4,10 @@ import com.retrosprite.app.data.repository.RequestLogRepository
 import com.retrosprite.app.endpoint.EndpointController
 import com.retrosprite.app.endpoint.RequestLogger
 import com.retrosprite.app.ui.viewmodel.RequestLogProvider
+import com.retrosprite.app.ui.viewmodel.UiAnswerFeedback
 import com.retrosprite.app.ui.viewmodel.UiRequestLogItem
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
@@ -56,6 +58,22 @@ class RealRequestLogProvider(
         repository.clear()
     }
 
+    override suspend fun submitFeedback(requestId: String, feedback: UiAnswerFeedback) {
+        val cleanId = requestId.trim()
+        if (cleanId.isBlank()) return
+        withContext(Dispatchers.IO) {
+            repeat(FEEDBACK_UPDATE_ATTEMPTS) { attempt ->
+                val updated = repository.updateFeedback(
+                    requestKey = cleanId,
+                    feedback = feedback.id,
+                    timestamp = System.currentTimeMillis(),
+                )
+                if (updated > 0) return@withContext
+                delay(FEEDBACK_RETRY_DELAY_MS * (attempt + 1))
+            }
+        }
+    }
+
     override suspend fun sendConnectionTest() {
         withContext(Dispatchers.IO) {
             val url = LOOPBACK_BASE_URL_TEMPLATE.format(portProvider()) + "/?output=text"
@@ -79,6 +97,9 @@ class RealRequestLogProvider(
         // Minimal valid AI-Service body — empty image, label, and zeroed state.
         private const val SYNTHETIC_BODY: String =
             """{"image":"","label":"diagnostic__retrosprite_self_test","state":{"paused":1}}"""
+
+        private const val FEEDBACK_UPDATE_ATTEMPTS: Int = 5
+        private const val FEEDBACK_RETRY_DELAY_MS: Long = 80L
 
         fun defaultClient(): OkHttpClient = OkHttpClient.Builder()
             .connectTimeout(3, TimeUnit.SECONDS)

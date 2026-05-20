@@ -49,6 +49,10 @@ object EndpointController {
     @Volatile
     private var responseGenerator: ResponseGenerator = PlaceholderResponseGenerator()
 
+    /** Receives real RetroArch hotkey requests before response generation. */
+    @Volatile
+    private var hotkeyListener: RetroArchHotkeyListener = NoopRetroArchHotkeyListener
+
     /**
      * Replace the default in-memory [RequestLogSink] with a Room-backed sink (or any
      * other adapter). Must be called BEFORE [start] / [bindToService] so the next
@@ -70,6 +74,10 @@ object EndpointController {
      */
     fun setResponseGenerator(generator: ResponseGenerator) {
         responseGenerator = generator
+    }
+
+    fun setHotkeyListener(listener: RetroArchHotkeyListener) {
+        hotkeyListener = listener
     }
 
     /**
@@ -106,6 +114,7 @@ object EndpointController {
                 port = port,
                 responseGenerator = responseGenerator,
                 requestLogger = loggerInstance,
+                hotkeyListener = hotkeyListener,
             ).also { it.start() }
             server = instance
             _status.value = EndpointStatus.Running(port)

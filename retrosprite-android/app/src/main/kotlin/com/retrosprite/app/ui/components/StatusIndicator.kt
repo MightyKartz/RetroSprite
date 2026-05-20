@@ -97,7 +97,7 @@ private fun StatusIndicatorPreview() {
             modifier = Modifier.padding(16.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            StatusIndicator(UiEndpointPhase.Running, "RUNNING : 8080")
+            StatusIndicator(UiEndpointPhase.Running, "RUNNING : 4404")
             StatusIndicator(UiEndpointPhase.Stopped, "STOPPED")
             StatusIndicator(UiEndpointPhase.Starting, "STARTING")
             StatusIndicator(UiEndpointPhase.Error, "ERROR")

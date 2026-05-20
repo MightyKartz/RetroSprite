@@ -39,7 +39,25 @@ class DefaultQueryPipeline(
         state: Map<String, Int>?,
         spoilerLevel: SpoilerLevel,
         language: String,
-    ): String {
+    ): String = answerDetailed(
+        label = label,
+        romHash = romHash,
+        question = question,
+        screenshot = screenshot,
+        state = state,
+        spoilerLevel = spoilerLevel,
+        language = language,
+    ).text
+
+    override suspend fun answerDetailed(
+        label: String,
+        romHash: String?,
+        question: String?,
+        screenshot: String?,
+        state: Map<String, Int>?,
+        spoilerLevel: SpoilerLevel,
+        language: String,
+    ): QueryPipelineResult {
         // 1. resolve game
         val identity = resolver.resolve(label, romHash)
 
@@ -73,6 +91,10 @@ class DefaultQueryPipeline(
         val decision = policy.decide(results, context)
 
         // 6. compose
-        return composer.compose(decision, context, llm)
+        val answer = composer.composeDetailed(decision, context, llm)
+        return QueryPipelineResult(
+            text = answer.text,
+            llmTrace = answer.llmTrace,
+        )
     }
 }

@@ -43,6 +43,23 @@ class RoomBackedRequestLogSinkTest {
         }
 
         override suspend fun count(): Int = state.value.size
+
+        override suspend fun updateFeedback(
+            requestKey: String,
+            feedback: String,
+            timestamp: Long,
+        ): Int {
+            var updated = 0
+            state.value = state.value.map { row ->
+                if (row.requestKey == requestKey) {
+                    updated += 1
+                    row.copy(feedback = feedback, feedbackTimestamp = timestamp)
+                } else {
+                    row
+                }
+            }
+            return updated
+        }
     }
 
     private fun TestScope.sinkScope(): CoroutineScope =
@@ -53,17 +70,19 @@ class RoomBackedRequestLogSinkTest {
         val repo = FakeRepository()
         val sink = RoomBackedRequestLogSink(repository = repo, scope = sinkScope())
 
-        sink.append(
-            RequestLogEntry(
-                label = "snes__smw",
-                system = "snes",
-                game = "smw",
-                imageBytes = 1024,
-                paused = true,
-                outputMode = "text",
-                responseText = "ok",
-            )
+        val endpointEntry = RequestLogEntry(
+            id = "request-1",
+            label = "snes__smw",
+            system = "snes",
+            game = "smw",
+            imageBytes = 1024,
+            paused = true,
+            outputMode = "text",
+            question = "queued question",
+            questionSource = "pending_hotkey",
+            responseText = "ok",
         )
+        sink.append(endpointEntry)
 
         // Drain the launched coroutines (append + observeRecent collector).
         testScheduler.advanceUntilIdle()
@@ -76,7 +95,9 @@ class RoomBackedRequestLogSinkTest {
         assertEquals("text", first.outputMode)
         assertTrue(first.paused)
         assertEquals(1024, first.imageBytes)
-        assertEquals("row-1", first.id)
+        assertEquals("request-1", first.id)
+        assertEquals("queued question", first.question)
+        assertEquals("pending_hotkey", first.questionSource)
         assertEquals("ok", first.responseText)
     }
 
@@ -138,8 +159,12 @@ class RoomBackedRequestLogSinkTest {
             imageSize = 4096,
             paused = false,
             outputMode = "text",
+            question = "why?",
+            questionSource = "app",
             responseText = "answer",
             errorMessage = "boom",
+            feedback = "helpful",
+            feedbackTimestamp = 77L,
         )
 
         val entry = domain.toEndpointEntry()
@@ -153,11 +178,15 @@ class RoomBackedRequestLogSinkTest {
         assertEquals(false, entry.paused)
         assertEquals("text", entry.outputMode)
         assertEquals("answer", entry.responseText)
+        assertEquals("why?", entry.question)
+        assertEquals("app", entry.questionSource)
         assertEquals("boom", entry.errorMessage)
+        assertEquals("helpful", entry.feedback)
+        assertEquals(77L, entry.feedbackTimestamp)
     }
 
     @Test
-    fun `endpoint to domain mapping drops UUID and zeroes the id`() {
+    fun `endpoint to domain mapping preserves request key and zeroes the numeric id`() {
         val entry = RequestLogEntry(
             id = "uuid-string",
             timestamp = 9L,
@@ -167,15 +196,24 @@ class RoomBackedRequestLogSinkTest {
             imageBytes = 8,
             paused = true,
             outputMode = "text",
+            question = "why?",
+            questionSource = "app",
             responseText = "r",
             errorMessage = null,
+            feedback = "incorrect",
+            feedbackTimestamp = 88L,
         )
 
         val domain = entry.toDomainModel()
 
         assertEquals(0L, domain.id)
+        assertEquals("uuid-string", domain.requestKey)
         assertEquals(9L, domain.timestamp)
         assertEquals("snes", domain.system)
         assertEquals("smw", domain.game)
+        assertEquals("why?", domain.question)
+        assertEquals("app", domain.questionSource)
+        assertEquals("incorrect", domain.feedback)
+        assertEquals(88L, domain.feedbackTimestamp)
     }
 }

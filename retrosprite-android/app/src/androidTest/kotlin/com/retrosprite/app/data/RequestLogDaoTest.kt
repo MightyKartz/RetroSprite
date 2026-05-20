@@ -84,12 +84,54 @@ class RequestLogDaoTest {
         assertEquals(0, repository.count())
     }
 
+    @Test
+    fun updateFeedback_attachesLocalFeedbackToMatchingRequestKey() = runTest {
+        repository.append(sample(timestamp = 1L, label = "a", requestKey = "request-a"))
+
+        val updated = repository.updateFeedback(
+            requestKey = "request-a",
+            feedback = "incorrect",
+            timestamp = 123L,
+        )
+
+        assertEquals(1, updated)
+        repository.observeRecent(limit = 1).test {
+            val row = awaitItem().single()
+            assertEquals("incorrect", row.feedback)
+            assertEquals(123L, row.feedbackTimestamp)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun append_persistsQuestionMetadata() = runTest {
+        repository.append(
+            sample(
+                timestamp = 1L,
+                label = "2048__",
+                question = "两个 2 怎么合并？",
+                questionSource = "pending_hotkey",
+            )
+        )
+
+        repository.observeRecent(limit = 1).test {
+            val row = awaitItem().single()
+            assertEquals("两个 2 怎么合并？", row.question)
+            assertEquals("pending_hotkey", row.questionSource)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
     private fun sample(
         timestamp: Long,
         label: String,
+        requestKey: String = "",
+        question: String? = null,
+        questionSource: String? = null,
         responseText: String = "ok",
         errorMessage: String? = null
     ) = RequestLogDomain(
+        requestKey = requestKey,
         timestamp = timestamp,
         label = label,
         system = "Nintendo - Game Boy",
@@ -97,6 +139,8 @@ class RequestLogDaoTest {
         imageSize = 4096,
         paused = false,
         outputMode = "sound",
+        question = question,
+        questionSource = questionSource,
         responseText = responseText,
         errorMessage = errorMessage
     )

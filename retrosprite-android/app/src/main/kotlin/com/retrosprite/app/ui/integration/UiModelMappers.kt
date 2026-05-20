@@ -4,6 +4,7 @@ import com.retrosprite.app.endpoint.EndpointStatus
 import com.retrosprite.app.endpoint.RequestLogEntry
 import com.retrosprite.app.ui.viewmodel.UiEndpointPhase
 import com.retrosprite.app.ui.viewmodel.UiEndpointStatus
+import com.retrosprite.app.ui.viewmodel.UiAnswerFeedback
 import com.retrosprite.app.ui.viewmodel.UiOutputMode
 import com.retrosprite.app.ui.viewmodel.UiRequestLogItem
 
@@ -62,9 +63,8 @@ internal fun EndpointStatus.toUi(
 /**
  * Maps a single endpoint log entry into the UI list item.
  *
- * `durationMillis` is not currently captured by [RequestLogEntry] (Phase 0
- * doesn't measure pipeline latency), so we surface `0L` as a placeholder. Phase
- * 1 will plumb `start/end` timestamps through `RequestLogger.log`.
+ * Request duration and LLM budget fields are local diagnostics only; prompts and
+ * API keys are intentionally not carried through this mapper.
  */
 internal fun RequestLogEntry.toUi(): UiRequestLogItem = UiRequestLogItem(
     id = id,
@@ -73,10 +73,28 @@ internal fun RequestLogEntry.toUi(): UiRequestLogItem = UiRequestLogItem(
     imageBytes = imageBytes,
     paused = paused,
     outputMode = outputMode.toUiOutputMode(),
+    rawOutputMode = outputMode,
+    question = question,
+    questionSource = questionSource,
     responsePreview = buildPreview(responseText, errorMessage),
-    fullResponseJson = buildFullResponseJson(responseText, errorMessage),
-    durationMillis = 0L,
+    responseText = this.responseText,
+    fullResponseJson = buildFullResponseJson(this),
+    durationMillis = durationMillis,
     ok = errorMessage == null,
+    isDebug = isDebugRequest,
+    sourceIds = sourceIds,
+    pipelineStage = pipelineStage,
+    llmStatus = llmStatus,
+    llmProvider = llmProvider,
+    llmModel = llmModel,
+    llmMaxTokens = llmMaxTokens,
+    llmTimeoutMs = llmTimeoutMs,
+    llmLatencyMs = llmLatencyMs,
+    llmTokensIn = llmTokensIn,
+    llmTokensOut = llmTokensOut,
+    llmError = llmError,
+    feedback = feedback.toUiAnswerFeedbackOrNull(),
+    feedbackTimestampMillis = feedbackTimestamp,
 )
 
 /**
@@ -105,14 +123,34 @@ private fun buildPreview(responseText: String, errorMessage: String?): String {
     return if (raw.length > PREVIEW_MAX) raw.take(PREVIEW_MAX) + "…" else raw
 }
 
-private fun buildFullResponseJson(responseText: String, errorMessage: String?): String {
+private fun buildFullResponseJson(entry: RequestLogEntry): String {
     // Hand-rolled minimal JSON to avoid pulling kotlinx.serialization into the
     // mapping path. Escapes only the bare minimum (\\, ", and newlines) that
     // would otherwise break a textual preview dialog.
-    return if (errorMessage != null) {
-        """{"error":"${escapeJson(errorMessage)}"}"""
+    val sourcesJson = entry.sourceIds.joinToString(",") { "\"${escapeJson(it)}\"" }
+    val metadata = listOf(
+        "\"output_mode\":\"${escapeJson(entry.outputMode)}\"",
+        "\"debug\":${entry.isDebugRequest}",
+        "\"question\":${entry.question.jsonStringOrNull()}",
+        "\"question_source\":${entry.questionSource.jsonStringOrNull()}",
+        "\"pipeline_stage\":\"${escapeJson(entry.pipelineStage)}\"",
+        "\"llm_status\":\"${escapeJson(entry.llmStatus)}\"",
+        "\"llm_provider\":${entry.llmProvider.jsonStringOrNull()}",
+        "\"llm_model\":${entry.llmModel.jsonStringOrNull()}",
+        "\"llm_max_tokens\":${entry.llmMaxTokens?.toString() ?: "null"}",
+        "\"llm_timeout_ms\":${entry.llmTimeoutMs?.toString() ?: "null"}",
+        "\"llm_latency_ms\":${entry.llmLatencyMs?.toString() ?: "null"}",
+        "\"llm_tokens_in\":${entry.llmTokensIn}",
+        "\"llm_tokens_out\":${entry.llmTokensOut}",
+        "\"llm_error\":${entry.llmError.jsonStringOrNull()}",
+        "\"feedback\":${entry.feedback.jsonStringOrNull()}",
+        "\"feedback_timestamp\":${entry.feedbackTimestamp?.toString() ?: "null"}",
+        "\"source_ids\":[$sourcesJson]",
+    ).joinToString(",")
+    return if (entry.errorMessage != null) {
+        """{"error":"${escapeJson(entry.errorMessage)}",$metadata}"""
     } else {
-        """{"text":"${escapeJson(responseText)}"}"""
+        """{"text":"${escapeJson(entry.responseText)}",$metadata}"""
     }
 }
 
@@ -123,5 +161,14 @@ private fun escapeJson(input: String): String =
         .replace("\r", "\\r")
         .replace("\t", "\\t")
 
-internal const val LOOPBACK_BASE_URL_TEMPLATE: String = "http://127.0.0.1:%d"
+private fun String?.jsonStringOrNull(): String =
+    this?.let { "\"${escapeJson(it)}\"" } ?: "null"
+
+private fun String?.toUiAnswerFeedbackOrNull(): UiAnswerFeedback? {
+    val raw = this?.trim().orEmpty()
+    if (raw.isEmpty()) return null
+    return UiAnswerFeedback.values().firstOrNull { it.id == raw }
+}
+
+internal const val LOOPBACK_BASE_URL_TEMPLATE: String = "http://localhost:%d"
 private const val PREVIEW_MAX: Int = 80

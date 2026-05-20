@@ -72,6 +72,26 @@ class GameDaoTest {
         assertNull(repository.getById("nes.kirby"))
     }
 
+    @Test
+    fun setEnabled_togglesWithoutDeletingPackHeader() = runTest {
+        val game = sample(gameId = "nes.disabled", title = "Disabled Pack")
+        repository.upsert(game)
+
+        repository.setEnabled(game.gameId, enabled = false, disabledAt = 123L)
+
+        val disabled = repository.getById(game.gameId)
+        assertNotNull(disabled)
+        assertEquals(false, disabled!!.isEnabled)
+        assertEquals(123L, disabled.disabledAt)
+
+        repository.setEnabled(game.gameId, enabled = true, disabledAt = null)
+
+        val enabled = repository.getById(game.gameId)
+        assertNotNull(enabled)
+        assertEquals(true, enabled!!.isEnabled)
+        assertNull(enabled.disabledAt)
+    }
+
     private fun sample(
         gameId: String,
         title: String,

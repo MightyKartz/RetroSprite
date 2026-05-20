@@ -5,6 +5,10 @@ import com.retrosprite.app.domain.policy.FixedTextAnswerPolicy
 import com.retrosprite.app.domain.resolver.LabelGameResolver
 import com.retrosprite.app.domain.retrieval.NoOpRetrievalPipeline
 import com.retrosprite.app.domain.DefaultQueryPipeline
+import com.retrosprite.app.domain.QueryPipeline
+import com.retrosprite.app.domain.QueryPipelineResult
+import com.retrosprite.app.domain.models.LlmCallTrace
+import com.retrosprite.app.domain.models.SpoilerLevel
 import com.retrosprite.app.endpoint.model.RetroArchRequest
 import com.retrosprite.app.endpoint.model.RetroArchState
 import com.retrosprite.app.llm.MockLlmAdapter
@@ -63,6 +67,203 @@ class QueryPipelineResponseGeneratorTest {
             outputMode = "text|sound",
         )
         assertNotNull(response.text)
+    }
+
+    @Test
+    fun `forwards optional question field to pipeline`() = runTest {
+        var capturedQuestion: String? = null
+        val generator = QueryPipelineResponseGenerator(
+            object : QueryPipeline {
+                override suspend fun answer(
+                    label: String,
+                    romHash: String?,
+                    question: String?,
+                    screenshot: String?,
+                    state: Map<String, Int>?,
+                    spoilerLevel: SpoilerLevel,
+                    language: String,
+                ): String {
+                    capturedQuestion = question
+                    return "answered: $question"
+                }
+            }
+        )
+
+        val response = generator.generate(
+            request = RetroArchRequest(
+                label = "2048__",
+                question = "两个 2 怎么合并？",
+            ),
+            outputMode = "text",
+        )
+
+        assertEquals("两个 2 怎么合并？", capturedQuestion)
+        assertEquals("answered: 两个 2 怎么合并？", response.text)
+    }
+
+    @Test
+    fun `uses configured default spoiler level when request has no override`() = runTest {
+        var capturedSpoilerLevel: SpoilerLevel? = null
+        val generator = QueryPipelineResponseGenerator(
+            pipeline = object : QueryPipeline {
+                override suspend fun answer(
+                    label: String,
+                    romHash: String?,
+                    question: String?,
+                    screenshot: String?,
+                    state: Map<String, Int>?,
+                    spoilerLevel: SpoilerLevel,
+                    language: String,
+                ): String {
+                    capturedSpoilerLevel = spoilerLevel
+                    return "ok"
+                }
+            },
+            spoilerLevelProvider = { SpoilerLevel.CLEAR },
+        )
+
+        generator.generate(
+            request = RetroArchRequest(label = "2048__", question = "下一步？"),
+            outputMode = "text",
+        )
+
+        assertEquals(SpoilerLevel.CLEAR, capturedSpoilerLevel)
+    }
+
+    @Test
+    fun `request spoiler level overrides configured default`() = runTest {
+        var capturedSpoilerLevel: SpoilerLevel? = null
+        val generator = QueryPipelineResponseGenerator(
+            pipeline = object : QueryPipeline {
+                override suspend fun answer(
+                    label: String,
+                    romHash: String?,
+                    question: String?,
+                    screenshot: String?,
+                    state: Map<String, Int>?,
+                    spoilerLevel: SpoilerLevel,
+                    language: String,
+                ): String {
+                    capturedSpoilerLevel = spoilerLevel
+                    return "ok"
+                }
+            },
+            spoilerLevelProvider = { SpoilerLevel.LIGHT },
+        )
+
+        generator.generate(
+            request = RetroArchRequest(
+                label = "2048__",
+                question = "直接答案？",
+                spoilerLevel = "direct",
+            ),
+            outputMode = "text",
+        )
+
+        assertEquals(SpoilerLevel.FULL, capturedSpoilerLevel)
+    }
+
+    @Test
+    fun `attaches llm diagnostics without serializing them into text`() = runTest {
+        val generator = QueryPipelineResponseGenerator(
+            object : QueryPipeline {
+                override suspend fun answer(
+                    label: String,
+                    romHash: String?,
+                    question: String?,
+                    screenshot: String?,
+                    state: Map<String, Int>?,
+                    spoilerLevel: SpoilerLevel,
+                    language: String,
+                ): String = "unused"
+
+                override suspend fun answerDetailed(
+                    label: String,
+                    romHash: String?,
+                    question: String?,
+                    screenshot: String?,
+                    state: Map<String, Int>?,
+                    spoilerLevel: SpoilerLevel,
+                    language: String,
+                ): QueryPipelineResult = QueryPipelineResult(
+                    text = "answer",
+                    llmTrace = LlmCallTrace(
+                        status = "used",
+                        providerName = "deepseek",
+                        modelName = "deepseek-v4-pro",
+                        maxTokens = 256,
+                        timeoutMs = 30_000L,
+                        latencyMs = 1_234L,
+                        tokensIn = 12,
+                        tokensOut = 5,
+                    )
+                )
+            }
+        )
+
+        val response = generator.generate(
+            request = RetroArchRequest(label = "2048__", question = "怎么合并？"),
+            outputMode = "text",
+        )
+
+        assertEquals("answer", response.text)
+        assertEquals("used", response.diagnostics.llmStatus)
+        assertEquals("deepseek", response.diagnostics.llmProvider)
+        assertEquals("deepseek-v4-pro", response.diagnostics.llmModel)
+        assertEquals(256, response.diagnostics.llmMaxTokens)
+        assertEquals(30_000L, response.diagnostics.llmTimeoutMs)
+        assertEquals(1_234L, response.diagnostics.llmLatencyMs)
+        assertEquals(12, response.diagnostics.llmTokensIn)
+        assertEquals(5, response.diagnostics.llmTokensOut)
+    }
+
+    @Test
+    fun `attaches failed llm diagnostics for timeout answers`() = runTest {
+        val generator = QueryPipelineResponseGenerator(
+            object : QueryPipeline {
+                override suspend fun answer(
+                    label: String,
+                    romHash: String?,
+                    question: String?,
+                    screenshot: String?,
+                    state: Map<String, Int>?,
+                    spoilerLevel: SpoilerLevel,
+                    language: String,
+                ): String = "unused"
+
+                override suspend fun answerDetailed(
+                    label: String,
+                    romHash: String?,
+                    question: String?,
+                    screenshot: String?,
+                    state: Map<String, Int>?,
+                    spoilerLevel: SpoilerLevel,
+                    language: String,
+                ): QueryPipelineResult = QueryPipelineResult(
+                    text = "LLM 调用失败：timeout while waiting for provider。已保留本地证据，请稍后重试或检查模型配置。",
+                    llmTrace = LlmCallTrace(
+                        status = "failed",
+                        providerName = "deepseek",
+                        modelName = "deepseek-v4-pro",
+                        maxTokens = 64,
+                        timeoutMs = 5_000L,
+                        errorMessage = "timeout while waiting for provider",
+                    )
+                )
+            }
+        )
+
+        val response = generator.generate(
+            request = RetroArchRequest(label = "2048__", question = "下一步？"),
+            outputMode = "text",
+        )
+
+        assertEquals("failed", response.diagnostics.llmStatus)
+        assertEquals("deepseek", response.diagnostics.llmProvider)
+        assertEquals("deepseek-v4-pro", response.diagnostics.llmModel)
+        assertEquals(64, response.diagnostics.llmMaxTokens)
+        assertEquals(5_000L, response.diagnostics.llmTimeoutMs)
+        assertEquals("timeout while waiting for provider", response.diagnostics.llmError)
     }
 
     @Test

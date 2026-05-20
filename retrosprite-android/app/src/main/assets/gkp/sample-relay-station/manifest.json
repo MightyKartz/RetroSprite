@@ -1,0 +1,34 @@
+{
+  "schema_version": "gkp.v0",
+  "pack_id": "sample.relay-station",
+  "pack_version": "0.1.0",
+  "default_language": "zh",
+  "game": {
+    "game_id": "relay_station",
+    "title": "Relay Station",
+    "platform": "sample",
+    "region": null,
+    "languages": ["zh", "en"],
+    "retroarch_system_ids": ["relay_station"],
+    "retroarch_labels": ["relay_station__", "sample__relay_station"],
+    "rom_identity": {
+      "crc32": null,
+      "sha1": null
+    }
+  },
+  "trust_level": "sample",
+  "min_app_version": "0.1.0",
+  "generated_at": "2026-05-19T00:00:00Z",
+  "contents": {
+    "knowledge": [
+      "knowledge/mechanics.jsonl",
+      "knowledge/items.jsonl",
+      "knowledge/locations.jsonl",
+      "knowledge/quests.jsonl"
+    ],
+    "citations": "sources/citations.jsonl",
+    "aliases": "aliases.json",
+    "spoiler_graph": "spoiler_graph.json",
+    "qa_goldens": "qa_goldens.jsonl"
+  }
+}

@@ -35,3 +35,32 @@ data class LlmResponse(
     val tokensOut: Int = 0,
     val latencyMs: Long = 0L,
 )
+
+/**
+ * Diagnostic summary for one optional LLM call inside the answer pipeline.
+ *
+ * This intentionally carries no prompts or API keys. It is safe to surface in
+ * local diagnostics and request logs.
+ */
+data class LlmCallTrace(
+    val status: String = STATUS_SKIPPED,
+    val providerName: String? = null,
+    val modelName: String? = null,
+    val maxTokens: Int? = null,
+    val timeoutMs: Long? = null,
+    val latencyMs: Long? = null,
+    val tokensIn: Int = 0,
+    val tokensOut: Int = 0,
+    val errorMessage: String? = null,
+) {
+    companion object {
+        const val STATUS_SKIPPED: String = "skipped"
+        const val STATUS_USED: String = "used"
+        const val STATUS_FAILED: String = "failed"
+    }
+}
+
+data class ComposedAnswer(
+    val text: String,
+    val llmTrace: LlmCallTrace = LlmCallTrace(),
+)

@@ -1,0 +1,401 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 2,
+    "identityHash": "0216237a808e204b98715d7360841dea",
+    "entities": [
+      {
+        "tableName": "request_logs",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `timestamp` INTEGER NOT NULL, `label` TEXT NOT NULL, `system` TEXT, `game` TEXT, `image_size` INTEGER NOT NULL, `paused` INTEGER NOT NULL, `output_mode` TEXT NOT NULL, `response_text` TEXT NOT NULL, `error_message` TEXT, `duration_millis` INTEGER NOT NULL, `llm_status` TEXT, `llm_provider` TEXT, `llm_model` TEXT, `llm_max_tokens` INTEGER, `llm_timeout_ms` INTEGER, `llm_latency_ms` INTEGER, `llm_tokens_in` INTEGER NOT NULL, `llm_tokens_out` INTEGER NOT NULL, `llm_error` TEXT)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "timestamp",
+            "columnName": "timestamp",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "label",
+            "columnName": "label",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "system",
+            "columnName": "system",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "game",
+            "columnName": "game",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "imageSize",
+            "columnName": "image_size",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "paused",
+            "columnName": "paused",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "outputMode",
+            "columnName": "output_mode",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "responseText",
+            "columnName": "response_text",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "errorMessage",
+            "columnName": "error_message",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "durationMillis",
+            "columnName": "duration_millis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "llmStatus",
+            "columnName": "llm_status",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "llmProvider",
+            "columnName": "llm_provider",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "llmModel",
+            "columnName": "llm_model",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "llmMaxTokens",
+            "columnName": "llm_max_tokens",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "llmTimeoutMs",
+            "columnName": "llm_timeout_ms",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "llmLatencyMs",
+            "columnName": "llm_latency_ms",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "llmTokensIn",
+            "columnName": "llm_tokens_in",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "llmTokensOut",
+            "columnName": "llm_tokens_out",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "llmError",
+            "columnName": "llm_error",
+            "affinity": "TEXT",
+            "notNull": false
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_request_logs_timestamp",
+            "unique": false,
+            "columnNames": [
+              "timestamp"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_request_logs_timestamp` ON `${TABLE_NAME}` (`timestamp`)"
+          }
+        ],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "games",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`game_id` TEXT NOT NULL, `title` TEXT NOT NULL, `platform` TEXT NOT NULL, `region` TEXT, `languages` TEXT NOT NULL, `rom_crc32` TEXT, `rom_sha1` TEXT, `pack_version` TEXT NOT NULL, `schema_version` TEXT NOT NULL, `trust_level` TEXT NOT NULL, `installed_at` INTEGER NOT NULL, PRIMARY KEY(`game_id`))",
+        "fields": [
+          {
+            "fieldPath": "gameId",
+            "columnName": "game_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "platform",
+            "columnName": "platform",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "region",
+            "columnName": "region",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "languages",
+            "columnName": "languages",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "romCrc32",
+            "columnName": "rom_crc32",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "romSha1",
+            "columnName": "rom_sha1",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "packVersion",
+            "columnName": "pack_version",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "schemaVersion",
+            "columnName": "schema_version",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "trustLevel",
+            "columnName": "trust_level",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "installedAt",
+            "columnName": "installed_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "game_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_games_rom_sha1",
+            "unique": false,
+            "columnNames": [
+              "rom_sha1"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_games_rom_sha1` ON `${TABLE_NAME}` (`rom_sha1`)"
+          },
+          {
+            "name": "index_games_rom_crc32",
+            "unique": false,
+            "columnNames": [
+              "rom_crc32"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_games_rom_crc32` ON `${TABLE_NAME}` (`rom_crc32`)"
+          },
+          {
+            "name": "index_games_platform_title",
+            "unique": false,
+            "columnNames": [
+              "platform",
+              "title"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_games_platform_title` ON `${TABLE_NAME}` (`platform`, `title`)"
+          }
+        ],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "knowledge",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `game_id` TEXT NOT NULL, `entity_id` TEXT NOT NULL, `entity_type` TEXT NOT NULL, `canonical_name` TEXT NOT NULL, `aliases_json` TEXT NOT NULL, `description_short` TEXT NOT NULL, `description_long` TEXT, `progress_gate` TEXT, `spoiler_level` TEXT NOT NULL, `source_refs_json` TEXT NOT NULL, `confidence` TEXT NOT NULL, `answer_templates_json` TEXT, FOREIGN KEY(`game_id`) REFERENCES `games`(`game_id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "gameId",
+            "columnName": "game_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "entityId",
+            "columnName": "entity_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "entityType",
+            "columnName": "entity_type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "canonicalName",
+            "columnName": "canonical_name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "aliasesJson",
+            "columnName": "aliases_json",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "descriptionShort",
+            "columnName": "description_short",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "descriptionLong",
+            "columnName": "description_long",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "progressGate",
+            "columnName": "progress_gate",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "spoilerLevel",
+            "columnName": "spoiler_level",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceRefsJson",
+            "columnName": "source_refs_json",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "confidence",
+            "columnName": "confidence",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "answerTemplatesJson",
+            "columnName": "answer_templates_json",
+            "affinity": "TEXT",
+            "notNull": false
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_knowledge_game_id",
+            "unique": false,
+            "columnNames": [
+              "game_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_knowledge_game_id` ON `${TABLE_NAME}` (`game_id`)"
+          },
+          {
+            "name": "index_knowledge_game_id_entity_type",
+            "unique": false,
+            "columnNames": [
+              "game_id",
+              "entity_type"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_knowledge_game_id_entity_type` ON `${TABLE_NAME}` (`game_id`, `entity_type`)"
+          },
+          {
+            "name": "index_knowledge_game_id_entity_id",
+            "unique": true,
+            "columnNames": [
+              "game_id",
+              "entity_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_knowledge_game_id_entity_id` ON `${TABLE_NAME}` (`game_id`, `entity_id`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "games",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "game_id"
+            ],
+            "referencedColumns": [
+              "game_id"
+            ]
+          }
+        ]
+      }
+    ],
+    "views": [],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '0216237a808e204b98715d7360841dea')"
+    ]
+  }
+}

@@ -1,6 +1,7 @@
 package com.retrosprite.app.endpoint.model
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 
 /**
  * Response payload returned to the RetroArch frontend.
@@ -19,16 +20,39 @@ data class RetroArchResponse(
     val press: List<String>? = null,
     val auto: Int? = null,
     val error: String? = null,
+    @Transient
+    val diagnostics: ResponseDiagnostics = ResponseDiagnostics(),
 ) {
     companion object {
         /** Convenience builder for the most common case: a textual answer. */
-        fun text(content: String, textPosition: Int? = null): RetroArchResponse =
-            RetroArchResponse(text = content, text_position = textPosition)
+        fun text(
+            content: String,
+            textPosition: Int? = null,
+            diagnostics: ResponseDiagnostics = ResponseDiagnostics(),
+        ): RetroArchResponse = RetroArchResponse(
+            text = content,
+            text_position = textPosition,
+            diagnostics = diagnostics,
+        )
 
         /** Convenience builder for protocol-level errors (still HTTP 200). */
         fun error(message: String): RetroArchResponse = RetroArchResponse(error = message)
     }
 }
+
+data class ResponseDiagnostics(
+    val question: String? = null,
+    val questionSource: String? = null,
+    val llmStatus: String? = null,
+    val llmProvider: String? = null,
+    val llmModel: String? = null,
+    val llmMaxTokens: Int? = null,
+    val llmTimeoutMs: Long? = null,
+    val llmLatencyMs: Long? = null,
+    val llmTokensIn: Int = 0,
+    val llmTokensOut: Int = 0,
+    val llmError: String? = null,
+)
 
 /** Tiny payload returned by the `/health` route — useful for diagnostics surfaces. */
 @Serializable
@@ -36,3 +60,38 @@ data class HealthResponse(
     val status: String,
     val version: String,
 )
+
+/** Loopback-only summary returned by `/debug/latest-request`. */
+@Serializable
+data class DebugLatestRequestResponse(
+    val has_entry: Boolean,
+    val timestamp: Long? = null,
+    val label: String? = null,
+    val system: String? = null,
+    val game: String? = null,
+    val image_bytes: Int? = null,
+    val paused: Boolean? = null,
+    val output_mode: String? = null,
+    val is_debug: Boolean? = null,
+    val ok: Boolean? = null,
+    val question: String? = null,
+    val question_source: String? = null,
+    val pipeline_stage: String? = null,
+    val llm_status: String? = null,
+    val source_ids: List<String> = emptyList(),
+    val response_preview: String? = null,
+    val error_message: String? = null,
+    val duration_ms: Long? = null,
+    val llm_provider: String? = null,
+    val llm_model: String? = null,
+    val llm_max_tokens: Int? = null,
+    val llm_timeout_ms: Long? = null,
+    val llm_latency_ms: Long? = null,
+    val llm_tokens_in: Int? = null,
+    val llm_tokens_out: Int? = null,
+    val llm_error: String? = null,
+) {
+    companion object {
+        fun empty(): DebugLatestRequestResponse = DebugLatestRequestResponse(has_entry = false)
+    }
+}

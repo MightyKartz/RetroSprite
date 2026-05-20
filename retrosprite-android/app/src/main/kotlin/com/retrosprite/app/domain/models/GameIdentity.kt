@@ -16,7 +16,7 @@ import kotlinx.serialization.Serializable
  *   Falls back to "unknown" when label cannot be parsed.
  * @param region Optional region tag ("us", "jp", "eu", ...). `null` when unknown.
  * @param source How this identity was obtained: "label", "rom_hash",
- *   "user_pick", or "unknown".
+ *   "user_pick", "gkp_disabled", or "unknown".
  */
 @Serializable
 data class GameIdentity(
@@ -27,6 +27,8 @@ data class GameIdentity(
     val source: String,
 ) {
     companion object {
+        const val SOURCE_GKP_DISABLED: String = "gkp_disabled"
+
         /** Sentinel used when no signal is available. */
         fun unknown(): GameIdentity = GameIdentity(
             gameId = null,

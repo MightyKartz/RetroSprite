@@ -19,9 +19,9 @@ import java.util.Base64
  * Edge-case coverage that complements [RetroArchEndpointServerTest]:
  *
  *  - oversized image payload (~5 MB Base64) must not crash the server
- *  - wrong `Content-Type` (e.g. `text/plain`) must still surface as a
- *    protocol-level error (HTTP 200 + `{"error": ...}`), never as a transport
- *    failure — RetroArch silently drops 4xx/5xx
+ *  - wrong `Content-Type` (e.g. `text/plain`) with a JSON body must still parse
+ *    because RetroArch's HTTP layer can send JSON without an application/json
+ *    header
  *  - completely empty body must not crash, must return error
  *  - duplicate query parameters: last-wins is fine, but no exception
  */
@@ -66,7 +66,7 @@ class EndpointEdgeCaseTest {
     }
 
     @Test
-    fun `text plain content type still returns HTTP 200 with error payload`() = testApplication {
+    fun `text plain content type with json body is accepted`() = testApplication {
         val logger = RequestLogger()
         application { retroArchModule(PlaceholderResponseGenerator(), logger) }
 
@@ -75,19 +75,17 @@ class EndpointEdgeCaseTest {
             setBody("""{"image":"x","label":"snes__game","state":{}}""")
         }
 
-        // RetroArch never sees a 4xx — ContentNegotiation either rejects the
-        // unsupported content type (415 by default) or the receive throws.
-        // Either way the route handler catches it and returns 200 + error.
         assertEquals(
-            "Protocol contract: even wrong content-type must surface as HTTP 200",
+            "Protocol contract: even wrong content-type must not surface as transport error",
             HttpStatusCode.OK,
             resp.status,
         )
         val parsed = json.decodeFromString(RetroArchResponse.serializer(), resp.bodyAsText())
-        assertNotNull("error must be populated for unsupported content type", parsed.error)
+        assertEquals(PlaceholderResponseGenerator.DEFAULT_MESSAGE, parsed.text)
 
         val entry = logger.entries.value.first()
-        assertNotNull("logger must record the content-type rejection", entry.errorMessage)
+        assertEquals("snes", entry.system)
+        assertEquals("game", entry.game)
     }
 
     @Test

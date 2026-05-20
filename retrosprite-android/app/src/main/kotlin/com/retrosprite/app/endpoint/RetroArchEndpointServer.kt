@@ -1,6 +1,7 @@
 package com.retrosprite.app.endpoint
 
 import android.util.Log
+import com.retrosprite.app.endpoint.model.DebugLatestRequestResponse
 import com.retrosprite.app.endpoint.model.HealthResponse
 import com.retrosprite.app.endpoint.model.RetroArchRequest
 import com.retrosprite.app.endpoint.model.RetroArchResponse
@@ -14,7 +15,7 @@ import io.ktor.server.cio.CIO
 import io.ktor.server.engine.ApplicationEngine
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.server.request.receive
+import io.ktor.server.request.receiveText
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
@@ -43,6 +44,7 @@ class RetroArchEndpointServer(
     private val host: String = DEFAULT_HOST,
     private val responseGenerator: ResponseGenerator = PlaceholderResponseGenerator(),
     private val requestLogger: RequestLogger = RequestLogger(),
+    private val hotkeyListener: RetroArchHotkeyListener = NoopRetroArchHotkeyListener,
 ) {
 
     private val running = AtomicBoolean(false)
@@ -62,7 +64,7 @@ class RetroArchEndpointServer(
         }
         try {
             engine = embeddedServer(CIO, host = host, port = port) {
-                retroArchModule(responseGenerator, requestLogger)
+                retroArchModule(responseGenerator, requestLogger, hotkeyListener)
             }.also { it.start(wait = false) }
             Log.i(TAG, "RetroArch endpoint listening on $host:$port")
         } catch (t: Throwable) {
@@ -87,7 +89,7 @@ class RetroArchEndpointServer(
 
     companion object {
         const val DEFAULT_HOST: String = "127.0.0.1"
-        const val DEFAULT_PORT: Int = 8080
+        const val DEFAULT_PORT: Int = 4_404
         private const val TAG = "RetroSprite/Endpoint"
     }
 }
@@ -113,6 +115,7 @@ internal val retroArchJson: Json = Json {
 fun Application.retroArchModule(
     responseGenerator: ResponseGenerator,
     requestLogger: RequestLogger,
+    hotkeyListener: RetroArchHotkeyListener = NoopRetroArchHotkeyListener,
 ) {
     install(ContentNegotiation) {
         json(retroArchJson)
@@ -122,14 +125,100 @@ fun Application.retroArchModule(
             call.respond(HealthResponse(status = "ok", version = "0.1.0"))
         }
 
+        get("/debug/latest-request") {
+            val response = requestLogger.entries.value.firstOrNull()
+                ?.toDebugLatestRequestResponse()
+                ?: DebugLatestRequestResponse.empty()
+            call.respond(response)
+        }
+
+        post("/debug/ask") {
+            val outputMode = call.request.queryParameters["output"]?.takeIf { it.isNotBlank() }
+                ?: "text"
+            val debugOutputMode = "debug:$outputMode"
+
+            val request: RetroArchRequest = try {
+                retroArchJson.decodeFromString(
+                    RetroArchRequest.serializer(),
+                    call.receiveText(),
+                )
+            } catch (t: Throwable) {
+                requestLogger.log(
+                    label = "",
+                    imageBase64 = "",
+                    paused = false,
+                    outputMode = debugOutputMode,
+                    responseText = "",
+                    errorMessage = "malformed_debug_request: ${t.message}",
+                )
+                call.respondJson(RetroArchResponse.error("Malformed debug request body"))
+                return@post
+            }
+
+            if (request.question.isBlank()) {
+                requestLogger.log(
+                    label = request.label,
+                    imageBase64 = request.image,
+                    paused = request.state.isPaused,
+                    outputMode = debugOutputMode,
+                    responseText = "",
+                    errorMessage = "missing_debug_question",
+                    questionSource = QUESTION_SOURCE_DEBUG,
+                )
+                call.respondJson(RetroArchResponse.error("Missing debug question"))
+                return@post
+            }
+
+            val startedAt = System.currentTimeMillis()
+            val response: RetroArchResponse = try {
+                responseGenerator.generate(request, outputMode)
+            } catch (t: Throwable) {
+                Log.e("RetroSprite/Endpoint", "Debug ResponseGenerator failed", t)
+                requestLogger.log(
+                    label = request.label,
+                    imageBase64 = request.image,
+                    paused = request.state.isPaused,
+                    outputMode = debugOutputMode,
+                    responseText = "",
+                    errorMessage = "debug_generator_failed: ${t.message}",
+                    durationMillis = System.currentTimeMillis() - startedAt,
+                    question = request.question,
+                    questionSource = QUESTION_SOURCE_DEBUG,
+                )
+                call.respondJson(RetroArchResponse.error("Internal debug generator failure"))
+                return@post
+            }
+            val durationMillis = System.currentTimeMillis() - startedAt
+
+            requestLogger.log(
+                label = request.label,
+                imageBase64 = request.image,
+                paused = request.state.isPaused,
+                outputMode = debugOutputMode,
+                responseText = response.text.orEmpty(),
+                errorMessage = response.error,
+                durationMillis = durationMillis,
+                diagnostics = response.diagnostics,
+                question = request.question,
+                questionSource = QUESTION_SOURCE_DEBUG,
+            )
+            call.respondJson(response)
+        }
+
         post("/") {
             // 1. Query parameters — `output` is required by spec; default to "text" if absent.
             val outputMode = call.request.queryParameters["output"]?.takeIf { it.isNotBlank() }
                 ?: "text"
 
             // 2. Body parsing wrapped in try/catch so RetroArch never sees a 4xx/5xx.
+            // RetroArch currently sends a JSON payload with
+            // `Content-Type: application/x-www-form-urlencoded`, so parse the raw body
+            // instead of relying on Ktor's content negotiation.
             val request: RetroArchRequest = try {
-                call.receive()
+                retroArchJson.decodeFromString(
+                    RetroArchRequest.serializer(),
+                    call.receiveText(),
+                )
             } catch (t: Throwable) {
                 requestLogger.log(
                     label = "",
@@ -143,7 +232,10 @@ fun Application.retroArchModule(
                 return@post
             }
 
+            hotkeyListener.notifySafely(request, outputMode)
+
             // 3. Delegate to the generator; treat any failure as a protocol-level error.
+            val startedAt = System.currentTimeMillis()
             val response: RetroArchResponse = try {
                 responseGenerator.generate(request, outputMode)
             } catch (t: Throwable) {
@@ -155,10 +247,14 @@ fun Application.retroArchModule(
                     outputMode = outputMode,
                     responseText = "",
                     errorMessage = "generator_failed: ${t.message}",
+                    durationMillis = System.currentTimeMillis() - startedAt,
+                    question = request.question,
+                    questionSource = request.question.takeIf { it.isNotBlank() }?.let { QUESTION_SOURCE_RETROARCH },
                 )
                 call.respondJson(RetroArchResponse.error("Internal generator failure"))
                 return@post
             }
+            val durationMillis = System.currentTimeMillis() - startedAt
 
             // 4. Record success path.
             requestLogger.log(
@@ -168,11 +264,46 @@ fun Application.retroArchModule(
                 outputMode = outputMode,
                 responseText = response.text.orEmpty(),
                 errorMessage = response.error,
+                durationMillis = durationMillis,
+                diagnostics = response.diagnostics,
+                question = response.diagnostics.question ?: request.question,
+                questionSource = response.diagnostics.questionSource
+                    ?: request.question.takeIf { it.isNotBlank() }?.let { QUESTION_SOURCE_RETROARCH },
             )
             call.respondJson(response)
         }
     }
 }
+
+private fun RequestLogEntry.toDebugLatestRequestResponse(): DebugLatestRequestResponse =
+    DebugLatestRequestResponse(
+        has_entry = true,
+        timestamp = timestamp,
+        label = label.ifBlank { null },
+        system = system.ifBlank { null },
+        game = game.ifBlank { null },
+        image_bytes = imageBytes,
+        paused = paused,
+        output_mode = outputMode,
+        is_debug = isDebugRequest,
+        ok = errorMessage == null,
+        question = question,
+        question_source = questionSource,
+        pipeline_stage = pipelineStage,
+        llm_status = llmStatus,
+        source_ids = sourceIds,
+        response_preview = responseText.take(PREVIEW_MAX).ifBlank { null },
+        error_message = errorMessage,
+        duration_ms = durationMillis,
+        llm_provider = llmProvider,
+        llm_model = llmModel,
+        llm_max_tokens = llmMaxTokens,
+        llm_timeout_ms = llmTimeoutMs,
+        llm_latency_ms = llmLatencyMs,
+        llm_tokens_in = llmTokensIn,
+        llm_tokens_out = llmTokensOut,
+        llm_error = llmError,
+    )
 
 /** Helper that serializes via the lenient parser regardless of negotiated content type. */
 private suspend fun io.ktor.server.application.ApplicationCall.respondJson(
@@ -181,3 +312,18 @@ private suspend fun io.ktor.server.application.ApplicationCall.respondJson(
     val body = retroArchJson.encodeToString(RetroArchResponse.serializer(), response)
     respondText(text = body, contentType = ContentType.Application.Json, status = HttpStatusCode.OK)
 }
+
+private fun RetroArchHotkeyListener.notifySafely(
+    request: RetroArchRequest,
+    outputMode: String,
+) {
+    runCatching {
+        onHotkey(request.toHotkeyEvent(outputMode))
+    }.onFailure { error ->
+        Log.w("RetroSprite/Endpoint", "Hotkey listener failed; continuing response", error)
+    }
+}
+
+private const val PREVIEW_MAX: Int = 200
+private const val QUESTION_SOURCE_DEBUG: String = "debug"
+private const val QUESTION_SOURCE_RETROARCH: String = "retroarch"

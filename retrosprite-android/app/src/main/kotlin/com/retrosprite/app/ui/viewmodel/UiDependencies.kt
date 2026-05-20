@@ -32,6 +32,14 @@ data class UiDependencies(
     val endpoint: EndpointStatusProvider,
     val requestLog: RequestLogProvider,
     val settingsStore: SettingsStore,
+    val playerQuestion: PlayerQuestionProvider = PreviewStub.playerQuestion(),
+    val pendingQuestion: PendingQuestionProvider = PreviewStub.pendingQuestion(),
+    val voiceInput: VoiceInputProvider = PreviewStub.voiceInput(),
+    val speechOutput: SpeechOutputProvider = PreviewStub.speechOutput(),
+    val overlayPermission: OverlayPermissionProvider = PreviewStub.overlayPermission(),
+    val llmConfigTest: LlmConfigTestProvider = PreviewStub.llmConfigTest(),
+    val gkpLibrary: GkpLibraryProvider = PreviewStub.gkpLibrary(),
+    val gkpPreflight: GkpPreflightProvider = PreviewStub.gkpPreflight(),
     val about: UiAboutInfo = UiAboutInfo()
 )
 
@@ -67,6 +75,14 @@ private val DefaultStubDependencies: UiDependencies by lazy {
     UiDependencies(
         endpoint = PreviewStub.endpoint(),
         requestLog = PreviewStub.requestLog(),
-        settingsStore = PreviewStub.settings()
+        settingsStore = PreviewStub.settings(),
+        playerQuestion = PreviewStub.playerQuestion(),
+        pendingQuestion = PreviewStub.pendingQuestion(),
+        voiceInput = PreviewStub.voiceInput(),
+        speechOutput = PreviewStub.speechOutput(),
+        overlayPermission = PreviewStub.overlayPermission(),
+        llmConfigTest = PreviewStub.llmConfigTest(),
+        gkpLibrary = PreviewStub.gkpLibrary(),
+        gkpPreflight = PreviewStub.gkpPreflight(),
     )
 }

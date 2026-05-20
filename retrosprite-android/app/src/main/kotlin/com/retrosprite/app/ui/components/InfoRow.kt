@@ -73,11 +73,11 @@ fun InfoRow(
 private fun InfoRowPreview() {
     RetroSpriteTheme {
         Column(modifier = Modifier.padding(16.dp)) {
-            InfoRow(label = "\u7aef\u53e3", value = "8080")
+            InfoRow(label = "\u7aef\u53e3", value = "4404")
             InfoRow(label = "\u5b9d\u5e94\u65f6\u95f4", value = "1.2 s")
             InfoRow(
                 label = "URL",
-                value = "http://192.168.1.42:8080",
+                value = "http://localhost:4404",
                 stacked = true,
                 valueMonospace = true
             )

@@ -30,14 +30,21 @@ class LabelGameResolverTest {
 
     @Test
     fun `uses first __ as the separator when title contains another __`() = runTest {
-        // "genesis__sonic_2__hack" -> platform="genesis", title="sonic_2__hack"
+        // "genesis__sonic_2__hack" -> platform alias "md", title="sonic_2__hack"
         val identity = resolver.resolve("genesis__sonic_2__hack")
 
-        assertEquals("genesis", identity.platform)
+        assertEquals("md", identity.platform)
         // First underscore inside the title becomes a space; the embedded
         // double-underscore collapses to a single space (whitespace-collapse
         // happens after underscore-to-space conversion).
         assertEquals("Sonic 2 Hack", identity.title)
+    }
+
+    @Test
+    fun `canonicalizes mega drive platform aliases to md`() = runTest {
+        assertEquals("md", resolver.resolve("mega_drive__光明力量2").platform)
+        assertEquals("md", resolver.resolve("megadrive__Shining Force II").platform)
+        assertEquals("md", resolver.resolve("genesis__Shining Force II").platform)
     }
 
     @Test

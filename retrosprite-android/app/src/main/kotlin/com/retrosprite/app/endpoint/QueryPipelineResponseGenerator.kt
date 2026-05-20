@@ -4,6 +4,7 @@ import com.retrosprite.app.domain.QueryPipeline
 import com.retrosprite.app.domain.models.SpoilerLevel
 import com.retrosprite.app.endpoint.model.RetroArchRequest
 import com.retrosprite.app.endpoint.model.RetroArchResponse
+import com.retrosprite.app.endpoint.model.ResponseDiagnostics
 
 /**
  * Endpoint-layer [ResponseGenerator] that delegates to the domain [QueryPipeline].
@@ -28,6 +29,7 @@ import com.retrosprite.app.endpoint.model.RetroArchResponse
 class QueryPipelineResponseGenerator(
     private val pipeline: QueryPipeline,
     private val defaultSpoilerLevel: SpoilerLevel = SpoilerLevel.LIGHT,
+    private val spoilerLevelProvider: () -> SpoilerLevel = { defaultSpoilerLevel },
     private val defaultLanguage: String = "zh",
 ) : ResponseGenerator {
 
@@ -35,19 +37,39 @@ class QueryPipelineResponseGenerator(
         request: RetroArchRequest,
         outputMode: String,
     ): RetroArchResponse {
-        val text = pipeline.answer(
+        val result = pipeline.answerDetailed(
             label = request.label,
             romHash = null,
-            // Phase 0: the AI-Service body has no "question" field; the
-            // screenshot itself is the trigger. Phase 1 adds a chat overlay.
-            question = null,
+            // Official RetroArch AI-Service bodies do not currently include a
+            // question field. The optional field is for app/debug text entry.
+            question = request.question.takeIf { it.isNotBlank() },
             screenshot = request.image.takeIf { it.isNotBlank() },
             state = request.state.toFlagMap().ifEmpty { null },
-            spoilerLevel = defaultSpoilerLevel,
+            spoilerLevel = request.spoilerLevel.toSpoilerLevelOrNull() ?: spoilerLevelProvider(),
             language = defaultLanguage,
         )
-        return RetroArchResponse.text(text)
+        return RetroArchResponse.text(
+            content = result.text,
+            diagnostics = ResponseDiagnostics(
+                llmStatus = result.llmTrace.status,
+                llmProvider = result.llmTrace.providerName,
+                llmModel = result.llmTrace.modelName,
+                llmMaxTokens = result.llmTrace.maxTokens,
+                llmTimeoutMs = result.llmTrace.timeoutMs,
+                llmLatencyMs = result.llmTrace.latencyMs,
+                llmTokensIn = result.llmTrace.tokensIn,
+                llmTokensOut = result.llmTrace.tokensOut,
+                llmError = result.llmTrace.errorMessage,
+            )
+        )
     }
+}
+
+private fun String.toSpoilerLevelOrNull(): SpoilerLevel? = when (trim().lowercase()) {
+    "light", "none", "hint" -> SpoilerLevel.LIGHT
+    "clear", "medium", "more" -> SpoilerLevel.CLEAR
+    "direct", "full", "heavy" -> SpoilerLevel.FULL
+    else -> null
 }
 
 /**

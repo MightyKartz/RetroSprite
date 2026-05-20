@@ -20,6 +20,7 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.server.testing.testApplication
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -44,6 +45,7 @@ import org.junit.Test
  *
  * If this test passes, the entire Phase 0 protocol path is verified at the JVM level.
  */
+@OptIn(ExperimentalSerializationApi::class)
 class EndToEndPipelineTest {
 
     private val json = Json {

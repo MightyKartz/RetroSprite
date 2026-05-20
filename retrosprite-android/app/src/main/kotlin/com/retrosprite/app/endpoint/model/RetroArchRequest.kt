@@ -1,5 +1,6 @@
 package com.retrosprite.app.endpoint.model
 
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
@@ -13,5 +14,7 @@ import kotlinx.serialization.Serializable
 data class RetroArchRequest(
     val image: String = "",
     val label: String = "",
+    val question: String = "",
+    @SerialName("spoiler_level") val spoilerLevel: String = "",
     val state: RetroArchState = RetroArchState(),
 )

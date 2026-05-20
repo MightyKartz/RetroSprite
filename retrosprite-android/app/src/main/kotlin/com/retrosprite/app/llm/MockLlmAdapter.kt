@@ -14,9 +14,21 @@ class MockLlmAdapter : LlmAdapter {
     override val providerName: String = "mock"
 
     override suspend fun complete(request: LlmRequest): LlmResponse {
+        val evidenceSources = request.evidence
+            .map { it.sourceId }
+            .filter { it.isNotBlank() }
+            .distinct()
+        val text = if (request.evidence.isEmpty()) {
+            MOCK_TEXT
+        } else {
+            request.evidence
+                .joinToString(separator = " ") { it.snippet.trim() }
+                .replace(WHITESPACE, " ")
+                .trim()
+        }
         return LlmResponse(
-            text = MOCK_TEXT,
-            citationsUsed = emptyList(),
+            text = text,
+            citationsUsed = evidenceSources,
             tokensIn = 0,
             tokensOut = 0,
             latencyMs = 0L,
@@ -25,5 +37,6 @@ class MockLlmAdapter : LlmAdapter {
 
     companion object {
         const val MOCK_TEXT: String = "(Phase 0 mock LLM response)"
+        private val WHITESPACE = Regex("\\s+")
     }
 }

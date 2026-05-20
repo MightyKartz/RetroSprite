@@ -38,6 +38,9 @@ interface GameDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertAll(entities: List<GameEntity>)
 
+    @Query("UPDATE games SET enabled = :enabled, disabled_at = :disabledAt WHERE game_id = :gameId")
+    suspend fun setEnabled(gameId: String, enabled: Boolean, disabledAt: Long?)
+
     @Delete
     suspend fun delete(entity: GameEntity)
 

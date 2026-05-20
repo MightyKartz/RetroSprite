@@ -25,6 +25,20 @@ interface RequestLogDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(entity: RequestLogEntity): Long
 
+    @Query(
+        """
+        UPDATE request_logs
+        SET feedback = :feedback,
+            feedback_timestamp = :timestamp
+        WHERE request_key = :requestKey
+        """
+    )
+    suspend fun updateFeedbackByRequestKey(
+        requestKey: String,
+        feedback: String,
+        timestamp: Long,
+    ): Int
+
     @Query("DELETE FROM request_logs")
     suspend fun clear()
 

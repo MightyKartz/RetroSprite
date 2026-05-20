@@ -1,0 +1,21 @@
+{
+  "default_gate": "start",
+  "gates": [
+    {
+      "gate_id": "start",
+      "label": "Game start",
+      "order": 0
+    },
+    {
+      "gate_id": "stable_corner",
+      "label": "Player understands corner anchoring",
+      "order": 1
+    }
+  ],
+  "edges": [
+    {
+      "from": "start",
+      "to": "stable_corner"
+    }
+  ]
+}

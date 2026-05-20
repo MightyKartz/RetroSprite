@@ -41,7 +41,9 @@ class LabelGameResolver : GameResolver {
             rawTitle = trimmed.substring(sepIndex + SEPARATOR.length)
         }
 
-        val platform = rawPlatform.ifBlank { "unknown" }.lowercase()
+        val platform = rawPlatform.ifBlank { "unknown" }
+            .lowercase()
+            .toCanonicalPlatform()
         val title = prettifyTitle(rawTitle).ifBlank { "unknown" }
 
         return GameIdentity(
@@ -73,3 +75,9 @@ class LabelGameResolver : GameResolver {
         private val WHITESPACE = Regex("\\s+")
     }
 }
+
+private fun String.toCanonicalPlatform(): String =
+    when (this) {
+        "mega_drive", "megadrive", "genesis" -> "md"
+        else -> this
+    }

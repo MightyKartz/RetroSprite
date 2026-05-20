@@ -23,8 +23,8 @@ object PreviewStub {
     fun endpoint(
         initial: UiEndpointStatus = UiEndpointStatus(
             phase = UiEndpointPhase.Running,
-            port = 8080,
-            baseUrl = "http://192.168.1.42:8080",
+            port = 4_404,
+            baseUrl = "http://localhost:4404",
             message = "0 \u4e2a\u8bf7\u6c42\u5728\u6392\u961f",
             lastHealthCheckMillis = System.currentTimeMillis() - 12_000,
             lastHealthOk = true
@@ -36,6 +36,24 @@ object PreviewStub {
 
     fun settings(initial: UiSettings = UiSettings()): SettingsStore =
         FakeSettingsStore(initial)
+
+    fun playerQuestion(): PlayerQuestionProvider = FakePlayerQuestionProvider()
+
+    fun pendingQuestion(): PendingQuestionProvider = FakePendingQuestionProvider()
+
+    fun voiceInput(): VoiceInputProvider = FakeVoiceInputProvider()
+
+    fun speechOutput(): SpeechOutputProvider = FakeSpeechOutputProvider()
+
+    fun overlayPermission(
+        initial: UiOverlayPermissionState = UiOverlayPermissionState(isGranted = true),
+    ): OverlayPermissionProvider = FakeOverlayPermissionProvider(initial)
+
+    fun llmConfigTest(): LlmConfigTestProvider = FakeLlmConfigTestProvider()
+
+    fun gkpLibrary(): GkpLibraryProvider = FakeGkpLibraryProvider()
+
+    fun gkpPreflight(): GkpPreflightProvider = FakeGkpPreflightProvider()
 
     fun sampleLog(): List<UiRequestLogItem> {
         val now = System.currentTimeMillis()
@@ -50,11 +68,20 @@ object PreviewStub {
                 responsePreview = "\u793a\u4f8b\u56de\u7b54\uff1a\u8fd9\u91cc\u4f1a\u51fa\u73b0\u4e00\u6bb5\u4e0e\u5f53\u524d\u573a\u666f\u76f8\u5173\u7684\u8f7b\u63d0\u793a\u3002",
                 fullResponseJson = """{
   "text": "示例回答：这里会出现一段与当前场景相关的轻提示。",
-  "image": "",
-  "sound": ""
+  "debug": true,
+  "pipeline_stage": "evidence",
+  "llm_status": "skipped",
+  "source_ids": ["sample.2048.rules"]
 }""",
                 durationMillis = 1_842,
-                ok = true
+                ok = true,
+                isDebug = true,
+                rawOutputMode = "debug:text",
+                sourceIds = listOf("sample.2048.rules"),
+                pipelineStage = "evidence",
+                llmStatus = "skipped",
+                feedback = UiAnswerFeedback.Helpful,
+                feedbackTimestampMillis = now - 2_000,
             ),
             UiRequestLogItem(
                 id = "r-2",
@@ -81,6 +108,392 @@ object PreviewStub {
                 ok = false
             )
         )
+    }
+}
+
+private class FakeGkpPreflightProvider : GkpPreflightProvider {
+    private val _state = MutableStateFlow(
+        UiGkpPreflightState(
+            result = UiGkpPreflightResult(
+                targetName = "sample-relay-station",
+                ok = true,
+                packId = "sample.relay-station",
+                gameId = "relay_station",
+                gameTitle = "Relay Station",
+                packVersion = "0.1.0",
+                schemaVersion = "gkp.v0",
+                knowledgeRows = 14,
+                sourceCount = 4,
+                goldenRows = 12,
+                licenseStatus = "已声明",
+                signatureStatus = "未签名",
+                signatureKeyId = null,
+                contentDigest = "6f2c9db1f2f6e3a046a7417c62c1ecdd0f084df4549765e822641927ad6c67dd",
+                errorCount = 0,
+                warningCount = 0,
+                checkedAtMillis = System.currentTimeMillis() - 2_000,
+                issues = listOf(
+                    UiGkpPreflightIssue(
+                        severity = UiGkpPreflightSeverity.Info,
+                        code = "readonly",
+                        path = null,
+                        message = "预检只读完成，未安装或覆盖任何知识包。",
+                    )
+                ),
+            ),
+            installPlan = UiGkpInstallPlan(
+                mode = UiGkpInstallMode.ReplaceExisting,
+                packId = "sample.relay-station",
+                gameId = "relay_station",
+                gameTitle = "Relay Station",
+                currentPackVersion = "0.1.0",
+                newPackVersion = "0.1.0",
+                currentKnowledgeRows = 14,
+                newKnowledgeRows = 14,
+                sourceCount = 4,
+                goldenRows = 12,
+                provenanceLabel = "外部",
+                signatureLabel = "未签名",
+                contentDigest = "6f2c9db1f2f6e3a046a7417c62c1ecdd0f084df4549765e822641927ad6c67dd",
+            )
+        )
+    )
+    override val state: StateFlow<UiGkpPreflightState> = _state
+
+    override suspend fun preflightTree(uriString: String) {
+        delay(250)
+        _state.value = _state.value.copy(
+            isRunning = false,
+            result = _state.value.result?.copy(
+                targetName = uriString.substringAfterLast('/').ifBlank { "外部 GKP" },
+                checkedAtMillis = System.currentTimeMillis(),
+            )
+        )
+    }
+
+    override suspend fun installPreflightedTree() {
+        delay(250)
+        _state.value = _state.value.copy(
+            installStatus = UiGkpInstallStatus(
+                phase = UiGkpInstallPhase.Installed,
+                message = "已安装 Relay Station，写入 14 条知识。",
+                installedAtMillis = System.currentTimeMillis(),
+            )
+        )
+    }
+
+    override suspend fun clearPreflight() {
+        _state.value = UiGkpPreflightState()
+    }
+}
+
+private class FakeGkpLibraryProvider : GkpLibraryProvider {
+    private val _state = MutableStateFlow(
+        UiGkpLibraryState(
+            importStatus = UiGkpImportStatus(
+                phase = UiGkpImportPhase.Ready,
+                totalPacks = 2,
+                importedPacks = 2,
+                failedPacks = 0,
+                message = "已导入 2 个内置知识包",
+                updatedAtMillis = System.currentTimeMillis() - 1_500,
+            ),
+            packs = listOf(
+                UiGkpPackItem(
+                    packId = "sample.2048",
+                    gameId = "2048",
+                    title = "2048",
+                    platform = "libretro",
+                    region = null,
+                    languages = listOf("zh", "en"),
+                    packVersion = "0.1.1",
+                    schemaVersion = "gkp.v0",
+                    trustLabel = "自写样例",
+                    provenanceLabel = "内置",
+                    signatureLabel = "未签名",
+                    contentDigest = "d38f26a3fddf19bff1ac311808f0d3c4f66d2c78aa1272327601c7cf2d63e96f",
+                    isEnabled = true,
+                    availabilityLabel = "启用",
+                    disabledAtMillis = null,
+                    knowledgeCount = 14,
+                    sourceCount = 3,
+                    licenseSummary = "自写 / 本地夹具",
+                    installedAtMillis = System.currentTimeMillis() - 86_000,
+                ),
+                UiGkpPackItem(
+                    packId = "sample.relay-station",
+                    gameId = "relay_station",
+                    title = "Relay Station",
+                    platform = "sample",
+                    region = null,
+                    languages = listOf("zh", "en"),
+                    packVersion = "0.1.0",
+                    schemaVersion = "gkp.v0",
+                    trustLabel = "自写样例",
+                    provenanceLabel = "内置",
+                    signatureLabel = "未签名",
+                    contentDigest = "6f2c9db1f2f6e3a046a7417c62c1ecdd0f084df4549765e822641927ad6c67dd",
+                    isEnabled = true,
+                    availabilityLabel = "启用",
+                    disabledAtMillis = null,
+                    knowledgeCount = 14,
+                    sourceCount = 4,
+                    licenseSummary = "自写 / 本地夹具",
+                    installedAtMillis = System.currentTimeMillis() - 42_000,
+                ),
+            ),
+        )
+    )
+    override val state: StateFlow<UiGkpLibraryState> = _state
+
+    override suspend fun disablePack(gameId: String) {
+        _state.update { current ->
+            current.copy(
+                packs = current.packs.map { pack ->
+                    if (pack.gameId == gameId) {
+                        pack.copy(
+                            isEnabled = false,
+                            availabilityLabel = "已禁用",
+                            disabledAtMillis = System.currentTimeMillis(),
+                        )
+                    } else {
+                        pack
+                    }
+                }
+            )
+        }
+    }
+
+    override suspend fun enablePack(gameId: String) {
+        _state.update { current ->
+            current.copy(
+                packs = current.packs.map { pack ->
+                    if (pack.gameId == gameId) {
+                        pack.copy(
+                            isEnabled = true,
+                            availabilityLabel = "启用",
+                            disabledAtMillis = null,
+                        )
+                    } else {
+                        pack
+                    }
+                }
+            )
+        }
+    }
+
+    override suspend fun requestDelete(gameId: String) {
+        val pack = _state.value.packs.firstOrNull { it.gameId == gameId }
+        if (pack == null) {
+            _state.update {
+                it.copy(
+                    deleteState = UiGkpDeleteState(
+                        phase = UiGkpDeletePhase.Error,
+                        message = "未找到要删除的知识包：$gameId",
+                        updatedAtMillis = System.currentTimeMillis(),
+                    )
+                )
+            }
+            return
+        }
+        _state.update {
+            it.copy(
+                deleteState = UiGkpDeleteState(
+                    phase = UiGkpDeletePhase.AwaitingConfirmation,
+                    plan = UiGkpDeletePlan(
+                        packId = pack.packId,
+                        gameId = pack.gameId,
+                        title = pack.title,
+                        packVersion = pack.packVersion,
+                        knowledgeCount = pack.knowledgeCount,
+                        sourceCount = pack.sourceCount,
+                        warning = if (pack.gameId in setOf("2048", "relay_station")) {
+                            "这是内置样例包，删除后下次启动可能会自动恢复。"
+                        } else {
+                            null
+                        },
+                    ),
+                    message = "请确认删除 ${pack.title}。",
+                    updatedAtMillis = System.currentTimeMillis(),
+                )
+            )
+        }
+    }
+
+    override suspend fun confirmDelete() {
+        val plan = _state.value.deleteState.plan
+        if (plan == null) {
+            _state.update {
+                it.copy(
+                    deleteState = UiGkpDeleteState(
+                        phase = UiGkpDeletePhase.Error,
+                        message = "请先选择要删除的知识包。",
+                        updatedAtMillis = System.currentTimeMillis(),
+                    )
+                )
+            }
+            return
+        }
+        _state.update { current ->
+            current.copy(
+                packs = current.packs.filterNot { it.gameId == plan.gameId },
+                deleteState = UiGkpDeleteState(
+                    phase = UiGkpDeletePhase.Deleted,
+                    plan = plan,
+                    message = "已删除 ${plan.title}，移除 ${plan.knowledgeCount} 条知识。",
+                    updatedAtMillis = System.currentTimeMillis(),
+                )
+            )
+        }
+    }
+
+    override suspend fun cancelDelete() {
+        _state.update { it.copy(deleteState = UiGkpDeleteState()) }
+    }
+}
+
+private class FakeLlmConfigTestProvider : LlmConfigTestProvider {
+    override suspend fun test(settings: UiSettings): UiLlmConfigTestResult {
+        delay(300)
+        return UiLlmConfigTestResult(
+            ok = settings.llmApiKey.isNotBlank(),
+            provider = settings.llmProvider.id,
+            model = settings.llmModel.ifBlank { settings.llmProvider.defaultModel },
+            maxTokens = settings.llmMaxTokens.coerceIn(MIN_LLM_MAX_TOKENS, MAX_LLM_MAX_TOKENS),
+            timeoutMs = settings.llmTimeoutSeconds
+                .coerceIn(MIN_LLM_TIMEOUT_SECONDS, MAX_LLM_TIMEOUT_SECONDS)
+                .times(1_000L),
+            latencyMs = if (settings.llmApiKey.isNotBlank()) 42L else 0L,
+            tokensIn = if (settings.llmApiKey.isNotBlank()) 9 else 0,
+            tokensOut = if (settings.llmApiKey.isNotBlank()) 1 else 0,
+            responsePreview = if (settings.llmApiKey.isNotBlank()) "OK" else null,
+            errorMessage = if (settings.llmApiKey.isBlank()) "\u8bf7\u5148\u586b\u5199 API Key" else null,
+        )
+    }
+}
+
+private class FakePlayerQuestionProvider : PlayerQuestionProvider {
+    override suspend fun ask(label: String, question: String): UiQuestionResult {
+        delay(350)
+        val cleanLabel = label.trim().ifBlank { "2048__" }
+        val cleanQuestion = question.trim()
+        return UiQuestionResult(
+            requestLogId = "preview-question",
+            label = cleanLabel,
+            question = cleanQuestion,
+            answer = "把两个相同数字滑到同一方向相邻位置，它们会合成一个翻倍方块。注意每个方块一次移动最多合并一次。",
+            ok = true,
+            timestampMillis = System.currentTimeMillis(),
+            sourceIds = listOf("sample.2048.rules"),
+            pipelineStage = "evidence",
+            llmStatus = "skipped",
+        )
+    }
+}
+
+private class FakePendingQuestionProvider : PendingQuestionProvider {
+    private val _state = MutableStateFlow(UiPendingQuestionState())
+    override val state: StateFlow<UiPendingQuestionState> = _state.asStateFlow()
+
+    override suspend fun prepare(
+        label: String,
+        question: String,
+        spoilerLevelOverride: UiSpoilerLevel?,
+    ) {
+        val cleanQuestion = question.trim()
+        if (cleanQuestion.isBlank()) {
+            _state.value = UiPendingQuestionState()
+            return
+        }
+        _state.value = UiPendingQuestionState(
+            pending = UiPendingQuestion(
+                label = label.trim().ifBlank { "2048__" },
+                question = cleanQuestion,
+                spoilerLevel = spoilerLevelOverride ?: UiSpoilerLevel.Light,
+                createdAtMillis = System.currentTimeMillis(),
+            )
+        )
+    }
+
+    override suspend fun clear() {
+        _state.value = UiPendingQuestionState()
+    }
+}
+
+private class FakeVoiceInputProvider : VoiceInputProvider {
+    private val _state = MutableStateFlow(
+        UiVoiceInputState(engineLabel = "预览语音", isAvailable = true)
+    )
+    override val state: StateFlow<UiVoiceInputState> = _state.asStateFlow()
+    override val requiresRecordAudioPermission: Boolean = false
+    private var eventId: Long = 0L
+
+    override suspend fun startListening() {
+        _state.update { it.copy(isListening = true, errorMessage = null) }
+        delay(120)
+        eventId += 1
+        _state.value = UiVoiceInputState(
+            isAvailable = true,
+            isListening = false,
+            transcript = "两个 2 怎么合并？",
+            transcriptEventId = eventId,
+            engineLabel = "预览语音",
+        )
+    }
+
+    override suspend fun stopListening() {
+        _state.update { it.copy(isListening = false) }
+    }
+
+    override suspend fun cancelListening() {
+        _state.update { it.copy(isListening = false, errorMessage = null) }
+    }
+}
+
+private class FakeSpeechOutputProvider : SpeechOutputProvider {
+    private val _state = MutableStateFlow(
+        UiSpeechOutputState(isAvailable = true, isReady = true)
+    )
+    override val state: StateFlow<UiSpeechOutputState> = _state.asStateFlow()
+
+    override suspend fun speak(text: String) {
+        val clean = text.trim()
+        if (clean.isBlank()) return
+        _state.value = UiSpeechOutputState(
+            isAvailable = true,
+            isReady = true,
+            isSpeaking = true,
+            spokenText = clean,
+        )
+        delay(120)
+        _state.update { it.copy(isSpeaking = false) }
+    }
+
+    override suspend fun stop() {
+        _state.update { it.copy(isSpeaking = false) }
+    }
+}
+
+private class FakeOverlayPermissionProvider(
+    initial: UiOverlayPermissionState,
+) : OverlayPermissionProvider {
+    private val _state = MutableStateFlow(initial)
+    override val state: StateFlow<UiOverlayPermissionState> = _state.asStateFlow()
+
+    override suspend fun refresh() {
+        _state.update {
+            it.copy(
+                message = if (it.isGranted) {
+                    "已允许游戏内语音 overlay。"
+                } else {
+                    "需要授权后才能在 RetroArch 上方显示语音波形。"
+                },
+            )
+        }
+    }
+
+    override suspend fun openSettings() {
+        _state.update { it.copy(message = "已打开系统授权页。") }
     }
 }
 
@@ -136,6 +549,19 @@ private class FakeRequestLogProvider(seed: List<UiRequestLogItem>) : RequestLogP
         )
         _log.update { listOf(item) + it }
     }
+
+    override suspend fun submitFeedback(requestId: String, feedback: UiAnswerFeedback) {
+        val now = System.currentTimeMillis()
+        _log.update { rows ->
+            rows.map { row ->
+                if (row.id == requestId) {
+                    row.copy(feedback = feedback, feedbackTimestampMillis = now)
+                } else {
+                    row
+                }
+            }
+        }
+    }
 }
 
 private class FakeSettingsStore(initial: UiSettings) : SettingsStore {
@@ -150,14 +576,24 @@ private class FakeSettingsStore(initial: UiSettings) : SettingsStore {
         provider: UiLlmProvider,
         apiKey: String,
         baseUrl: String,
-        model: String
+        model: String,
+        timeoutSeconds: Int,
+        maxTokens: Int,
     ) {
         _settings.update {
             it.copy(
                 llmProvider = provider,
                 llmApiKey = apiKey,
-                llmBaseUrl = baseUrl,
-                llmModel = model
+                llmBaseUrl = baseUrl.trim().ifBlank { provider.defaultBaseUrl },
+                llmModel = model.trim().ifBlank { provider.defaultModel },
+                llmTimeoutSeconds = timeoutSeconds.coerceIn(
+                    MIN_LLM_TIMEOUT_SECONDS,
+                    MAX_LLM_TIMEOUT_SECONDS,
+                ),
+                llmMaxTokens = maxTokens.coerceIn(
+                    MIN_LLM_MAX_TOKENS,
+                    MAX_LLM_MAX_TOKENS,
+                ),
             )
         }
     }

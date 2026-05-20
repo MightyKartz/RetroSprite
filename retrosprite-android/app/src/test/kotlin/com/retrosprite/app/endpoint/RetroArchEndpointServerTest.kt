@@ -1,6 +1,7 @@
 package com.retrosprite.app.endpoint
 
 import com.retrosprite.app.endpoint.model.RetroArchResponse
+import com.retrosprite.app.endpoint.model.DebugLatestRequestResponse
 import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
@@ -9,6 +10,7 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.server.testing.testApplication
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
@@ -24,6 +26,7 @@ import org.junit.Test
  * so the engine, ContentNegotiation plugin, and route handlers are exercised exactly as on
  * device. Avoids touching the foreground service or [EndpointController].
  */
+@OptIn(ExperimentalSerializationApi::class)
 class RetroArchEndpointServerTest {
 
     private val json = Json {
@@ -73,6 +76,81 @@ class RetroArchEndpointServerTest {
         assertEquals("zelda", entry.game)
         assertTrue(entry.paused)
         assertEquals("text", entry.outputMode)
+    }
+
+    @Test
+    fun `post root notifies hotkey listener with RetroArch context`() = testApplication {
+        val logger = RequestLogger()
+        val events = mutableListOf<RetroArchHotkeyEvent>()
+        val listener = RetroArchHotkeyListener { event -> events += event }
+        application { retroArchModule(PlaceholderResponseGenerator(), logger, listener) }
+
+        val resp = client.post("/?output=text") {
+            contentType(ContentType.Application.Json)
+            setBody(
+                """
+                {
+                  "image": "dGVzdA==",
+                  "label": "mega_drive__光明力量2",
+                  "state": { "paused": 0 }
+                }
+                """.trimIndent()
+            )
+        }
+
+        assertEquals(HttpStatusCode.OK, resp.status)
+        assertEquals(1, events.size)
+        val event = events.first()
+        assertEquals("mega_drive__光明力量2", event.label)
+        assertEquals("text", event.outputMode)
+        assertEquals(4, event.imageBytes)
+        assertEquals(false, event.paused)
+    }
+
+    @Test
+    fun `debug ask does not notify hotkey listener`() = testApplication {
+        val logger = RequestLogger()
+        val events = mutableListOf<RetroArchHotkeyEvent>()
+        val listener = RetroArchHotkeyListener { event -> events += event }
+        application { retroArchModule(PlaceholderResponseGenerator(), logger, listener) }
+
+        val resp = client.post("/debug/ask?output=text") {
+            contentType(ContentType.Application.Json)
+            setBody("""{"label":"2048__","question":"两个 2 怎么合并？","state":{"paused":1}}""")
+        }
+
+        assertEquals(HttpStatusCode.OK, resp.status)
+        assertEquals(emptyList<RetroArchHotkeyEvent>(), events)
+    }
+
+    @Test
+    fun `post root accepts RetroArch form content type with json body`() = testApplication {
+        val logger = RequestLogger()
+        application { retroArchModule(PlaceholderResponseGenerator(), logger) }
+
+        val payload = """
+            {
+              "image": "aGVsbG8=",
+              "format": "png",
+              "label": "nes__2048",
+              "state": { "paused": 1, "a": 0, "b": 0 }
+            }
+        """.trimIndent()
+
+        val resp = client.post("/?output=text") {
+            contentType(ContentType.Application.FormUrlEncoded)
+            setBody(payload)
+        }
+
+        assertEquals(HttpStatusCode.OK, resp.status)
+        val parsed = json.decodeFromString(RetroArchResponse.serializer(), resp.bodyAsText())
+        assertEquals(PlaceholderResponseGenerator.DEFAULT_MESSAGE, parsed.text)
+        assertNull(parsed.error)
+
+        val entry = logger.entries.value.first()
+        assertEquals("nes", entry.system)
+        assertEquals("2048", entry.game)
+        assertTrue(entry.paused)
     }
 
     @Test
@@ -128,6 +206,120 @@ class RetroArchEndpointServerTest {
 
         assertEquals(HttpStatusCode.OK, resp.status)
         assertEquals("text", logger.entries.value.first().outputMode)
+    }
+
+    @Test
+    fun `debug ask route forwards question and marks debug log entry`() = testApplication {
+        val logger = RequestLogger()
+        val generator = ResponseGenerator { request, outputMode ->
+            RetroArchResponse.text("${request.label}|${request.question}|$outputMode")
+        }
+        application { retroArchModule(generator, logger) }
+
+        val resp = client.post("/debug/ask?output=text") {
+            contentType(ContentType.Application.Json)
+            setBody("""{"label":"2048__","question":"两个 2 怎么合并？","state":{"paused":1}}""")
+        }
+
+        assertEquals(HttpStatusCode.OK, resp.status)
+        val parsed = json.decodeFromString(RetroArchResponse.serializer(), resp.bodyAsText())
+        assertEquals("2048__|两个 2 怎么合并？|text", parsed.text)
+        assertNull(parsed.error)
+        val entry = logger.entries.value.first()
+        assertEquals("debug:text", entry.outputMode)
+        assertTrue(entry.paused)
+        assertEquals("两个 2 怎么合并？", entry.question)
+        assertEquals("debug", entry.questionSource)
+    }
+
+    @Test
+    fun `debug latest request returns latest diagnostic summary`() = testApplication {
+        val logger = RequestLogger()
+        val generator = ResponseGenerator { _, _ ->
+            RetroArchResponse.text("两个相同数字滑到一起会合并。\n来源：sample.2048.rules")
+        }
+        application { retroArchModule(generator, logger) }
+
+        client.post("/debug/ask?output=text") {
+            contentType(ContentType.Application.Json)
+            setBody("""{"label":"2048__","question":"两个 2 怎么合并？","state":{"paused":1}}""")
+        }
+
+        val resp = client.get("/debug/latest-request")
+
+        assertEquals(HttpStatusCode.OK, resp.status)
+        val parsed = json.decodeFromString(DebugLatestRequestResponse.serializer(), resp.bodyAsText())
+        assertTrue(parsed.has_entry)
+        assertEquals("2048__", parsed.label)
+        assertEquals("debug:text", parsed.output_mode)
+        assertEquals(true, parsed.is_debug)
+        assertEquals(true, parsed.paused)
+        assertEquals("两个 2 怎么合并？", parsed.question)
+        assertEquals("debug", parsed.question_source)
+        assertEquals(true, parsed.ok)
+        assertEquals("evidence", parsed.pipeline_stage)
+        assertEquals("skipped", parsed.llm_status)
+        assertEquals(listOf("sample.2048.rules"), parsed.source_ids)
+    }
+
+    @Test
+    fun `debug latest request includes pending hotkey question metadata`() = testApplication {
+        val logger = RequestLogger()
+        val generator = ResponseGenerator { _, _ ->
+            RetroArchResponse.text(
+                content = "answer",
+                diagnostics = com.retrosprite.app.endpoint.model.ResponseDiagnostics(
+                    question = "queued question",
+                    questionSource = "pending_hotkey",
+                )
+            )
+        }
+        application { retroArchModule(generator, logger) }
+
+        client.post("/?output=text") {
+            contentType(ContentType.Application.Json)
+            setBody("""{"label":"2048__","state":{"paused":1}}""")
+        }
+
+        val resp = client.get("/debug/latest-request")
+        val parsed = json.decodeFromString(DebugLatestRequestResponse.serializer(), resp.bodyAsText())
+
+        assertEquals("queued question", logger.entries.value.first().question)
+        assertEquals("pending_hotkey", logger.entries.value.first().questionSource)
+        assertEquals("queued question", parsed.question)
+        assertEquals("pending_hotkey", parsed.question_source)
+    }
+
+    @Test
+    fun `debug latest request returns empty object before any request`() = testApplication {
+        application { retroArchModule(PlaceholderResponseGenerator(), RequestLogger()) }
+
+        val resp = client.get("/debug/latest-request")
+
+        assertEquals(HttpStatusCode.OK, resp.status)
+        val parsed = json.decodeFromString(DebugLatestRequestResponse.serializer(), resp.bodyAsText())
+        assertTrue(!parsed.has_entry)
+        assertNull(parsed.label)
+        assertEquals(emptyList<String>(), parsed.source_ids)
+    }
+
+    @Test
+    fun `debug ask route requires question`() = testApplication {
+        val logger = RequestLogger()
+        application { retroArchModule(PlaceholderResponseGenerator(), logger) }
+
+        val resp = client.post("/debug/ask?output=text") {
+            contentType(ContentType.Application.Json)
+            setBody("""{"label":"2048__","state":{}}""")
+        }
+
+        assertEquals(HttpStatusCode.OK, resp.status)
+        val parsed = json.decodeFromString(RetroArchResponse.serializer(), resp.bodyAsText())
+        assertNotNull(parsed.error)
+        assertNull(parsed.text)
+        val entry = logger.entries.value.first()
+        assertEquals("debug:text", entry.outputMode)
+        assertEquals("missing_debug_question", entry.errorMessage)
     }
 
     @Test

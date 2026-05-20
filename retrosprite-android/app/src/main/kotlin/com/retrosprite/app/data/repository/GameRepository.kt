@@ -19,6 +19,10 @@ interface GameRepository {
     suspend fun getByRomCrc32(crc32: String): GameDomain?
     suspend fun searchByLabel(platform: String, titleQuery: String): List<GameDomain>
     suspend fun upsert(game: GameDomain)
+    suspend fun setEnabled(gameId: String, enabled: Boolean, disabledAt: Long?) {
+        val current = getById(gameId) ?: return
+        upsert(current.copy(isEnabled = enabled, disabledAt = disabledAt))
+    }
     suspend fun delete(gameId: String)
 }
 
@@ -45,6 +49,10 @@ class DefaultGameRepository(
 
     override suspend fun upsert(game: GameDomain) {
         dao.upsert(game.toEntity())
+    }
+
+    override suspend fun setEnabled(gameId: String, enabled: Boolean, disabledAt: Long?) {
+        dao.setEnabled(gameId, enabled, disabledAt)
     }
 
     override suspend fun delete(gameId: String) {

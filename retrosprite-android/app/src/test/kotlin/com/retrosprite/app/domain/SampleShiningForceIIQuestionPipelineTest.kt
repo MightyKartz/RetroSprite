@@ -197,6 +197,48 @@ class SampleShiningForceIIQuestionPipelineTest {
         assertEquals(0, llm.callCount)
     }
 
+    @Test
+    fun `shining force ii core gameplay question returns zero llm overview`() = runTest {
+        val fixture = loadSamplePack()
+        val llm = CountingLlmAdapter()
+        val pipeline = newPipeline(fixture, llm)
+
+        val text = pipeline.answer(
+            label = "mega_drive__光明力量2",
+            question = "这个游戏主要是玩什么？乐趣在哪里？",
+            spoilerLevel = SpoilerLevel.LIGHT,
+        )
+
+        assertTrue("answer=<$text>", text.contains("网格"))
+        assertTrue("answer=<$text>", text.contains("队伍"))
+        assertTrue("answer=<$text>", text.contains("来源：sf2.official_overview"))
+        assertEquals(0, llm.callCount)
+    }
+
+    @Test
+    fun `shining force ii core gameplay variants include enjoyment hooks`() = runTest {
+        val fixture = loadSamplePack()
+        val llm = CountingLlmAdapter()
+        val pipeline = newPipeline(fixture, llm)
+
+        listOf(
+            "好玩在哪？",
+            "核心玩法是什么？",
+            "适合什么玩家？",
+        ).forEach { question ->
+            val text = pipeline.answer(
+                label = "md__Shining Force II",
+                question = question,
+                spoilerLevel = SpoilerLevel.LIGHT,
+            )
+
+            assertTrue("question=<$question> answer=<$text>", text.contains("队伍"))
+            assertTrue("question=<$question> answer=<$text>", text.contains("隐藏"))
+            assertTrue("question=<$question> answer=<$text>", text.contains("来源：sf2.official_overview"))
+        }
+        assertEquals(0, llm.callCount)
+    }
+
     private fun newPipeline(
         fixture: SamplePackFixture,
         llm: LlmAdapter,

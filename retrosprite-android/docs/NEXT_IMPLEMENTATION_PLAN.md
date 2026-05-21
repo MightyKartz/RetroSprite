@@ -1,7 +1,7 @@
 # RetroSprite 下一阶段实施计划
 
 > 生成日期：2026-05-19
-> 最近更新：2026-05-20
+> 最近更新：2026-05-21
 > 依据：代码现状、`docs/DELIVERY_REPORT.md`、Android AVD 实测、RetroArch v1.22.2 源码/官方 APK 行为、DeepSeek 官方 API 文档。
 
 ## 0. 当前真实状态
@@ -16,7 +16,7 @@ RetroSprite Android 已经具备可运行的 Phase 0/Phase 1 脚手架：
 - LLM API key 已从 DataStore 明文迁到 Android Keystore-backed 加密密文；旧明文字段会在启动后迁移并移除。
 - 真实 DeepSeek BYOK smoke 已在 `RetroSprite_API_34` 上通过；DeepSeek 请求默认关闭 thinking 以控制延迟和 token 成本。
 - 官方 RetroArch Android APK 已安装并配置 AI Service；实体键盘热键已触发到 RetroSprite endpoint。真实 APK 会用 `application/x-www-form-urlencoded` Content-Type 发送 JSON body，RetroSprite 已增加兼容解析并在 `RetroSprite_API_34` 上完成修复版手动热键复验。
-- 内置 GKP 已接入运行时：`RepositoryGameResolver` 能把 `2048__`、`relay_station__`、`md__Shining Force II`、真机 playlist 读到的 `md__光明力量2` 和真机 AI Service 发来的 `mega_drive__光明力量2` 解析到 GKP，`LocalKnowledgeRetrievalPipeline` 可按 template/entity/FTS 漏斗命中本地证据，`EvidenceAnswerPolicy` 可输出带来源的低剧透答案；当前包含 `sample-2048` `0.1.1`（14 条知识行、16 条 golden Q&A）、自写 `sample-relay-station` `0.1.0`（14 条知识行、12 条 golden Q&A）和 `community.shining-force-ii-md` `0.1.2`（13 条知识行、12 条 golden Q&A）。
+- 内置 GKP 已接入运行时：`RepositoryGameResolver` 能把 `2048__`、`relay_station__`、`md__Shining Force II`、真机 playlist 读到的 `md__光明力量2` 和真机 AI Service 发来的 `mega_drive__光明力量2` 解析到 GKP，`LocalKnowledgeRetrievalPipeline` 可按 template/entity/FTS 漏斗命中本地证据，`EvidenceAnswerPolicy` 可输出带来源的低剧透答案；当前包含 `sample-2048` `0.1.1`（14 条知识行、16 条 golden Q&A）、自写 `sample-relay-station` `0.1.0`（14 条知识行、12 条 golden Q&A）和 `community.shining-force-ii-md` `0.2.1`（32 条知识行、34 条 golden Q&A）。
 - Diagnostics 已能标记 debug 请求、source ids、pipeline stage 和 LLM 状态；`/debug/latest-request` 可返回最新请求摘要，方便 AVD/真机联调。
 - `scripts/android_avd_smoke.sh` 已增强为一条命令验证：设备在线、APK 自动安装/启动、端口转发、endpoint smoke、`sample-2048` 与 `sample-relay-station` 两个内置 GKP 的 `/debug/ask` 问答、`/debug/latest-request` 链路摘要。
 - Home 页已增加 App 内文字提问入口：默认使用 `2048__` 样例 label，把玩家问题直接送入 `ResponseGenerator → QueryPipeline → RequestLogger`，并在 Diagnostics 中以 `output_mode=app:text` 记录。
@@ -56,6 +56,10 @@ RetroSprite Android 已经具备可运行的 Phase 0/Phase 1 脚手架：
 - Packs 页已支持本地 GKP 删除确认：删除前显示 `pack_id`、`game_id`、版本、知识行数、来源数和内置样例恢复风险；用户确认后才清除对应 game/knowledge 行。
 - GKP 元数据已进入 Room v5：`games` 持久化 `pack_id`、`provenance`、`signature_status`、`signature_key_id`、`content_digest`、`enabled`、`disabled_at`；Packs 页可区分内置/外部来源、签名状态和启用状态，bundled importer 不会覆盖用户安装的外部包，也不会把已禁用的 bundled 包重新启用。
 - GKP 禁用边界已可诊断：`RepositoryGameResolver` 发现匹配包已禁用时返回 `gkp_disabled` 身份但不提供 `gameId`，因此不会读取知识行或调用 LLM；Home 会显示“GKP 已禁用”，Diagnostics 会标记 `GKP_DISABLED` 并解释需要在 Packs 重新启用。
+- 2026-05-21 产品方向复盘结论：RetroSprite 的主体验不需要把 LLM 作为必需依赖。当前 `本地 sherpa-onnx ASR → 文本问题 → GKP template/entity/FTS → AnswerPolicy → 短答案/TTS` 已经能作为 zero-LLM 主路径；LLM 只保留为可选的 evidence-grounded composer，用于多条证据综合、翻译、解释和表达润色。无 GKP、无 evidence、GKP 禁用、证据冲突或剧透超限时不应调用 LLM 裸答。
+- 2026-05-21 TTS 方向复盘结论：当前 ASR 模型本身不能直接做 TTS；ASR 和 TTS 是两套模型/管线。当前 `AndroidSpeechOutputProvider` 仍走 Android `TextToSpeech`，但 `SpeechOutputProvider` 接口已经允许后续替换为本地神经 TTS。短期可用 sherpa-onnx TTS Engine APK 作为系统 TTS 引擎来验证离线效果；中期若要产品内置，需要新增 `SherpaOnnxTtsSpeechOutputProvider`、打包对应 TTS 模型/native/API，并用 `AudioTrack` 或等价播放器输出 PCM。
+- 2026-05-21 GKP 内容复盘结论：zero-LLM 体验的上限主要由 GKP 决定。复盘时 Shining Force II GKP 已能回答“这是什么游戏”“战斗怎么玩”“什么时候转职”等问题，但对“这个游戏主要是玩什么？乐趣在哪里？”这类概览/动机型问题覆盖不足；后续真实游戏 GKP 必须加入 `核心玩法/乐趣/适合谁/怎么玩才有意思` 这类玩家自然问法，并配套 golden Q&A。
+- M11.1-M11.3 已按上述结论落地第一轮：Shining Force II `0.2.1` 新增 `note.core-gameplay-loop`，覆盖“主要玩什么 / 乐趣在哪里 / 好玩在哪 / 核心玩法 / 适合什么玩家”等自然问法；`qa_goldens.jsonl` 增加 4 条概览型 golden，真实游戏 GKP 生产模板也新增 Core Gameplay And Fun Hooks lane。
 
 这意味着：**RetroArch Android 官方 APK 触发路径已经打通，Phase 0A 可以收口；Phase 1 的主要风险转移到 GKP 检索、低剧透策略和真实问答交互。**
 
@@ -69,6 +73,7 @@ RetroSprite Android 已经具备可运行的 Phase 0/Phase 1 脚手架：
 | Android SDK / ADB / AVD | 安装 APK、启动 `RetroSprite_API_34`、验证 endpoint 和 RetroArch Android 行为 | endpoint 可用；官方 APK 热键可触发请求，已修复真实 Content-Type 兼容问题 |
 | 官方 DeepSeek API 文档 | 确认 OpenAI-compatible base URL、model id、chat payload | `base_url=https://api.deepseek.com`，`POST /chat/completions`，`model=deepseek-v4-pro` |
 | `k2-fsa/sherpa-onnx` 官方仓库/文档 | 评估并落地 Android 本地离线 ASR 路线 | 已作为 M8.2 正式 ASR 主路径；M8.4 真机 5 条回归通过后暂不做 ASR 文本规范化 |
+| RAG/语音/GitHub 项目调研 | 评估是否必须接 LLM、是否可本地 ASR/TTS | RAG/Self-RAG/CRAG 与高星 RAG 项目都支持“检索优先、LLM 受控生成”；Whisper/sherpa-onnx/Rhasspy/Home Assistant 类项目证明本地 ASR/离线语音链路可独立成立；sherpa-onnx 提供独立 TTS engine/Android 模块，但当前项目依赖的 AAR 暂未暴露 TTS wrapper |
 | `superpowers:test-driven-development` skill | 先锁定 Hotkey Wake Voice Overlay 行为再接 Android WindowManager | 新增 endpoint event 单测和 overlay coordinator 单测，确认真实 RetroArch 请求触发、debug 不触发、有权限才显示、可自动隐藏 |
 | `superpowers:writing-plans` / `superpowers:executing-plans` skills | 将 Hotkey Wake Voice Overlay 拆成可验证小步 | 已新增 `docs/superpowers/plans/2026-05-20-hotkey-wake-voice-overlay.md`；M10.0 先完成 hotkey event + overlay cue 骨架 |
 
@@ -100,6 +105,15 @@ RetroSprite Android 已经具备可运行的 Phase 0/Phase 1 脚手架：
 
 9. **Hotkey Wake Voice Overlay 成为真实产品主路径。**
    Pending Question 只保留为 debug/fallback，不再作为玩家体验主链路。RetroArch 热键负责把当前游戏 label/screenshot/state 送进 RetroSprite；RetroSprite 自己负责短时 overlay、语音收音、GKP 问答和 TTS 回复。该路径需要 `SYSTEM_ALERT_WINDOW` 用户显式授权，但不需要 Accessibility、MediaProjection、全文件访问或连续后台监听。
+
+10. **LLM 是 gate 后的可选 composer，不是产品依赖。**
+    默认产品路径必须在无 LLM key、无网络或用户关闭 provider 时仍可用：本地 ASR 只产出问题文本，GKP 和 AnswerPolicy 决定能否回答。高置信模板/entity 命中直接回答；多条本地证据需要自然语言综合时才可调用 LLM；无 evidence、GKP 禁用、证据冲突或剧透超限时不允许 LLM 裸答。指标上继续把 LLM 当成本项，目标是提高本地命中率并压低调用率，而不是让每次提问都进模型。
+
+11. **TTS 可升级为本地 sherpa-onnx，但不能与 ASR 混为一谈。**
+    现有 sherpa-onnx ASR 模型不能直接合成语音。短期保留 Android `TextToSpeech` 是正确收敛；若要验证本地神经 TTS，可先安装 sherpa-onnx TTS Engine APK 并设为系统默认 TTS，让现有 `AndroidSpeechOutputProvider` 间接受益。真正内置 TTS 需要单独里程碑：新增 `SpeechOutputProvider` 实现、选择中文/多语模型、处理 APK 体积、冷启动、PCM 播放、打断/stop、overlay 生命周期和真机发热。
+
+12. **GKP 要覆盖玩家自然意图，而不只是攻略事实。**
+    对真实游戏包，必须补齐“游戏身份、主要玩什么、核心循环、乐趣在哪里、适合谁、怎么玩才有意思、第一小时目标、低剧透探索习惯”等概览型问题。例：玩家问“这个游戏主要是玩什么？乐趣在哪里？”时，Shining Force II GKP 应能 zero-LLM 回答“剧情推进 + 网格回合战斗 + 队伍培养 + 职业/站位/隐藏探索”的短答案，并带 `sf2.official_overview` / `sf2.project_mechanics` 等来源。
 
 ## 3. 里程碑
 
@@ -177,6 +191,26 @@ RetroSprite Android 已经具备可运行的 Phase 0/Phase 1 脚手架：
 | M3.3 | 脚本化 AVD 验证 | `scripts/android_avd_smoke.sh` | 一条命令验证安装/endpoint |
 | M3.4 | 文档漂移修复 | README / DELIVERY_REPORT 后续注记 | 文档不再声称 Android 热键已验证 |
 
+### M11 - Zero-LLM GKP 深化与本地 TTS 评估
+
+目标：把 RetroSprite 从“能回答具体攻略点”推进到“能解释一个游戏为什么值得玩、怎么玩才进入状态”，同时保持 LLM 可选、TTS 可替换。
+
+任务：
+
+| ID | 任务 | 产物 | 验证 |
+| --- | --- | --- | --- |
+| M11.1 | 扩展 Shining Force II GKP 概览型知识 | `knowledge/mechanics.jsonl` 或 `knowledge/strategies.jsonl` 新增 `note.core-gameplay-loop` | `/debug/ask` 问“这个游戏主要是玩什么？乐趣在哪里？”返回本地来源答案，LLM skipped |
+| M11.2 | 增加玩家自然问法 golden | `qa_goldens.jsonl` 覆盖“主要玩什么/好玩在哪/适合谁/新手怎么玩才有意思” | GKP golden 和 `SampleShiningForceIIQuestionPipelineTest` 通过 |
+| M11.3 | 建立真实游戏 GKP 内容清单模板 | 更新 `REAL_GAME_GKP_EXPANSION_TEMPLATE.md` | 新包必须包含核心玩法、低剧透目标、乐趣点、误识别 alias 和 10 条语音化 golden |
+| M11.4 | sherpa-onnx TTS Engine 验证 | 真机手动记录或文档注记 | 安装 sherpa-onnx TTS Engine APK 后，现有 Android `TextToSpeech` 输出可离线朗读短答案 |
+| M11.5 | 内置 sherpa TTS spike | `SherpaOnnxTtsSpeechOutputProvider` 技术方案，不默认启用 | 明确依赖、模型体积、API wrapper、PCM 播放、stop/interrupt、冷启动和 RG 476H 性能风险 |
+
+退出条件：
+
+- Shining Force II 至少 4 个概览/乐趣/新手动机问题可在无 LLM key 时稳定回答。
+- 回答仍引用本地来源，不把 LLM 当事实源。
+- TTS 路线明确分为“系统 TTS engine 替换”和“App 内置 provider”，不把 ASR 模型误用为 TTS。
+
 ## 4. 活动任务板
 
 | 状态 | ID | 任务 | Owner | 备注 |
@@ -243,6 +277,11 @@ RetroSprite Android 已经具备可运行的 Phase 0/Phase 1 脚手架：
 | Done | M10.1 | Overlay 权限 onboarding | Codex | Settings 增加“游戏内语音 Overlay”区块，显示授权状态、打开系统授权页、刷新状态；`AndroidOverlayPermissionProvider` 封装 `Settings.canDrawOverlays` 和 `ACTION_MANAGE_OVERLAY_PERMISSION`；ViewModel JVM 单测与 Compose smoke 覆盖 |
 | In Progress | M10.2 | 真机热键唤醒 overlay + voice loop 验收 | User/Codex | RG 476H 已确认 RetroArch 热键后右上角波形出现、语音识别完成并 TTS 朗读；`/debug/latest-request` 确认 `label=mega_drive__光明力量2`、`output_mode=hotkey_voice:text`、`question_source=hotkey_voice`。本次 ASR 将“什么时候转职？”误识别为“接受他几部这个角色”，导致 `no_evidence`，还需复测命中 `sf2.promotion` / `sf2.early_route` 后关闭 |
 | Done | M10.3 | Hotkey voice ASR → GKP → TTS loop | Codex | `HotkeyVoiceQuestionController` 接管热键主路径：有 overlay 权限时启动一次 sherpa-onnx ASR，提交最终转写到现有 GKP 问答管线，写入 `hotkey_voice:text` / `question_source=hotkey_voice` 日志，TTS 朗读后关闭 overlay；原始空问题 RetroArch wake 请求静默返回；修复后台录音 foreground-service microphone 类型、重复 wake 去抖和 ASR timeout 收口；JVM 单测覆盖成功闭环、缺权限不录音、重复 wake、timeout hide 和 silent wake wrapper |
+| Done | M11.1 | Shining Force II 核心玩法/乐趣 GKP 扩展 | Codex | `note.core-gameplay-loop` 已加入 `0.2.1`，覆盖“这个游戏主要是玩什么？乐趣在哪里？”等概览型问题，zero-LLM 直答带 `sf2.official_overview` / `sf2.project_mechanics` 来源 |
+| Done | M11.2 | 概览型自然问法 golden | Codex | 新增 4 条 golden，覆盖“主要玩什么 / 好玩在哪 / 核心玩法 / 适合什么玩家”，pipeline 单测确认 LLM 未调用 |
+| Done | M11.3 | 真实游戏 GKP 内容清单模板更新 | Codex | `REAL_GAME_GKP_EXPANSION_TEMPLATE.md` 新增 Core Gameplay And Fun Hooks lane，并把 4 条概览型 golden 作为接受标准 |
+| Pending | M11.4 | sherpa-onnx TTS Engine 验证 | User/Codex | 先用系统 TTS engine 替换验证本地离线朗读，不改问答管线 |
+| Pending | M11.5 | 内置 sherpa TTS 技术 spike | Codex | 只做方案和风险确认；不阻塞 GKP/voice overlay 主路径 |
 
 ## 5. 下一步执行顺序
 
@@ -253,8 +292,11 @@ RetroSprite Android 已经具备可运行的 Phase 0/Phase 1 脚手架：
 2. **真机验证 RetroArch 官方 UI + Settings 设置助手。**
    - 主验收路径：在 RetroArch `Settings → Accessibility → AI Service` 设置 ON、Image Mode、URL 保持默认 `http://localhost:4404`。
    - RetroSprite Settings 只用于显示/复制默认 URL；不再尝试写入 cfg。
-3. RetroArch `output=sound` 暂不做默认路径；等 hotkey voice overlay 和真实 GKP 问答稳定后，再决定是否把 endpoint response 的 `sound` 字段从文档占位推进到真实音频输出。
-4. registry 分发前再实现真正签名验证；当前 M5.8-M10.3 只持久化签名声明/摘要、来源边界、启用状态、禁用诊断解释、双样例 smoke、文档一致性、快捷提问体验、失败恢复提示、最近上下文行动条、恢复动作跨页跳转、恢复/debug smoke 自动化、最小本机会话托盘、追问草稿、直接答案剧透升级提示、剧透级别策略下沉、pending hotkey 文字闭环、request log 问题持久化、热键日志会话恢复、Diagnostics 来源筛选/计数、App 内语音/TTS MVP、sherpa-onnx 本地 ASR 主路径、真机语音 QA、语音状态 polish、5 条真机语音回归、首个真实游戏 GKP 试点、RetroArch 设置助手、Hotkey Wake Voice Overlay 骨架和 hotkey voice ASR→TTS 闭环。
+3. **M11.4/M11.5：TTS 路线只做验证和方案，不阻塞 GKP。**
+   - 先用 sherpa-onnx TTS Engine APK 作为系统 TTS engine 验证本地离线朗读。
+   - App 内置 TTS provider 后置；必须先确认模型体积、API wrapper、冷启动、PCM 播放、打断和 RG 476H 性能。
+4. RetroArch `output=sound` 暂不做默认路径；等 hotkey voice overlay、真实 GKP 问答和 TTS 方案稳定后，再决定是否把 endpoint response 的 `sound` 字段从文档占位推进到真实音频输出。
+5. registry 分发前再实现真正签名验证；当前 M5.8-M11 只持久化签名声明/摘要、来源边界、启用状态、禁用诊断解释、双样例 smoke、文档一致性、快捷提问体验、失败恢复提示、最近上下文行动条、恢复动作跨页跳转、恢复/debug smoke 自动化、最小本机会话托盘、追问草稿、直接答案剧透升级提示、剧透级别策略下沉、pending hotkey 文字闭环、request log 问题持久化、热键日志会话恢复、Diagnostics 来源筛选/计数、App 内语音/TTS MVP、sherpa-onnx 本地 ASR 主路径、真机语音 QA、语音状态 polish、5 条真机语音回归、首个真实游戏 GKP 试点、RetroArch 设置助手、Hotkey Wake Voice Overlay 骨架、hotkey voice ASR→TTS 闭环和 zero-LLM GKP 深化方向。
 
 ## 6. 验证命令
 

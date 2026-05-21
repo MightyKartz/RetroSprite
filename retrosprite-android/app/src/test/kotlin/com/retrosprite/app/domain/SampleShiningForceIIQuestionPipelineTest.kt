@@ -111,6 +111,92 @@ class SampleShiningForceIIQuestionPipelineTest {
         assertEquals(0, llm.callCount)
     }
 
+    @Test
+    fun `shining force ii production question returns source backed developer answer`() = runTest {
+        val fixture = loadSamplePack()
+        val llm = CountingLlmAdapter()
+        val pipeline = newPipeline(fixture, llm)
+
+        val text = pipeline.answer(
+            label = "mega_drive__光明力量2",
+            question = "谁开发的？",
+            spoilerLevel = SpoilerLevel.LIGHT,
+        )
+
+        assertTrue("answer=<$text>", text.contains("SEGA"))
+        assertTrue("answer=<$text>", text.contains("Sonic"))
+        assertTrue("answer=<$text>", text.contains("来源：sf2.production"))
+        assertEquals(0, llm.callCount)
+    }
+
+    @Test
+    fun `shining force ii early character question answers Sarah role without spoilers`() = runTest {
+        val fixture = loadSamplePack()
+        val llm = CountingLlmAdapter()
+        val pipeline = newPipeline(fixture, llm)
+
+        val text = pipeline.answer(
+            label = "md__Shining Force II",
+            question = "Sarah 值得练吗？",
+            spoilerLevel = SpoilerLevel.LIGHT,
+        )
+
+        assertTrue("answer=<$text>", text.contains("治疗"))
+        assertTrue("answer=<$text>", text.contains("来源：sf2.manual_translation"))
+        assertEquals(0, llm.callCount)
+    }
+
+    @Test
+    fun `shining force ii early item question explains medical herb use`() = runTest {
+        val fixture = loadSamplePack()
+        val llm = CountingLlmAdapter()
+        val pipeline = newPipeline(fixture, llm)
+
+        val text = pipeline.answer(
+            label = "md__Shining Force II",
+            question = "医疗草怎么用？",
+            spoilerLevel = SpoilerLevel.LIGHT,
+        )
+
+        assertTrue("answer=<$text>", text.contains("10 HP"))
+        assertTrue("answer=<$text>", text.contains("来源：sf2.items"))
+        assertEquals(0, llm.callCount)
+    }
+
+    @Test
+    fun `shining force ii hidden content overview stays low spoiler`() = runTest {
+        val fixture = loadSamplePack()
+        val llm = CountingLlmAdapter()
+        val pipeline = newPipeline(fixture, llm)
+
+        val text = pipeline.answer(
+            label = "md__Shining Force II",
+            question = "这里有隐藏物品吗？",
+            spoilerLevel = SpoilerLevel.LIGHT,
+        )
+
+        assertTrue("answer=<$text>", text.contains("不直接列清单"))
+        assertTrue("answer=<$text>", text.contains("来源：sf2.secrets"))
+        assertEquals(0, llm.callCount)
+    }
+
+    @Test
+    fun `shining force ii observed asr miss still resolves promotion intent`() = runTest {
+        val fixture = loadSamplePack()
+        val llm = CountingLlmAdapter()
+        val pipeline = newPipeline(fixture, llm)
+
+        val text = pipeline.answer(
+            label = "mega_drive__光明力量2",
+            question = "接受他几部这个角色",
+            spoilerLevel = SpoilerLevel.LIGHT,
+        )
+
+        assertTrue("answer=<$text>", text.contains("20"))
+        assertTrue("answer=<$text>", text.contains("来源：sf2.promotion"))
+        assertEquals(0, llm.callCount)
+    }
+
     private fun newPipeline(
         fixture: SamplePackFixture,
         llm: LlmAdapter,

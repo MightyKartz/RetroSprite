@@ -214,6 +214,56 @@ Golden questions:
 - "谁开发的？"
 - "我玩的这个版本覆盖吗？"
 
+### Lane A2: Core Gameplay And Fun Hooks
+
+Purpose: answer "what do you actually do in this game", "why is it fun", and
+"is this for me" before the player has enough context to ask specific mechanic
+questions.
+
+Minimum rows:
+
+- one spoiler-free core loop row;
+- one short "fun hook" answer that explains the appeal in player language;
+- aliases for broad voice questions such as "主要玩什么", "乐趣点", "好玩在哪", and
+  "适合什么玩家";
+- explicit source refs to official genre/premise material plus project-authored
+  mechanics notes.
+
+Example row:
+
+```json
+{
+  "entity_id": "note.core-gameplay-loop",
+  "entity_type": "note",
+  "canonical_name": "核心玩法与乐趣",
+  "language": "zh",
+  "aliases": ["主要玩什么", "乐趣点", "核心玩法", "好玩在哪", "适合什么玩家"],
+  "description_short": "核心是 <genre/core loop>; 玩家主要通过 <2-3 verbs> 推进。",
+  "description_long": "用原创语言解释为什么这个循环有趣。保持低剧透，不列后期系统或具体隐藏清单。",
+  "progress_gate": "start",
+  "spoiler_level": "none",
+  "source_refs": ["<game>.official.overview", "<game>.project.mechanics"],
+  "confidence": "community",
+  "answer_templates": [
+    {
+      "template_id": "template.<game>.core-gameplay.zh",
+      "language": "zh",
+      "question_patterns": ["这个游戏主要是玩什么？乐趣在哪里？", "好玩在哪", "核心玩法是什么", "适合什么玩家"],
+      "answer": "<1 to 3 sentence answer explaining core loop, appeal, and player fit without spoilers>",
+      "source_refs": ["<game>.official.overview", "<game>.project.mechanics"],
+      "spoiler_level": "none"
+    }
+  ]
+}
+```
+
+Golden questions:
+
+- "这个游戏主要是玩什么？乐趣在哪里？"
+- "好玩在哪？"
+- "核心玩法是什么？"
+- "适合什么玩家？"
+
 ### Lane B: Core Mechanics
 
 Purpose: answer how to play and explain systems without spoilers.
@@ -582,6 +632,7 @@ just parser validity; it is product truth.
 | Category | Minimum Count | Required Spoiler Coverage |
 | --- | ---: | --- |
 | Game identity / production | 3 | `none` |
+| Core gameplay / fun hook | 4 | `none` |
 | Core mechanics | 5 | `none` or `light` |
 | Characters | 5 | `light`, with one unknown/no-evidence case |
 | Items/equipment/skills | 5 | mix of `light` and `medium` |
@@ -701,18 +752,19 @@ Use this order for each expansion slice:
 2. Create or update source inventory.
 3. Draft progress gates.
 4. Add identity/production rows.
-5. Add mechanics rows.
-6. Add early route rows.
-7. Add character rows.
-8. Add item/equipment rows.
-9. Add hidden/optional overview rows.
-10. Add explicit medium/heavy rows only after safe overview rows exist.
-11. Add aliases, including ASR variants.
-12. Add golden Q&A rows.
-13. Run pack lint and targeted retrieval tests.
-14. Run `/debug/ask` for top questions.
-15. Run one real hotkey voice smoke on device.
-16. Update `changelog.md` with coverage, known gaps, and test result.
+5. Add core gameplay / fun hook rows.
+6. Add mechanics rows.
+7. Add early route rows.
+8. Add character rows.
+9. Add item/equipment rows.
+10. Add hidden/optional overview rows.
+11. Add explicit medium/heavy rows only after safe overview rows exist.
+12. Add aliases, including ASR variants.
+13. Add golden Q&A rows.
+14. Run pack lint and targeted retrieval tests.
+15. Run `/debug/ask` for top questions.
+16. Run one real hotkey voice smoke on device.
+17. Update `changelog.md` with coverage, known gaps, and test result.
 
 Do not expand rows faster than tests. A small slice with reliable answers is
 better than a wide slice that guesses.
@@ -726,6 +778,7 @@ A real-game expansion slice is ready when:
 - every `progress_gate` exists in `spoiler_graph.json`;
 - every row has at least 2 useful aliases, or a reason it is intentionally exact;
 - at least 25 golden questions pass;
+- at least 4 core gameplay / fun hook goldens pass without LLM;
 - all spoiler downgrade goldens pass under default `LIGHT`;
 - at least 3 no-evidence goldens return uncertainty instead of guesses;
 - `/debug/ask` passes for the top 10 voice-like questions;
@@ -754,6 +807,8 @@ basic battle, revive, promotion, special promotion items, and a few characters.
 
 The next expansion slice should add:
 
+- a core gameplay / fun hook row for "主要玩什么", "乐趣在哪里", "好玩在哪",
+  and "适合什么玩家";
 - production facts: developer, publisher, platform, release context;
 - more early characters and role-safe advice;
 - item-use rows for early consumables/equipment;
@@ -769,15 +824,18 @@ Suggested slice id:
 ```text
 slice_id: sf2-core-002
 pack_folder: app/src/main/assets/gkp/shining-force-ii-md
-pack_version: 0.2.0
-primary_goal: make hotkey voice questions about characters, items, mechanics,
-  hidden content, and production facts feel useful while preserving low-spoiler
-  defaults.
+pack_version: 0.2.1
+primary_goal: make hotkey voice questions about core appeal, characters, items,
+  mechanics, hidden content, and production facts feel useful while preserving
+  low-spoiler defaults.
 ```
 
 Suggested top voice questions:
 
 - "这是什么游戏？"
+- "这个游戏主要是玩什么？乐趣在哪里？"
+- "好玩在哪？"
+- "适合什么玩家？"
 - "谁开发的？"
 - "博伊是谁？"
 - "这个角色值得练吗？"
@@ -809,4 +867,3 @@ Suggested top voice questions:
 - Known gaps:
   - <specific missing area that should return no-evidence today>
 ```
-

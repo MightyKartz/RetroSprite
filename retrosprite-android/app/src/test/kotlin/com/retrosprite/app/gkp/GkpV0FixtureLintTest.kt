@@ -32,7 +32,7 @@ class GkpV0FixtureLintTest {
         val packs = mapOf(
             "sample-2048" to 16,
             "sample-relay-station" to 12,
-            "shining-force-ii-md" to 12,
+            "shining-force-ii-md" to 34,
         )
         packs.forEach { (packName, minGoldenRows) ->
             lintPack(gkpRoot.resolve(packName).normalize(), minGoldenRows)

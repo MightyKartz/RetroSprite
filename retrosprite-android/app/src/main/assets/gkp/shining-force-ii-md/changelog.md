@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.0 - 2026-05-21
+
+- Added `sf2-core-002` expansion rows for production facts, early character roles, early consumables, hidden-content overview, secret villages, safe formation advice, weapon buying, and mithril purpose.
+- Added source rows for MobyGames, Japanese manual translation, Shining Force Central character/item/secret/weapon/spell pages, and Angelfire item notes; all RetroSprite answer text remains original short summary.
+- Added ASR/voice aliases, including the observed true-device misrecognition `接受他几部这个角色` for promotion intent.
+- Expanded golden Q&A coverage with production, character, item, hidden-content, spoiler-filter, ASR, and no-evidence cases.
+
 ## 0.1.2 - 2026-05-20
 
 - Added true-device RetroArch AI Service label coverage for `mega_drive__光明力量2`.

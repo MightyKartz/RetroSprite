@@ -63,4 +63,5 @@ data class LlmCallTrace(
 data class ComposedAnswer(
     val text: String,
     val llmTrace: LlmCallTrace = LlmCallTrace(),
+    val answerResult: AnswerResult = AnswerResult.fromText(text),
 )

@@ -142,6 +142,18 @@ class HomeViewModel(
         }
     }
 
+    fun toggleAdvancedQuestionTools() {
+        _askState.update {
+            it.copy(advancedQuestionToolsExpanded = !it.advancedQuestionToolsExpanded)
+        }
+    }
+
+    fun expandAdvancedQuestionTools() {
+        _askState.update {
+            if (it.advancedQuestionToolsExpanded) it else it.copy(advancedQuestionToolsExpanded = true)
+        }
+    }
+
     fun askQuestion() {
         val current = _askState.value
         val cleanQuestion = current.question.trim()
@@ -270,6 +282,7 @@ data class HomeAskState(
     val conversationTurns: List<HomeConversationTurn> = emptyList(),
     val spoilerEscalationNotice: String? = null,
     val spoilerLevelOverride: UiSpoilerLevel? = null,
+    val advancedQuestionToolsExpanded: Boolean = false,
 ) {
     val questionDrafts: List<HomeQuestionDraft>
         get() = questionDraftsFor(label)
@@ -318,6 +331,8 @@ data class HomeRetroArchContext(
     val paused: Boolean,
     val pipelineStage: String,
     val sourceIds: List<String>,
+    val outputMode: String,
+    val imageBytes: Int,
     val question: String? = null,
     val questionSource: String? = null,
 ) {
@@ -335,9 +350,9 @@ data class HomeRetroArchContext(
 
     val gkpStatusLabel: String
         get() = when {
-            isGkpDisabled -> "GKP 已禁用"
-            hasGkpEvidence -> "GKP 命中"
-            else -> "GKP 待确认"
+            isGkpDisabled -> "知识包已停用"
+            hasGkpEvidence -> "知识包已命中"
+            else -> "等待知识包匹配"
         }
 }
 
@@ -364,6 +379,8 @@ private fun UiRequestLogItem.toRetroArchContextOrNull(): HomeRetroArchContext? {
         paused = paused,
         pipelineStage = pipelineStage,
         sourceIds = sourceIds,
+        outputMode = rawOutputMode.ifBlank { outputMode.name.lowercase() },
+        imageBytes = imageBytes,
         question = question,
         questionSource = questionSource,
     )

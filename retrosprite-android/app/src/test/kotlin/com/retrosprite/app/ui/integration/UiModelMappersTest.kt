@@ -167,6 +167,12 @@ class UiModelMappersTest {
             questionSource = "app",
             responseText = "综合答案。\n来源：sample.2048.rules",
             durationMillis = 1_234L,
+            answerShort = "短答。",
+            answerDetail = "完整解释。",
+            answerType = "mechanic",
+            answerConfidence = "high",
+            spoilerLevelUsed = "light",
+            nextActions = listOf("查看来源", "这不对"),
             llmStatusOverride = "used",
             llmProvider = "deepseek",
             llmModel = "deepseek-v4-pro",
@@ -184,6 +190,12 @@ class UiModelMappersTest {
         assertEquals("How do I merge?", ui.question)
         assertEquals("app", ui.questionSource)
         assertEquals("used", ui.llmStatus)
+        assertEquals("短答。", ui.answerShort)
+        assertEquals("完整解释。", ui.answerDetail)
+        assertEquals("mechanic", ui.answerType)
+        assertEquals("high", ui.answerConfidence)
+        assertEquals("light", ui.spoilerLevelUsed)
+        assertEquals(listOf("查看来源", "这不对"), ui.nextActions)
         assertEquals("deepseek", ui.llmProvider)
         assertEquals("deepseek-v4-pro", ui.llmModel)
         assertEquals(256, ui.llmMaxTokens)
@@ -196,6 +208,8 @@ class UiModelMappersTest {
         assertTrue(ui.fullResponseJson.contains(""""llm_max_tokens":256"""))
         assertTrue(ui.fullResponseJson.contains(""""question":"How do I merge?""""))
         assertTrue(ui.fullResponseJson.contains(""""question_source":"app""""))
+        assertTrue(ui.fullResponseJson.contains(""""answer_type":"mechanic""""))
+        assertTrue(ui.fullResponseJson.contains(""""answer_confidence":"high""""))
     }
 
     @Test
@@ -220,6 +234,26 @@ class UiModelMappersTest {
         assertEquals(99L, ui.feedbackTimestampMillis)
         assertTrue(ui.fullResponseJson.contains(""""feedback":"incorrect""""))
         assertTrue(ui.fullResponseJson.contains(""""feedback_timestamp":99"""))
+    }
+
+    @Test
+    fun `natural answer types expose diagnostics display labels`() {
+        val entry = RequestLogEntry(
+            id = "natural-1",
+            timestamp = 1L,
+            label = "md__Shining Force II",
+            system = "md",
+            game = "Shining Force II",
+            imageBytes = 0,
+            paused = false,
+            outputMode = "hotkey_voice:text",
+            responseText = "它主要玩剧情推进和网格回合制战斗。",
+            answerType = "game_overview",
+        )
+
+        val ui = entry.toUi()
+
+        assertEquals("核心玩法", ui.answerTypeLabel)
     }
 
     @Test

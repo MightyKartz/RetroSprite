@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.2.4 - 2026-05-23
+
+- Added ASR-observed gameplay variants such as “这游戏要怎么玩？” and “这游戏该怎么玩？” to the zero-LLM core gameplay template.
+- Improved the in-game NoEvidence answer card capacity so suggested follow-up questions are visible instead of being truncated after two lines.
+
+## 0.2.3 - 2026-05-23
+
+- Added true-device follow-up natural variants such as “这个游戏到底要怎么玩？”, “刚开始应该干嘛？”, “新手前期怎么玩稳？”, “队伍怎么搭配？” and “升级有什么技巧？”.
+- Added low-spoiler combat recovery guidance for “打不过敌人怎么办？”.
+- Added ASR-friendly Mithril aliases such as “米斯里鲁” and golden rows for Mithril usage/location questions.
+
+## 0.2.2 - 2026-05-22
+
+- Added zero-LLM natural-language templates for “这游戏怎么玩？”, beginner guidance, team-building principles, and leveling/experience questions.
+- Added aliases and golden Q&A rows for current-team, beginner, leveling, and route-hint style voice questions.
+- Kept answers short, original, source-cited, and low-spoiler by default.
+
 ## 0.2.1 - 2026-05-21
 
 - Added a zero-LLM `note.core-gameplay-loop` row for broad player questions such as “这个游戏主要是玩什么？乐趣在哪里？”.

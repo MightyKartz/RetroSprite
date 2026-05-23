@@ -30,9 +30,18 @@ class GkpV0Parser(
         return manifest.obj("contents").array("knowledge").map { it.jsonPrimitive.content }
     }
 
+    fun aliasPath(manifestText: String): String? {
+        val manifest = parseObject(manifestText)
+        require(manifest.string("schema_version") == SCHEMA_VERSION) {
+            "Unsupported GKP schema_version: ${manifest.string("schema_version")}"
+        }
+        return manifest.obj("contents").stringOrNull("aliases")
+    }
+
     fun parse(
         manifestText: String,
         knowledgeFiles: Map<String, String>,
+        aliasFiles: Map<String, String> = emptyMap(),
         provenance: GkpPackProvenance = GkpPackProvenance.Unknown,
         signature: GkpSignatureMetadata = signatureMetadata(manifestText),
     ): ParsedGkpPack {
@@ -69,10 +78,13 @@ class GkpV0Parser(
             "Missing GKP knowledge files: ${expectedPaths - knowledgeFiles.keys}"
         }
 
+        val aliasesByEntity = aliasTermsByEntity(manifest, aliasFiles)
         val knowledge = expectedPaths.flatMap { path ->
             parseJsonl(knowledgeFiles.getValue(path)).map { row ->
                 row.toKnowledgeChunk(gameId)
             }
+        }.map { chunk ->
+            chunk.withMergedAliases(aliasesByEntity[chunk.entityId].orEmpty())
         }
         require(knowledge.isNotEmpty()) { "GKP pack must include at least one knowledge row" }
 
@@ -126,6 +138,35 @@ class GkpV0Parser(
             .filter { it.isNotEmpty() }
             .map { JSON.parseToJsonElement(it).jsonObject }
             .toList()
+
+    private fun aliasTermsByEntity(
+        manifest: JsonObject,
+        aliasFiles: Map<String, String>,
+    ): Map<String, List<String>> {
+        val aliasPath = manifest.obj("contents").stringOrNull("aliases") ?: return emptyMap()
+        val aliasText = aliasFiles[aliasPath] ?: return emptyMap()
+        return parseObject(aliasText)
+            .arrayOrEmpty("aliases")
+            .mapNotNull { alias ->
+                val obj = alias as? JsonObject ?: return@mapNotNull null
+                val entityId = obj.stringOrNull("entity_id")?.trim().orEmpty()
+                val term = obj.stringOrNull("term")?.trim().orEmpty()
+                if (entityId.isEmpty() || term.isEmpty()) null else entityId to term
+            }
+            .groupBy(
+                keySelector = { (entityId, _) -> entityId },
+                valueTransform = { (_, term) -> term },
+            )
+    }
+
+    private fun KnowledgeChunkDomain.withMergedAliases(extraAliases: List<String>): KnowledgeChunkDomain {
+        if (extraAliases.isEmpty()) return this
+        val merged = (aliases + extraAliases)
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .distinct()
+        return copy(aliases = merged)
+    }
 
     private fun JsonObject.obj(name: String): JsonObject =
         this[name]?.jsonObject ?: error("Missing object field '$name'")

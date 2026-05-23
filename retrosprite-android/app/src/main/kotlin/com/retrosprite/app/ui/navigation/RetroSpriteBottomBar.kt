@@ -20,7 +20,7 @@ import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
 
 /**
- * Bottom NavigationBar with a thin neon-green hairline along its top edge.
+ * Bottom NavigationBar with a thin cyan HUD hairline along its top edge.
  * Hairline gives the bar a "control panel" feel and physically separates it
  * from scrollable content.
  */
@@ -55,8 +55,8 @@ fun RetroSpriteBottomBar(
             containerColor = MaterialTheme.colorScheme.background,
             tonalElevation = 0.dp
         ) {
-            Destination.ordered.forEach { dest ->
-                val selected = currentRoute == dest.route
+            Destination.playerFacing.forEach { dest ->
+                val selected = Destination.isSelected(dest, currentRoute)
                 NavigationBarItem(
                     selected = selected,
                     onClick = {
@@ -80,9 +80,9 @@ fun RetroSpriteBottomBar(
                         )
                     },
                     colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = MaterialTheme.colorScheme.onPrimary,
+                        selectedIconColor = MaterialTheme.colorScheme.primary,
                         selectedTextColor = MaterialTheme.colorScheme.primary,
-                        indicatorColor = MaterialTheme.colorScheme.primary,
+                        indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
                         unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
                         unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
                     )

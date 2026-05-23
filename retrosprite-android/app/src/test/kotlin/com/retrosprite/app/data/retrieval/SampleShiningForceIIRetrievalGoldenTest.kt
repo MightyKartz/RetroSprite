@@ -70,7 +70,7 @@ class SampleShiningForceIIRetrievalGoldenTest {
     }
 
     @Test
-    fun `sample shining force ii promotion item locations are hidden under light tolerance`() = runTest {
+    fun `sample shining force ii promotion item locations return low spoiler hints under light tolerance`() = runTest {
         val fixture = loadPack()
         val pipeline = LocalKnowledgeRetrievalPipeline(FixtureKnowledgeRepository(fixture.knowledge))
         val normalized = pipeline.normalizeQuestion("勇者之证在哪里？", "zh")
@@ -86,7 +86,47 @@ class SampleShiningForceIIRetrievalGoldenTest {
             )
         )
 
-        assertFalse(results.any { it.entityId == "item.warrior-pride" })
+        val warriorPride = results.firstOrNull { it.entityId == "item.warrior-pride" }
+        assertTrue("expected low spoiler warrior pride hint, got ${results.map { it.entityId }}", warriorPride != null)
+        val text = warriorPride!!.evidence.joinToString(" ") { it.snippet }
+        assertTrue("answer=<$text>", text.contains("先别查具体位置"))
+        assertFalse("answer=<$text>", text.contains("战术基地相关位置"))
+    }
+
+    @Test
+    fun `sample shining force ii observed asr team building variants resolve team strategy`() = runTest {
+        val fixture = loadPack()
+        val pipeline = LocalKnowledgeRetrievalPipeline(FixtureKnowledgeRepository(fixture.knowledge))
+
+        listOf(
+            "那些角色适合培养",
+            "那这些角色适合培养",
+            "那些人物适合培养",
+            "哪些人物适合培养",
+            "那些队员适合培养",
+        ).forEach { question ->
+            val normalized = pipeline.normalizeQuestion(question, "zh")
+            val results = pipeline.retrieve(
+                RetrievalQuery(
+                    gameId = "shining_force_ii_md",
+                    normalizedQuery = normalized,
+                    language = "zh",
+                    progressGate = "start",
+                    spoilerLevel = SpoilerLevel.LIGHT,
+                    limit = 5,
+                )
+            )
+
+            assertTrue(
+                "question=<$question> normalized=<$normalized> got ${results.map { it.entityId }}",
+                results.any { it.entityId == "strategy.team-build-general" },
+            )
+            val sources = results.flatMap { result -> result.evidence.map { it.sourceId } }
+            assertTrue(
+                "question=<$question> sources=$sources",
+                sources.contains("sf2.project_mechanics"),
+            )
+        }
     }
 
     private data class PackFixture(

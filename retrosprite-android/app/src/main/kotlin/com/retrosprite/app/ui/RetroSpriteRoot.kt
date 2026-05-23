@@ -21,6 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
@@ -63,7 +64,7 @@ fun RetroSpriteRoot() {
                             Spacer(Modifier.width(10.dp))
                             Text(
                                 text = "RETROSPRITE",
-                                style = MaterialTheme.typography.titleSmall,
+                                style = MaterialTheme.typography.titleSmall.copy(fontFamily = FontFamily.Monospace),
                                 color = MaterialTheme.colorScheme.primary
                             )
                             Spacer(Modifier.width(10.dp))

@@ -62,6 +62,6 @@ class AndroidHotkeyVoiceOverlayController(
     }
 
     private companion object {
-        const val DEFAULT_DISPLAY_MILLIS: Long = 8_000L
+        const val DEFAULT_DISPLAY_MILLIS: Long = 5_000L
     }
 }

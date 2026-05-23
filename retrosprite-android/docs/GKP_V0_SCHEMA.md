@@ -169,6 +169,64 @@ Knowledge files are JSONL. Each line is one plain-text knowledge row.
 | `confidence` | yes | `verified`, `community`, or `uncertain` |
 | `answer_templates` | no | Zero-LLM answers. If present, every template must cite source ids. |
 
+### Answer Templates
+
+`answer_templates` are the preferred zero-LLM path for natural language
+questions. A template may use a flat `answer` or spoiler-tiered answers:
+
+```json
+{
+  "template_id": "template.game.leveling.zh",
+  "language": "zh",
+  "intent": "leveling",
+  "question_patterns": ["怎么玩经验高", "怎么练级快", "经验怎么刷"],
+  "answer": "让低等级角色补最后一击；治疗和辅助行动也能帮助部分角色追经验。",
+  "source_refs": ["game.project.mechanics"],
+  "spoiler_level": "none"
+}
+```
+
+```json
+{
+  "template_id": "template.game.location.zh",
+  "language": "zh",
+  "intent": "location",
+  "question_patterns": ["道具在哪里", "怎么拿这个道具"],
+  "answer_light": "先别查完整位置清单；这属于中期探索相关内容。",
+  "answer_clear": "到达相关城镇后，优先检查战术基地和可疑角落。",
+  "answer_direct": "具体位置写在这里，但只应在直接答案级别显示。",
+  "spoiler_light": "light",
+  "spoiler_clear": "medium",
+  "spoiler_direct": "heavy",
+  "source_refs": ["game.community.items"]
+}
+```
+
+Allowed `intent` values:
+
+- `game_overview`
+- `beginner_guide`
+- `team_build`
+- `leveling`
+- `name_mapping`
+- `location`
+- `usage`
+- `mechanic`
+- `route_hint`
+- `strategy`
+- `production`
+- `no_evidence`
+- `unknown_or_out_of_scope`
+
+Natural-language real-game packs should include templates for:
+
+- core gameplay: “这游戏怎么玩 / 主要玩什么 / 好玩在哪”
+- beginner guide: “新手怎么玩 / 开局先干什么”
+- team build: “哪些角色适合培养 / 谁值得练”
+- leveling: “怎么玩经验高 / 怎么练级快”
+- route hints: “卡住了下一步去哪”
+- mechanics, item usage, name mapping, and production facts
+
 ### Spoiler Semantics
 
 | GKP level | Meaning | Default UI tolerance mapping |

@@ -32,15 +32,44 @@ fun RetroSpriteNavHost(
                 },
             )
         }
+        composable(Destination.HOME_ADVANCED_QUESTION_TOOLS_ROUTE) {
+            HomeScreen(
+                contentPadding = contentPadding,
+                openAdvancedQuestionToolsOnStart = true,
+                onNavigateToTarget = { target ->
+                    navController.navigateTopLevel(target.toDestination())
+                },
+            )
+        }
         composable(Destination.Diagnostics.route) { DiagnosticsScreen(contentPadding = contentPadding) }
         composable(Destination.Packs.route) { PacksScreen(contentPadding = contentPadding) }
-        composable(Destination.Settings.route) { SettingsScreen(contentPadding = contentPadding) }
+        composable(Destination.Settings.route) {
+            SettingsScreen(
+                contentPadding = contentPadding,
+                onOpenDiagnostics = {
+                    navController.navigateTopLevel(Destination.Diagnostics)
+                },
+                onOpenAppQuestionConsole = {
+                    navController.navigateHomeAdvancedQuestionTools()
+                },
+            )
+        }
     }
 }
 
 private fun NavHostController.navigateTopLevel(destination: Destination) {
     if (currentBackStackEntry?.destination?.route == destination.route) return
     navigate(destination.route) {
+        popUpTo(graph.findStartDestination().id) {
+            saveState = true
+        }
+        launchSingleTop = true
+        restoreState = true
+    }
+}
+
+private fun NavHostController.navigateHomeAdvancedQuestionTools() {
+    navigate(Destination.HOME_ADVANCED_QUESTION_TOOLS_ROUTE) {
         popUpTo(graph.findStartDestination().id) {
             saveState = true
         }

@@ -1,6 +1,10 @@
 package com.retrosprite.app.domain.policy
 
 import com.retrosprite.app.domain.models.AnswerDecision
+import com.retrosprite.app.domain.models.AnswerConfidence
+import com.retrosprite.app.domain.models.AnswerNextAction
+import com.retrosprite.app.domain.models.AnswerResult
+import com.retrosprite.app.domain.models.AnswerType
 import com.retrosprite.app.domain.models.ComposedAnswer
 import com.retrosprite.app.domain.models.LlmCallTrace
 import com.retrosprite.app.domain.models.LlmRequest
@@ -16,6 +20,7 @@ import com.retrosprite.app.llm.LlmAdapter
  */
 class AnswerComposer(
     private val maxTokensProvider: () -> Int = { DEFAULT_MAX_TOKENS },
+    private val localEvidenceSummarizer: LocalEvidenceSummarizer = LocalEvidenceSummarizer(),
 ) {
 
     suspend fun compose(
@@ -29,16 +34,35 @@ class AnswerComposer(
         context: SessionContext,
         llm: LlmAdapter,
     ): ComposedAnswer = when (decision) {
-        is AnswerDecision.DirectAnswer -> ComposedAnswer(
-            text = decision.text.withSources(decision.sources),
-            llmTrace = llm.skippedTrace(),
-        )
+        is AnswerDecision.DirectAnswer -> {
+            val result = AnswerResult.fromText(
+                text = decision.text,
+                sources = decision.sources,
+                confidence = decision.confidence,
+                answerType = decision.answerType,
+                spoilerLevelUsed = decision.spoilerLevel,
+                nextActions = decision.nextActions,
+            )
+            ComposedAnswer(
+                text = result.textWithSources,
+                llmTrace = llm.skippedTrace(),
+                answerResult = result,
+            )
+        }
 
         is AnswerDecision.ComposeWithLlm -> {
             if (decision.evidence.isEmpty()) {
-                ComposedAnswer(
+                val result = AnswerResult.fromText(
                     text = NO_EVIDENCE_TEXT,
+                    confidence = AnswerConfidence.Low,
+                    answerType = AnswerType.NoEvidence,
+                    spoilerLevelUsed = decision.spoilerLevel,
+                    nextActions = listOf(AnswerNextAction.MoreSpecific, AnswerNextAction.MarkIncorrect),
+                )
+                ComposedAnswer(
+                    text = result.textWithSources,
                     llmTrace = llm.skippedTrace(),
+                    answerResult = result,
                 )
             } else {
                 val request = LlmRequest(
@@ -49,12 +73,20 @@ class AnswerComposer(
                 )
                 runCatching {
                     val response = llm.complete(request)
+                    val sources = response.citationsUsed.ifEmpty {
+                        decision.evidence.map { it.sourceId }
+                    }
+                    val result = AnswerResult.fromText(
+                        text = response.text,
+                        sources = sources,
+                        confidence = decision.confidence,
+                        answerType = decision.answerType.takeUnless { it == AnswerType.UnknownOrOutOfScope }
+                            ?: context.questionIntent,
+                        spoilerLevelUsed = decision.spoilerLevel,
+                        nextActions = decision.nextActions,
+                    )
                     ComposedAnswer(
-                        text = response.text.withSources(
-                            response.citationsUsed.ifEmpty {
-                                decision.evidence.map { it.sourceId }
-                            }
-                        ),
+                        text = result.textWithSources,
                         llmTrace = LlmCallTrace(
                             status = LlmCallTrace.STATUS_USED,
                             providerName = llm.providerName,
@@ -65,10 +97,21 @@ class AnswerComposer(
                             tokensIn = response.tokensIn,
                             tokensOut = response.tokensOut,
                         ),
+                        answerResult = result,
                     )
                 }.getOrElse { error ->
+                    val sources = decision.evidence.map { it.sourceId }
+                    val detail = buildLlmFailureAnswer(error)
+                    val result = AnswerResult.fromText(
+                        text = detail,
+                        sources = sources,
+                        confidence = AnswerConfidence.Low,
+                        answerType = decision.answerType,
+                        spoilerLevelUsed = decision.spoilerLevel,
+                        nextActions = listOf(AnswerNextAction.ViewSources, AnswerNextAction.MarkIncorrect),
+                    )
                     ComposedAnswer(
-                        text = buildLlmFailureAnswer(error, decision.evidence.map { it.sourceId }),
+                        text = result.textWithSources,
                         llmTrace = LlmCallTrace(
                             status = LlmCallTrace.STATUS_FAILED,
                             providerName = llm.providerName,
@@ -77,20 +120,60 @@ class AnswerComposer(
                             timeoutMs = llm.timeoutMs,
                             errorMessage = error.message?.take(ERROR_MAX_CHARS),
                         ),
+                        answerResult = result,
                     )
                 }
             }
         }
 
-        is AnswerDecision.AskClarification -> ComposedAnswer(
-            text = decision.question,
-            llmTrace = llm.skippedTrace(),
-        )
+        is AnswerDecision.LocalSummary -> {
+            val summary = localEvidenceSummarizer.summarize(decision.evidence)
+            val result = AnswerResult(
+                answerShort = summary.answerShort,
+                answerDetail = summary.answerDetail,
+                sources = summary.sources,
+                confidence = decision.confidence,
+                answerType = decision.answerType.takeUnless { it == AnswerType.UnknownOrOutOfScope }
+                    ?: context.questionIntent,
+                spoilerLevelUsed = decision.spoilerLevel,
+                nextActions = decision.nextActions,
+            )
+            ComposedAnswer(
+                text = result.textWithSources,
+                llmTrace = llm.skippedTrace(),
+                answerResult = result,
+            )
+        }
 
-        is AnswerDecision.Refuse -> ComposedAnswer(
-            text = POLITE_REFUSAL_ZH,
-            llmTrace = llm.skippedTrace(),
-        )
+        is AnswerDecision.AskClarification -> {
+            val result = AnswerResult.fromText(
+                text = decision.question,
+                confidence = AnswerConfidence.Low,
+                answerType = context.questionIntent,
+                spoilerLevelUsed = context.spoilerLevel,
+                nextActions = listOf(AnswerNextAction.MoreSpecific, AnswerNextAction.MarkIncorrect),
+            )
+            ComposedAnswer(
+                text = result.textWithSources,
+                llmTrace = llm.skippedTrace(),
+                answerResult = result,
+            )
+        }
+
+        is AnswerDecision.Refuse -> {
+            val result = AnswerResult.fromText(
+                text = POLITE_REFUSAL_ZH,
+                confidence = AnswerConfidence.Low,
+                answerType = AnswerType.UnknownOrOutOfScope,
+                spoilerLevelUsed = context.spoilerLevel,
+                nextActions = listOf(AnswerNextAction.MarkIncorrect),
+            )
+            ComposedAnswer(
+                text = result.textWithSources,
+                llmTrace = llm.skippedTrace(),
+                answerResult = result,
+            )
+        }
     }
 
     companion object {
@@ -123,22 +206,12 @@ class AnswerComposer(
         timeoutMs = timeoutMs,
     )
 
-    private fun buildLlmFailureAnswer(error: Throwable, sources: List<String>): String {
+    private fun buildLlmFailureAnswer(error: Throwable): String {
         val cleanMessage = error.message
             ?.take(ERROR_MAX_CHARS)
             ?.ifBlank { null }
             ?: "provider_error"
         return "LLM 调用失败：$cleanMessage。已保留本地证据，请稍后重试或检查模型配置。"
-            .withSources(sources)
-    }
-
-    private fun String.withSources(sources: List<String>): String {
-        val cleanSources = sources
-            .map { it.trim() }
-            .filter { it.isNotEmpty() }
-            .distinct()
-        if (cleanSources.isEmpty()) return this
-        return "$this\n来源：${cleanSources.joinToString(", ")}"
     }
 
     private fun systemPromptFor(context: SessionContext): String =

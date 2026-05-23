@@ -53,6 +53,24 @@ data class RequestLogEntity(
     @ColumnInfo(name = "question_source")
     val questionSource: String? = null,
 
+    @ColumnInfo(name = "answer_short")
+    val answerShort: String? = null,
+
+    @ColumnInfo(name = "answer_detail")
+    val answerDetail: String? = null,
+
+    @ColumnInfo(name = "answer_type")
+    val answerType: String? = null,
+
+    @ColumnInfo(name = "answer_confidence")
+    val answerConfidence: String? = null,
+
+    @ColumnInfo(name = "spoiler_level_used")
+    val spoilerLevelUsed: String? = null,
+
+    @ColumnInfo(name = "next_actions")
+    val nextActions: String? = null,
+
     @ColumnInfo(name = "response_text")
     val responseText: String,
 

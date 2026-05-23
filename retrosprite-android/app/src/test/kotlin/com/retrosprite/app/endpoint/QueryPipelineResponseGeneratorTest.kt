@@ -7,6 +7,10 @@ import com.retrosprite.app.domain.retrieval.NoOpRetrievalPipeline
 import com.retrosprite.app.domain.DefaultQueryPipeline
 import com.retrosprite.app.domain.QueryPipeline
 import com.retrosprite.app.domain.QueryPipelineResult
+import com.retrosprite.app.domain.models.AnswerConfidence
+import com.retrosprite.app.domain.models.AnswerNextAction
+import com.retrosprite.app.domain.models.AnswerResult
+import com.retrosprite.app.domain.models.AnswerType
 import com.retrosprite.app.domain.models.LlmCallTrace
 import com.retrosprite.app.domain.models.SpoilerLevel
 import com.retrosprite.app.endpoint.model.RetroArchRequest
@@ -196,7 +200,16 @@ class QueryPipelineResponseGeneratorTest {
                         latencyMs = 1_234L,
                         tokensIn = 12,
                         tokensOut = 5,
-                    )
+                    ),
+                    answerResult = AnswerResult(
+                        answerShort = "short answer",
+                        answerDetail = "answer",
+                        sources = listOf("sample.2048.rules"),
+                        confidence = AnswerConfidence.High,
+                        answerType = AnswerType.Mechanic,
+                        spoilerLevelUsed = SpoilerLevel.LIGHT,
+                        nextActions = listOf(AnswerNextAction.ViewSources, AnswerNextAction.MarkIncorrect),
+                    ),
                 )
             }
         )
@@ -215,6 +228,12 @@ class QueryPipelineResponseGeneratorTest {
         assertEquals(1_234L, response.diagnostics.llmLatencyMs)
         assertEquals(12, response.diagnostics.llmTokensIn)
         assertEquals(5, response.diagnostics.llmTokensOut)
+        assertEquals("short answer", response.diagnostics.answerShort)
+        assertEquals("answer", response.diagnostics.answerDetail)
+        assertEquals("mechanic", response.diagnostics.answerType)
+        assertEquals("high", response.diagnostics.answerConfidence)
+        assertEquals("light", response.diagnostics.spoilerLevelUsed)
+        assertEquals(listOf("查看来源", "这不对"), response.diagnostics.nextActions)
     }
 
     @Test

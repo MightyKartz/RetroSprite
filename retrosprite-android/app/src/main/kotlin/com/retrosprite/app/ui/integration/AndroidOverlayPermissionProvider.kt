@@ -36,7 +36,7 @@ class AndroidOverlayPermissionProvider(
         return UiOverlayPermissionState(
             isGranted = granted,
             message = if (granted) {
-                "已允许游戏内语音 overlay。按 RetroArch AI Service 热键时会显示收音波形。"
+                "已允许游戏内语音波形。按 RetroArch AI Service 快捷键时会显示收音波形。"
             } else {
                 "需要授权“显示在其他应用上层”，RetroSprite 才能在 RetroArch 画面右上角显示语音波形。"
             },

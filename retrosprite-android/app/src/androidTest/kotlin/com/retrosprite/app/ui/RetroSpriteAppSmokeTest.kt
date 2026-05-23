@@ -47,8 +47,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * Smoke test verifying that the root Scaffold renders all four tabs and switching
- * between them surfaces each screen's distinctive headline / placeholder.
+ * Smoke test verifying that the root Scaffold renders player-facing tabs and that
+ * advanced diagnostics stays reachable through Settings/recovery actions.
  *
  * Uses [PreviewStub] dependencies so the test runs without a real endpoint or DataStore.
  */
@@ -75,66 +75,58 @@ class RetroSpriteAppSmokeTest {
     )
 
     @Test
-    fun bottomBarShowsAllFourTabs() {
+    fun bottomBarShowsPlayerFacingTabs() {
         setRoot()
         composeRule.onNodeWithText("\u9996\u9875").assertIsDisplayed()
-        composeRule.onNodeWithText("\u8bca\u65ad").assertIsDisplayed()
         composeRule.onNodeWithText("\u77e5\u8bc6\u5305").assertIsDisplayed()
         composeRule.onNodeWithText("\u8bbe\u7f6e").assertIsDisplayed()
+        assertTrue(composeRule.onAllNodesWithText("\u8bca\u65ad").fetchSemanticsNodes().isEmpty())
+        assertTrue(composeRule.onAllNodesWithText("RETROARCH 接入指引").fetchSemanticsNodes().isEmpty())
+        assertTrue(composeRule.onAllNodesWithTag("home_advanced_question_tools").fetchSemanticsNodes().isEmpty())
     }
 
     @Test
-    fun canNavigateThroughEveryTab() {
+    fun canNavigateThroughPlayerTabsAndAdvancedDiagnostics() {
         setRoot()
 
-        // Default Home tab: endpoint card title visible
-        composeRule.onNodeWithText("\u672c\u673a\u7aef\u70b9".uppercase()).assertIsDisplayed()
-
-        // Switch to Diagnostics
-        composeRule.onNodeWithText("\u8bca\u65ad").performClick()
-        composeRule.onNodeWithText("\u5feb\u901f\u8bca\u65ad".uppercase()).assertIsDisplayed()
+        // Default Home tab: readiness card visible
+        composeRule.onNodeWithText("游戏内语音就绪").assertIsDisplayed()
+        composeRule.onNodeWithTag("home_hotkey_signal_diagnostics").assertIsDisplayed()
 
         // Switch to Packs
         composeRule.onNodeWithText("\u77e5\u8bc6\u5305").performClick()
         composeRule.onNodeWithText("\u6e38\u620f\u77e5\u8bc6\u5305").assertIsDisplayed()
         composeRule.onNodeWithTag("packs_import_status").assertIsDisplayed()
-        composeRule.onNodeWithTag("packs_preflight")
-            .performScrollTo()
-            .assertIsDisplayed()
-        composeRule.onNodeWithTag("packs_preflight_result")
-            .performScrollTo()
-            .assertIsDisplayed()
-        composeRule.onNodeWithTag("packs_install_plan")
-            .performScrollTo()
-            .assertIsDisplayed()
-        composeRule.onNodeWithTag("packs_install_confirm_button")
-            .performScrollTo()
-            .assertIsDisplayed()
-        composeRule.onNodeWithTag("packs_item_2048")
-            .performScrollTo()
-            .assertExists()
-        composeRule.onNodeWithTag("packs_item_relay_station")
-            .performScrollTo()
-            .assertExists()
-        composeRule.onNodeWithTag("packs_delete_request_relay_station")
-            .performScrollTo()
-            .assertExists()
-        assertTrue(composeRule.onAllNodesWithText("内置").fetchSemanticsNodes().isNotEmpty())
-        assertTrue(composeRule.onAllNodesWithText("未签名").fetchSemanticsNodes().isNotEmpty())
-        composeRule.onNodeWithTag("packs_disable_relay_station")
-            .performScrollTo()
-            .assertExists()
 
         // Switch to Settings
         composeRule.onNodeWithText("\u8bbe\u7f6e").performClick()
-        composeRule.onNodeWithText("ENDPOINT").assertIsDisplayed()
         composeRule.onNodeWithTag("settings_overlay_permission_section")
             .performScrollTo()
             .assertIsDisplayed()
+        composeRule.onNodeWithTag("settings_microphone_permission_section")
+            .performScrollTo()
+            .assertIsDisplayed()
+        composeRule.onNodeWithText("连接状态")
+            .performScrollTo()
+            .assertIsDisplayed()
+        composeRule.onNodeWithText("旁白模式（Narrator Mode）")
+            .performScrollTo()
+            .assertIsDisplayed()
+        composeRule.onNodeWithText("RetroArch -> Settings -> AI Service -> Pause During Translation -> ON")
+            .performScrollTo()
+            .assertIsDisplayed()
+        assertTrue(composeRule.onAllNodesWithText("Image Mode").fetchSemanticsNodes().isEmpty())
+        composeRule.onNodeWithTag("settings_developer_diagnostics_open")
+            .performScrollTo()
+            .performClick()
+        composeRule.onNodeWithText("\u5feb\u901f\u8bca\u65ad".uppercase()).assertIsDisplayed()
+        composeRule.onNodeWithText(
+            "推荐：RetroArch -> Settings -> AI Service -> Pause During Translation -> ON"
+        ).assertIsDisplayed()
 
         // Back to Home
         composeRule.onNodeWithText("\u9996\u9875").performClick()
-        composeRule.onNodeWithText("\u672c\u673a\u7aef\u70b9".uppercase()).assertIsDisplayed()
+        composeRule.onNodeWithText("游戏内语音就绪").assertIsDisplayed()
     }
 
     @Test
@@ -169,6 +161,7 @@ class RetroSpriteAppSmokeTest {
                 pendingQuestion = pendingQuestion,
             )
         )
+        openAdvancedQuestionTools()
 
         composeRule.onNodeWithTag("home_input_flow_note")
             .performScrollTo()
@@ -274,7 +267,7 @@ class RetroSpriteAppSmokeTest {
             .assertIsDisplayed()
         composeRule.onNodeWithText("已记录：这不对").assertIsDisplayed()
 
-        composeRule.onNodeWithText("\u8bca\u65ad").performClick()
+        openDiagnosticsFromSettings()
         composeRule.onNodeWithTag("diagnostics_log_item_app-question").assertIsDisplayed()
         composeRule.onNodeWithText("APP").assertIsDisplayed()
         composeRule.onNodeWithText("INCORRECT").assertIsDisplayed()
@@ -296,6 +289,7 @@ class RetroSpriteAppSmokeTest {
                 voiceInput = voiceInput,
             )
         )
+        openAdvancedQuestionTools()
 
         composeRule.onNodeWithTag("home_voice_controls")
             .performScrollTo()
@@ -351,8 +345,9 @@ class RetroSpriteAppSmokeTest {
         )
 
         composeRule.waitUntil(timeoutMillis = 5_000) {
-            composeRule.onAllNodesWithText("GKP 已禁用").fetchSemanticsNodes().isNotEmpty()
+            composeRule.onAllNodesWithText("知识包已停用").fetchSemanticsNodes().isNotEmpty()
         }
+        openAdvancedQuestionTools()
         composeRule.onNodeWithTag("home_gkp_disabled_notice")
             .performScrollTo()
             .assertIsDisplayed()
@@ -363,7 +358,7 @@ class RetroSpriteAppSmokeTest {
             .performScrollTo()
             .assertIsDisplayed()
 
-        composeRule.onNodeWithText("诊断").performClick()
+        openDiagnosticsFromSettings()
         composeRule.onNodeWithTag("diagnostics_log_item_disabled-gkp")
             .assertIsDisplayed()
             .performClick()
@@ -407,7 +402,7 @@ class RetroSpriteAppSmokeTest {
             )
         )
 
-        composeRule.onNodeWithText("诊断").performClick()
+        openDiagnosticsFromSettings()
         composeRule.onNodeWithTag("diagnostics_source_filters")
             .assertIsDisplayed()
         composeRule.onNodeWithTag("diagnostics_filter_all")
@@ -455,6 +450,7 @@ class RetroSpriteAppSmokeTest {
                 settingsStore = PreviewStub.settings(),
             )
         )
+        openAdvancedQuestionTools()
 
         composeRule.waitUntil(timeoutMillis = 5_000) {
             composeRule.onAllNodesWithText("最近问答").fetchSemanticsNodes().isNotEmpty()
@@ -496,6 +492,7 @@ class RetroSpriteAppSmokeTest {
                 ),
             )
         )
+        openAdvancedQuestionTools()
 
         composeRule.onNodeWithTag("home_question_input")
             .performScrollTo()
@@ -513,13 +510,13 @@ class RetroSpriteAppSmokeTest {
             .performScrollTo()
             .assertIsDisplayed()
         composeRule.onNodeWithText("下一步：重新启用 GKP").assertIsDisplayed()
-        composeRule.onNodeWithText("打开 Packs").assertIsDisplayed()
+        composeRule.onNodeWithText("打开知识包").assertIsDisplayed()
         composeRule.onNodeWithTag("home_recovery_action")
             .performScrollTo()
             .performClick()
         composeRule.waitForIdle()
 
-        composeRule.onNodeWithText("游戏知识包").assertIsDisplayed()
+        composeRule.onNodeWithText("当前知识包").assertIsDisplayed()
         composeRule.onNodeWithTag("packs_import_status").assertIsDisplayed()
     }
 
@@ -542,6 +539,7 @@ class RetroSpriteAppSmokeTest {
                 ),
             )
         )
+        openAdvancedQuestionTools()
 
         composeRule.onNodeWithTag("home_question_input")
             .performScrollTo()
@@ -559,7 +557,7 @@ class RetroSpriteAppSmokeTest {
             .performScrollTo()
             .assertIsDisplayed()
         composeRule.onNodeWithText("下一步：查看诊断详情").assertIsDisplayed()
-        composeRule.onNodeWithText("打开 Diagnostics").assertIsDisplayed()
+        composeRule.onNodeWithText("打开诊断日志").assertIsDisplayed()
         composeRule.onNodeWithTag("home_recovery_action")
             .performScrollTo()
             .performClick()
@@ -587,6 +585,7 @@ class RetroSpriteAppSmokeTest {
                 playerQuestion = TimeoutPlayerQuestionProvider(requestLog),
             )
         )
+        openAdvancedQuestionTools()
 
         composeRule.onNodeWithTag("home_question_input")
             .performScrollTo()
@@ -616,20 +615,38 @@ class RetroSpriteAppSmokeTest {
             .performScrollTo()
             .assertIsDisplayed()
         composeRule.onNodeWithText("下一步：检查 LLM 配置").assertIsDisplayed()
-        composeRule.onNodeWithText("打开 Settings").assertIsDisplayed()
+        composeRule.onNodeWithText("打开设置").assertIsDisplayed()
         composeRule.onNodeWithTag("home_recovery_action")
             .performScrollTo()
             .performClick()
         composeRule.waitForIdle()
-        composeRule.onNodeWithText("ENDPOINT").assertIsDisplayed()
+        composeRule.onNodeWithTag("settings_overlay_permission_section")
+            .performScrollTo()
+            .assertIsDisplayed()
 
-        composeRule.onNodeWithText("\u8bca\u65ad").performClick()
+        openDiagnosticsFromSettings()
         composeRule.onNodeWithTag("diagnostics_log_item_app-timeout-question")
             .assertIsDisplayed()
             .performClick()
         composeRule.onNodeWithText("LLM FAILED", substring = true).assertIsDisplayed()
         composeRule.onNodeWithText("模型：deepseek / deepseek-v4-pro").assertIsDisplayed()
         composeRule.onNodeWithText("LLM 错误：timeout while waiting for provider").assertIsDisplayed()
+    }
+
+    private fun openAdvancedQuestionTools() {
+        composeRule.onNodeWithText("\u8bbe\u7f6e").performClick()
+        composeRule.onNodeWithTag("settings_app_question_console_open")
+            .performScrollTo()
+            .performClick()
+        composeRule.waitForIdle()
+    }
+
+    private fun openDiagnosticsFromSettings() {
+        composeRule.onNodeWithText("\u8bbe\u7f6e").performClick()
+        composeRule.onNodeWithTag("settings_developer_diagnostics_open")
+            .performScrollTo()
+            .performClick()
+        composeRule.waitForIdle()
     }
 
     @Test
@@ -665,10 +682,10 @@ class RetroSpriteAppSmokeTest {
         composeRule.onNodeWithTag("settings_llm_test_result")
             .performScrollTo()
             .assertIsDisplayed()
-        composeRule.onNodeWithText("LLM TEST OK").assertIsDisplayed()
-        composeRule.onNodeWithText("模型：deepseek / deepseek-v4-pro").assertIsDisplayed()
-        composeRule.onNodeWithText("预算：32 tok · timeout 5000ms · latency 42ms").assertIsDisplayed()
-        composeRule.onNodeWithText("Token：in 9 / out 1").assertIsDisplayed()
+        assertTrue(composeRule.onAllNodesWithText("模型连接正常").fetchSemanticsNodes().isNotEmpty())
+        assertTrue(composeRule.onAllNodesWithText("模型：deepseek / deepseek-v4-pro").fetchSemanticsNodes().isNotEmpty())
+        assertTrue(composeRule.onAllNodesWithText("预算：32 tok · timeout 5000ms · latency 42ms").fetchSemanticsNodes().isNotEmpty())
+        assertTrue(composeRule.onAllNodesWithText("Token：in 9 / out 1").fetchSemanticsNodes().isNotEmpty())
         assertTrue(requestLog.items.value.isEmpty())
     }
 

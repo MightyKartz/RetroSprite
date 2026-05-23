@@ -2,6 +2,10 @@ package com.retrosprite.app.data.retrieval
 
 import com.retrosprite.app.data.models.KnowledgeChunkDomain
 import com.retrosprite.app.data.repository.KnowledgeRepository
+import com.retrosprite.app.domain.intent.QuestionIntentClassifier
+import com.retrosprite.app.domain.intent.containsAny
+import com.retrosprite.app.domain.intent.normalizeNaturalQuestion
+import com.retrosprite.app.domain.models.AnswerType
 import com.retrosprite.app.domain.models.Evidence
 import com.retrosprite.app.domain.models.RetrievalQuery
 import com.retrosprite.app.domain.models.RetrievalResult
@@ -33,13 +37,15 @@ class LocalKnowledgeRetrievalPipeline(
         val normalizedQuery = query.normalizedQuery.trim()
         if (gameId.isEmpty() || normalizedQuery.isEmpty()) return emptyList()
 
-        val allRows = knowledgeRepository.listByGame(gameId)
-            .filter { it.allowedFor(query) }
+        val rows = knowledgeRepository.listByGame(gameId)
+        val allRows = rows.filter { it.allowedFor(query) }
+        val queryIntent = QuestionIntentClassifier.classify(normalizedQuery)
 
         val candidates = buildList {
-            addAll(templateMatches(allRows, normalizedQuery, query))
-            addAll(aliasAndEntityMatches(allRows, normalizedQuery))
-            addAll(ftsMatches(gameId, normalizedQuery, query))
+            addAll(nameMappingMatches(rows, normalizedQuery))
+            addAll(templateMatches(rows, normalizedQuery, query))
+            addAll(aliasAndEntityMatches(allRows, normalizedQuery, queryIntent))
+            addAll(ftsMatches(gameId, normalizedQuery, query, queryIntent))
         }
 
         return candidates
@@ -53,44 +59,66 @@ class LocalKnowledgeRetrievalPipeline(
     }
 
     override suspend fun normalizeQuestion(raw: String, language: String): String =
-        raw.trim()
-            .replace(WHITESPACE, " ")
-            .lowercase()
+        raw.normalizeNaturalQuestion()
+
+    private fun nameMappingMatches(
+        rows: List<KnowledgeChunkDomain>,
+        normalizedQuery: String,
+    ): List<RetrievalResult> {
+        val request = nameMappingRequest(normalizedQuery) ?: return emptyList()
+        return rows.mapNotNull { row ->
+            val matchedTerm = row.matchingTerm(normalizedQuery) ?: return@mapNotNull null
+            val answer = row.nameMappingAnswer(request, matchedTerm) ?: return@mapNotNull null
+            row.toResult(
+                snippet = answer,
+                matchScore = NAME_MAPPING_MATCH_SCORE,
+                sourceId = row.sourceRefs.firstOrNull(),
+                spoilerOverride = SpoilerLevel.LIGHT,
+                progressGateOverride = null,
+            )
+        }
+    }
 
     private fun templateMatches(
         rows: List<KnowledgeChunkDomain>,
         normalizedQuery: String,
         query: RetrievalQuery,
-    ): List<RetrievalResult> =
-        rows.flatMap { row ->
+    ): List<RetrievalResult> {
+        val queryIntent = QuestionIntentClassifier.classify(normalizedQuery)
+        return rows.flatMap { row ->
             row.answerTemplates.mapNotNull { rawTemplate ->
                 val template = runCatching { JSON.parseToJsonElement(rawTemplate).jsonObject }
                     .getOrNull()
                     ?: return@mapNotNull null
-                val answer = template.stringOrNull("answer")?.takeIf { it.isNotBlank() }
+                val intent = template.stringOrNull("intent")
+                if (intent != null && intent != queryIntent.wireName) return@mapNotNull null
+                val selectedAnswer = template.selectAnswer(query.spoilerLevel)
                     ?: return@mapNotNull null
                 val patterns = template.arrayStrings("question_patterns")
-                val templateSpoiler = template.stringOrNull("spoiler_level") ?: row.spoilerLevel
-                if (!gkpSpoilerAllowed(templateSpoiler, query.spoilerLevel)) return@mapNotNull null
+                if (!gkpSpoilerAllowed(selectedAnswer.spoilerLevel, query.spoilerLevel)) return@mapNotNull null
                 val matched = patterns.any { pattern ->
                     val normalizedPattern = normalizeSync(pattern)
                     normalizedPattern.isNotEmpty() && (
                         normalizedQuery.contains(normalizedPattern) ||
                             normalizedPattern.contains(normalizedQuery)
                         )
-                }
+                } || (intent != null && row.matchingTerm(normalizedQuery) != null)
                 if (!matched) return@mapNotNull null
                 row.toResult(
-                    snippet = answer,
+                    snippet = selectedAnswer.text,
                     matchScore = TEMPLATE_MATCH_SCORE,
-                    sourceId = template.arrayStrings("source_refs").firstOrNull()
+                    sourceId = template.arrayStrings("source_refs").firstOrNull(),
+                    spoilerOverride = selectedAnswer.spoilerLevel.toDomainSpoiler(),
+                    progressGateOverride = null,
                 )
             }
         }
+    }
 
     private fun aliasAndEntityMatches(
         rows: List<KnowledgeChunkDomain>,
         normalizedQuery: String,
+        queryIntent: AnswerType,
     ): List<RetrievalResult> =
         rows.mapNotNull { row ->
             val terms = buildList {
@@ -106,9 +134,11 @@ class LocalKnowledgeRetrievalPipeline(
 
             val termBoost = (bestTerm.length.toDouble() / normalizedQuery.length.coerceAtLeast(1))
                 .coerceIn(0.10, 1.0)
+            val broadPenalty = if (bestTerm in BROAD_NATURAL_TERMS) BROAD_TERM_PENALTY else 0.0
             row.toResult(
                 snippet = row.descriptionShort,
-                matchScore = ALIAS_MATCH_SCORE + (termBoost * 0.10),
+                matchScore = ALIAS_MATCH_SCORE + (termBoost * 0.10) -
+                    broadPenalty + row.intentBoost(queryIntent),
             )
         }
 
@@ -116,6 +146,7 @@ class LocalKnowledgeRetrievalPipeline(
         gameId: String,
         normalizedQuery: String,
         query: RetrievalQuery,
+        queryIntent: AnswerType,
     ): List<RetrievalResult> =
         knowledgeRepository.searchFts(
             gameId = gameId,
@@ -127,7 +158,7 @@ class LocalKnowledgeRetrievalPipeline(
             .map { row ->
                 row.toResult(
                     snippet = row.descriptionShort,
-                    matchScore = FTS_MATCH_SCORE,
+                    matchScore = FTS_MATCH_SCORE + row.intentBoost(queryIntent),
                 )
             }
             .toList()
@@ -136,8 +167,10 @@ class LocalKnowledgeRetrievalPipeline(
         snippet: String,
         matchScore: Double,
         sourceId: String? = null,
+        spoilerOverride: SpoilerLevel? = null,
+        progressGateOverride: String? = progressGate,
     ): RetrievalResult {
-        val evidenceSpoiler = spoilerLevel.toDomainSpoiler()
+        val evidenceSpoiler = spoilerOverride ?: spoilerLevel.toDomainSpoiler()
         return RetrievalResult(
             entityId = entityId,
             canonicalName = canonicalName,
@@ -147,12 +180,116 @@ class LocalKnowledgeRetrievalPipeline(
                     snippet = snippet,
                     score = matchScore,
                     spoilerLevel = evidenceSpoiler,
-                    progressGate = progressGate,
+                    progressGate = progressGateOverride,
                 )
             ),
-            confidence = (confidence.baseConfidence() * 0.60 + matchScore * 0.40)
+            confidence = (confidence.baseConfidence() * 0.60 + matchScore.coerceIn(0.0, 1.0) * 0.40)
                 .coerceIn(0.0, 1.0),
         )
+    }
+
+    private fun KnowledgeChunkDomain.intentBoost(queryIntent: AnswerType): Double {
+        val type = entityType.lowercase()
+        val terms = buildList {
+            add(entityId)
+            add(canonicalName)
+            addAll(aliases)
+        }.joinToString(" ")
+            .lowercase()
+        return when (queryIntent) {
+            AnswerType.GameOverview ->
+                if (type in setOf("note", "strategy") ||
+                    terms.containsAny("核心玩法", "overview", "gameplay", "主要玩什么")
+                ) {
+                    INTENT_STRONG_BOOST
+                } else {
+                    0.0
+                }
+
+            AnswerType.BeginnerGuide ->
+                if (type in setOf("strategy", "quest") ||
+                    progressGate.isNullOrBlank() ||
+                    progressGate == "start"
+                ) {
+                    INTENT_MEDIUM_BOOST
+                } else {
+                    0.0
+                }
+
+            AnswerType.TeamBuild ->
+                if (type in setOf("strategy", "npc", "character")) INTENT_STRONG_BOOST else 0.0
+
+            AnswerType.Leveling ->
+                if (type in setOf("mechanic", "strategy") ||
+                    terms.containsAny("经验", "练级", "leveling")
+                ) {
+                    INTENT_STRONG_BOOST
+                } else {
+                    0.0
+                }
+
+            AnswerType.Location ->
+                if (type in setOf("location", "item", "quest")) INTENT_MEDIUM_BOOST else 0.0
+
+            else -> 0.0
+        }
+    }
+
+    private fun KnowledgeChunkDomain.matchingTerm(normalizedQuery: String): String? =
+        buildList {
+            add(canonicalName)
+            addAll(aliases)
+            add(entityId.substringAfterLast('.'))
+        }
+            .map(::normalizeSync)
+            .filter { it.isNotEmpty() }
+            .firstOrNull { term ->
+                normalizedQuery.contains(term) || term.contains(normalizedQuery)
+            }
+
+    private fun KnowledgeChunkDomain.nameMappingAnswer(
+        request: NameMappingRequest,
+        matchedTerm: String,
+    ): String? {
+        val parts = canonicalName.split("/")
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+        val englishName = parts.firstOrNull { LATIN.containsMatchIn(it) }
+            ?: aliases.firstOrNull { LATIN.containsMatchIn(it) }
+        val localizedName = parts.firstOrNull { CJK.containsMatchIn(it) }
+            ?: aliases.firstOrNull { CJK.containsMatchIn(it) }
+            ?: matchedTerm.takeIf { CJK.containsMatchIn(it) }
+
+        return when (request) {
+            NameMappingRequest.English ->
+                if (englishName != null && localizedName != null) {
+                    "${localizedName}对应英文名是 $englishName。"
+                } else {
+                    englishName?.let { "${canonicalName} 的英文名是 $it。" }
+                }
+
+            NameMappingRequest.Chinese ->
+                if (englishName != null && localizedName != null) {
+                    "$englishName 对应中文名是$localizedName。"
+                } else {
+                    localizedName?.let { "${canonicalName} 的中文名是 $it。" }
+                }
+        }
+    }
+
+    private fun nameMappingRequest(normalizedQuery: String): NameMappingRequest? {
+        val asksName = NAME_MAPPING_CUES.any { normalizedQuery.contains(it) }
+        return when {
+            !asksName -> null
+            normalizedQuery.contains("英文") ||
+                normalizedQuery.contains("english") ||
+                normalizedQuery.contains("原名") -> NameMappingRequest.English
+
+            normalizedQuery.contains("中文") ||
+                normalizedQuery.contains("汉化") -> NameMappingRequest.Chinese
+
+            else -> null
+        }
     }
 
     private fun KnowledgeChunkDomain.allowedFor(query: RetrievalQuery): Boolean =
@@ -197,6 +334,32 @@ class LocalKnowledgeRetrievalPipeline(
     private fun JsonObject.arrayStrings(name: String): List<String> =
         this[name]?.jsonArray?.mapNotNull { it.jsonPrimitive.contentOrNull }.orEmpty()
 
+    private fun JsonObject.selectAnswer(tolerance: SpoilerLevel): TemplateAnswer? {
+        val tiered = when (tolerance) {
+            SpoilerLevel.LIGHT -> stringOrNull("answer_light")?.let {
+                TemplateAnswer(it, stringOrNull("spoiler_light") ?: "light")
+            }
+
+            SpoilerLevel.CLEAR -> stringOrNull("answer_clear")?.let {
+                TemplateAnswer(it, stringOrNull("spoiler_clear") ?: "medium")
+            } ?: stringOrNull("answer_light")?.let {
+                TemplateAnswer(it, stringOrNull("spoiler_light") ?: "light")
+            }
+
+            SpoilerLevel.FULL -> stringOrNull("answer_direct")?.let {
+                TemplateAnswer(it, stringOrNull("spoiler_direct") ?: "heavy")
+            } ?: stringOrNull("answer_clear")?.let {
+                TemplateAnswer(it, stringOrNull("spoiler_clear") ?: "medium")
+            } ?: stringOrNull("answer_light")?.let {
+                TemplateAnswer(it, stringOrNull("spoiler_light") ?: "light")
+            }
+        }
+        return tiered?.takeIf { it.text.isNotBlank() }
+            ?: stringOrNull("answer")?.takeIf { it.isNotBlank() }?.let {
+                TemplateAnswer(it, stringOrNull("spoiler_level") ?: "light")
+            }
+    }
+
     private fun JsonObject.stringOrNull(name: String): String? {
         val value = this[name] ?: return null
         if (value is JsonNull) return null
@@ -207,17 +370,51 @@ class LocalKnowledgeRetrievalPipeline(
         value.trim()
             .replace(WHITESPACE, " ")
             .lowercase()
+            .normalizeNaturalQuestion()
+
+    private enum class NameMappingRequest {
+        English,
+        Chinese,
+    }
+
+    private data class TemplateAnswer(
+        val text: String,
+        val spoilerLevel: String,
+    )
 
     private companion object {
         val WHITESPACE = Regex("\\s+")
+        val LATIN = Regex("[A-Za-z]")
+        val CJK = Regex("\\p{IsHan}")
+        val NAME_MAPPING_CUES = listOf(
+            "英文",
+            "中文",
+            "汉化",
+            "原名",
+            "叫什么",
+            "叫啥",
+            "对应",
+            "是谁",
+            "english",
+        )
         val JSON = Json {
             ignoreUnknownKeys = true
             isLenient = false
         }
 
         const val TEMPLATE_MATCH_SCORE = 1.0
+        const val NAME_MAPPING_MATCH_SCORE = 1.0
         const val ALIAS_MATCH_SCORE = 0.82
         const val FTS_MATCH_SCORE = 0.66
         const val FTS_OVERFETCH_FACTOR = 3
+        const val INTENT_STRONG_BOOST = 0.25
+        const val INTENT_MEDIUM_BOOST = 0.16
+        const val BROAD_TERM_PENALTY = 0.10
+        val BROAD_NATURAL_TERMS = setOf(
+            "怎么玩",
+            "游戏",
+            "这个游戏",
+            "这游戏",
+        )
     }
 }

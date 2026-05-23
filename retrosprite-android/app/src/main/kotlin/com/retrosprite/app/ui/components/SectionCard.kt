@@ -20,15 +20,18 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.retrosprite.app.ui.theme.RetroSpriteTheme
 
 /**
- * The signature surface used everywhere: a card with an asymmetric "tab" header
- * (mono label in primary, double-line accent) sitting on a 14dp-rounded panel.
- * It evokes a cartridge sticker peeking off the top edge.
+ * The signature HUD surface used across the management app. It mirrors the
+ * in-game overlay: cyan linework, low-opacity black glass, and a quiet tab label.
  */
 @Composable
 fun SectionCard(
@@ -39,29 +42,31 @@ fun SectionCard(
     trailing: (@Composable () -> Unit)? = null,
     content: @Composable () -> Unit
 ) {
-    val outlineColor = if (accent) MaterialTheme.colorScheme.primary
-    else MaterialTheme.colorScheme.outlineVariant
+    val outlineColor = MaterialTheme.colorScheme.primary.copy(alpha = if (accent) 0.92f else 0.58f)
+    val glowColor = MaterialTheme.colorScheme.primary.copy(alpha = if (accent) 0.30f else 0.16f)
+    val scanlineColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.035f)
+    val tabBg = MaterialTheme.colorScheme.surface.copy(alpha = if (accent) 0.96f else 0.78f)
+    val panelShape = RoundedCornerShape(18.dp)
+    val ruleAlpha = if (accent) 0.56f else 0.28f
 
     Column(modifier = modifier.fillMaxWidth()) {
-        // Tab header sticking out of the card top-left
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(start = 12.dp)
+            modifier = Modifier.padding(start = 18.dp)
         ) {
             Box(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp))
-                    .background(
-                        if (accent) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.surfaceVariant
-                    )
-                    .padding(horizontal = 10.dp, vertical = 4.dp)
+                    .clip(RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp))
+                    .background(tabBg)
+                    .border(1.dp, outlineColor, RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp))
+                    .padding(horizontal = 14.dp, vertical = 5.dp)
             ) {
                 Text(
                     text = title.uppercase(),
                     style = MaterialTheme.typography.titleSmall,
-                    color = if (accent) MaterialTheme.colorScheme.onPrimary
-                    else MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.primary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
             Spacer(Modifier.weight(1f))
@@ -70,18 +75,44 @@ fun SectionCard(
             }
         }
 
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(14.dp))
-                .background(MaterialTheme.colorScheme.surface)
-                .border(1.dp, outlineColor, RoundedCornerShape(14.dp))
+                .drawBehind {
+                    val radius = 18.dp.toPx()
+                    drawRoundRect(
+                        color = glowColor,
+                        cornerRadius = CornerRadius(radius, radius),
+                        style = Stroke(width = 4.dp.toPx())
+                    )
+                }
+                .clip(panelShape)
+                .background(
+                    Brush.verticalGradient(
+                        listOf(
+                            MaterialTheme.colorScheme.surface.copy(alpha = 0.96f),
+                            MaterialTheme.colorScheme.surface.copy(alpha = 0.88f),
+                        )
+                    )
+                )
+                .drawBehind {
+                    var y = 10.dp.toPx()
+                    while (y < size.height) {
+                        drawLine(
+                            color = scanlineColor,
+                            start = androidx.compose.ui.geometry.Offset(12.dp.toPx(), y),
+                            end = androidx.compose.ui.geometry.Offset(size.width - 12.dp.toPx(), y),
+                            strokeWidth = 1f
+                        )
+                        y += 8.dp.toPx()
+                    }
+                }
+                .border(1.dp, outlineColor, panelShape)
                 .padding(contentPadding)
         ) {
             content()
         }
 
-        // Bottom accent rule: thin neon hairline under the card. Subtle CRT undercurrent.
         Spacer(modifier = Modifier.height(6.dp))
         Row(
             modifier = Modifier
@@ -97,7 +128,8 @@ fun SectionCard(
                         Brush.horizontalGradient(
                             listOf(
                                 MaterialTheme.colorScheme.primary.copy(alpha = 0.0f),
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
+                                MaterialTheme.colorScheme.primary.copy(alpha = ruleAlpha),
+                                MaterialTheme.colorScheme.secondary.copy(alpha = ruleAlpha * 0.7f),
                                 MaterialTheme.colorScheme.primary.copy(alpha = 0.0f)
                             )
                         )
@@ -106,7 +138,7 @@ fun SectionCard(
             Box(
                 modifier = Modifier
                     .size(width = 18.dp, height = 2.dp)
-                    .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.6f))
+                    .background(MaterialTheme.colorScheme.tertiary.copy(alpha = ruleAlpha))
             )
         }
     }

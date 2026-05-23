@@ -1,12 +1,15 @@
 package com.retrosprite.app.domain.policy
 
 import com.retrosprite.app.domain.models.AnswerDecision
+import com.retrosprite.app.domain.models.AnswerConfidence
+import com.retrosprite.app.domain.models.AnswerType
 import com.retrosprite.app.domain.models.ControllerState
 import com.retrosprite.app.domain.models.Evidence
 import com.retrosprite.app.domain.models.GameIdentity
 import com.retrosprite.app.domain.models.RetrievalResult
 import com.retrosprite.app.domain.models.SessionContext
 import com.retrosprite.app.domain.models.SpoilerLevel
+import com.retrosprite.app.domain.intent.NaturalQuestionFrameParser
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -22,8 +25,42 @@ class EvidenceAnswerPolicyTest {
 
         val answer = decision as AnswerDecision.DirectAnswer
         assertTrue(answer.text.contains("没有足够证据"))
+        assertTrue(answer.text.contains("你可以这样问"))
+        assertEquals(AnswerType.NoEvidence, answer.answerType)
+        assertEquals(AnswerConfidence.Low, answer.confidence)
         assertEquals(emptyList<String>(), answer.sources)
         assertEquals(SpoilerLevel.LIGHT, answer.spoilerLevel)
+    }
+
+    @Test
+    fun `no evidence suggests similar questions for character-like misses`() = runTest {
+        val decision = policy.decide(
+            results = emptyList(),
+            context = ctx(
+                question = "这个人物厉害吗？",
+                questionIntent = AnswerType.UnknownOrOutOfScope,
+            ),
+        )
+
+        val answer = decision as AnswerDecision.DirectAnswer
+        assertTrue(answer.text.contains("你可以这样问"))
+        assertTrue(answer.text.contains("哪些角色适合培养？"))
+        assertTrue(answer.text.contains("队伍怎么搭配？"))
+    }
+
+    @Test
+    fun `no evidence suggests item questions for item-like misses`() = runTest {
+        val decision = policy.decide(
+            results = emptyList(),
+            context = ctx(
+                question = "道具咋办？",
+                questionIntent = AnswerType.Usage,
+            ),
+        )
+
+        val answer = decision as AnswerDecision.DirectAnswer
+        assertTrue(answer.text.contains("医疗草怎么用？"))
+        assertTrue(answer.text.contains("Mithril 有什么用？"))
     }
 
     @Test
@@ -72,6 +109,8 @@ class EvidenceAnswerPolicyTest {
 
         val answer = decision as AnswerDecision.DirectAnswer
         assertEquals("保持空格比追求一次大合并更重要。", answer.text)
+        assertEquals(AnswerType.Strategy, answer.answerType)
+        assertEquals(AnswerConfidence.Medium, answer.confidence)
         assertEquals(listOf("sample.2048.strategy"), answer.sources)
         assertEquals(SpoilerLevel.LIGHT, answer.spoilerLevel)
     }
@@ -125,7 +164,7 @@ class EvidenceAnswerPolicyTest {
     }
 
     @Test
-    fun `uses LLM composition only when multiple admissible evidence snippets exist`() = runTest {
+    fun `uses local summary by default when multiple admissible evidence snippets exist`() = runTest {
         val decision = policy.decide(
             results = listOf(
                 result(
@@ -144,12 +183,36 @@ class EvidenceAnswerPolicyTest {
             context = ctx(spoilerLevel = SpoilerLevel.LIGHT),
         )
 
-        val compose = decision as AnswerDecision.ComposeWithLlm
-        assertEquals(SpoilerLevel.LIGHT, compose.spoilerLevel)
+        val summary = decision as AnswerDecision.LocalSummary
+        assertEquals(SpoilerLevel.LIGHT, summary.spoilerLevel)
         assertEquals(
             listOf("sample.2048.rules", "sample.2048.strategy"),
-            compose.evidence.map { it.sourceId },
+            summary.evidence.map { it.sourceId },
         )
+        assertEquals(AnswerType.Strategy, summary.answerType)
+    }
+
+    @Test
+    fun `can still opt into llm composition when multiple admissible evidence snippets exist`() = runTest {
+        val decision = EvidenceAnswerPolicy(composeWithLlmForMultipleEvidence = true).decide(
+            results = listOf(
+                result(
+                    entityId = "mechanic.tile-merge",
+                    snippet = "两个相同数字滑到一起会合并。",
+                    sourceId = "sample.2048.rules",
+                    confidence = 0.88,
+                ),
+                result(
+                    entityId = "strategy.keep-space",
+                    snippet = "棋盘快满时优先制造空格。",
+                    sourceId = "sample.2048.strategy",
+                    confidence = 0.86,
+                ),
+            ),
+            context = ctx(spoilerLevel = SpoilerLevel.LIGHT),
+        )
+
+        val compose = decision as AnswerDecision.ComposeWithLlm
         assertTrue(compose.prompt.contains("综合本地证据"))
     }
 
@@ -177,13 +240,59 @@ class EvidenceAnswerPolicyTest {
 
         val answer = decision as AnswerDecision.DirectAnswer
         assertTrue(answer.text.contains("翻倍方块"))
+        assertEquals(AnswerConfidence.High, answer.confidence)
         assertEquals(listOf("sample.2048.rules"), answer.sources)
+    }
+
+    @Test
+    fun `route hints without progress context ask for current location`() = runTest {
+        val decision = policy.decide(
+            results = emptyList(),
+            context = ctx(
+                question = "卡住了下一步去哪？",
+                questionIntent = AnswerType.RouteHint,
+            ),
+        )
+
+        val answer = decision as AnswerDecision.DirectAnswer
+        assertTrue(answer.text.contains("你现在在哪个城镇"))
+        assertEquals(AnswerType.RouteHint, answer.answerType)
+    }
+
+    @Test
+    fun `asks clarification when entity candidates are too close`() = runTest {
+        val decision = policy.decide(
+            results = listOf(
+                result(
+                    entityId = "npc.sarah",
+                    snippet = "Sarah 是治疗角色。",
+                    sourceId = "sf2.sarah",
+                    confidence = 0.90,
+                ),
+                result(
+                    entityId = "npc.sheela",
+                    snippet = "Sheela 是后期角色。",
+                    sourceId = "sf2.sheela",
+                    confidence = 0.88,
+                ),
+            ),
+            context = ctx(
+                question = "这个角色怎么用？",
+                questionIntent = AnswerType.Usage,
+            ),
+        )
+
+        val clarification = decision as AnswerDecision.AskClarification
+        assertTrue(clarification.question.contains("npc.sarah"))
+        assertTrue(clarification.question.contains("npc.sheela"))
     }
 
     private fun ctx(
         gameId: String? = "2048",
         spoilerLevel: SpoilerLevel = SpoilerLevel.LIGHT,
         identitySource: String = "unknown",
+        question: String = "怎么移动？",
+        questionIntent: AnswerType = AnswerType.Strategy,
     ): SessionContext = SessionContext(
         gameIdentity = if (gameId == null) {
             if (identitySource == GameIdentity.SOURCE_GKP_DISABLED) {
@@ -206,12 +315,14 @@ class EvidenceAnswerPolicyTest {
                 source = "gkp_index",
             )
         },
-        playerQuestion = "怎么移动？",
+        playerQuestion = question,
         screenshotBase64 = null,
         state = ControllerState.EMPTY,
         spoilerLevel = spoilerLevel,
         language = "zh",
         recentTurns = emptyList(),
+        questionIntent = questionIntent,
+        naturalQuestionFrame = NaturalQuestionFrameParser.parse(question),
     )
 
     private fun result(

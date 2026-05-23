@@ -13,9 +13,12 @@ sealed interface HotkeyVoiceOverlayState {
 }
 
 enum class HotkeyVoiceOverlayPhase {
+    Wake,
     Listening,
+    Muted,
     Thinking,
     Speaking,
+    NoEvidence,
     Error,
 }
 
@@ -25,6 +28,8 @@ data class HotkeyVoiceOverlayRenderState(
     val amplitude: Float = 0f,
     val message: String = "",
     val transcript: String? = null,
+    val answerText: String? = null,
+    val sourceIds: List<String> = emptyList(),
 )
 
 interface HotkeyVoiceOverlayRenderer {
@@ -68,8 +73,8 @@ class HotkeyVoiceOverlayCoordinator(
         renderer.render(
             HotkeyVoiceOverlayRenderState(
                 event = event,
-                phase = HotkeyVoiceOverlayPhase.Listening,
-                message = "正在收音",
+                phase = HotkeyVoiceOverlayPhase.Wake,
+                message = "MIC STARTING",
             )
         )
         return true
@@ -80,6 +85,8 @@ class HotkeyVoiceOverlayCoordinator(
         amplitude: Float = 0f,
         message: String = "",
         transcript: String? = null,
+        answerText: String? = null,
+        sourceIds: List<String> = emptyList(),
     ) {
         val event = activeEvent ?: return
         renderer.render(
@@ -89,6 +96,8 @@ class HotkeyVoiceOverlayCoordinator(
                 amplitude = amplitude,
                 message = message,
                 transcript = transcript,
+                answerText = answerText,
+                sourceIds = sourceIds,
             )
         )
     }

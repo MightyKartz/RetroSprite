@@ -1,11 +1,13 @@
 package com.retrosprite.app.domain
 
-import com.retrosprite.app.domain.models.SpoilerLevel
+import com.retrosprite.app.domain.models.AnswerResult
 import com.retrosprite.app.domain.models.LlmCallTrace
+import com.retrosprite.app.domain.models.SpoilerLevel
 
 data class QueryPipelineResult(
     val text: String,
     val llmTrace: LlmCallTrace = LlmCallTrace(),
+    val answerResult: AnswerResult = AnswerResult.fromText(text),
 )
 
 /**

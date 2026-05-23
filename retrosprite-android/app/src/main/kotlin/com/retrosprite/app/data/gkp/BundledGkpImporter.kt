@@ -76,10 +76,14 @@ class BundledGkpImporter(
             .associateWith { relativePath ->
                 readAsset("$assetPackPath/$relativePath")
             }
-        val digestFiles = mapOf("manifest.json" to manifestText) + knowledgeFiles
+        val aliasFiles = parser.aliasPath(manifestText)
+            ?.let { path -> mapOf(path to readAsset("$assetPackPath/$path")) }
+            .orEmpty()
+        val digestFiles = mapOf("manifest.json" to manifestText) + knowledgeFiles + aliasFiles
         val parsed = parser.parse(
             manifestText = manifestText,
             knowledgeFiles = knowledgeFiles,
+            aliasFiles = aliasFiles,
             provenance = GkpPackProvenance.Bundled,
             signature = parser.signatureMetadata(
                 manifestText = manifestText,

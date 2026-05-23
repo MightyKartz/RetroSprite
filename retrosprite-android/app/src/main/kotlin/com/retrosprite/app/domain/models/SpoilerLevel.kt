@@ -7,8 +7,8 @@ package com.retrosprite.app.domain.models
  * - CLEAR: standard hints permitted, key plot beats avoided.
  * - FULL: anything goes, including endings.
  */
-enum class SpoilerLevel {
-    LIGHT,
-    CLEAR,
-    FULL
+enum class SpoilerLevel(val wireName: String) {
+    LIGHT("light"),
+    CLEAR("clear"),
+    FULL("full")
 }

@@ -4,16 +4,20 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -24,8 +28,7 @@ import androidx.compose.ui.unit.dp
 import com.retrosprite.app.ui.theme.RetroSpriteTheme
 
 /**
- * Action chip that copies [textToCopy] to the system clipboard and shows a tiny toast.
- * Uses an AssistChip so it visually nests inside cards without dominating like a Button.
+ * HUD outline action that copies [textToCopy] to the system clipboard.
  */
 @Composable
 fun CopyToClipboardButton(
@@ -36,31 +39,30 @@ fun CopyToClipboardButton(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    AssistChip(
+    OutlinedButton(
         modifier = modifier,
         onClick = {
             val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
             cm.setPrimaryClip(ClipData.newPlainText(clipLabel, textToCopy))
             Toast.makeText(context, successMessage, Toast.LENGTH_SHORT).show()
         },
-        label = {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelLarge
-            )
-        },
-        leadingIcon = {
-            Icon(
-                imageVector = Icons.Filled.ContentCopy,
-                contentDescription = null,
-                modifier = Modifier.size(16.dp)
-            )
-        },
-        colors = AssistChipDefaults.assistChipColors(
-            labelColor = MaterialTheme.colorScheme.primary,
-            leadingIconContentColor = MaterialTheme.colorScheme.primary
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.72f)),
+        colors = ButtonDefaults.outlinedButtonColors(
+            contentColor = MaterialTheme.colorScheme.primary,
+        ),
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+    ) {
+        Icon(
+            imageVector = Icons.Filled.ContentCopy,
+            contentDescription = null,
+            modifier = Modifier.size(16.dp)
         )
-    )
+        Spacer(Modifier.width(8.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelLarge
+        )
+    }
 }
 
 @Preview(showBackground = true, backgroundColor = 0xFF0B0620)

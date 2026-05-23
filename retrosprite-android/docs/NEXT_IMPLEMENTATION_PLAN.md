@@ -289,8 +289,8 @@ RetroSprite Android 已经具备可运行的 Phase 0/Phase 1 脚手架：
    - 已通过：真实 RetroArch 热键、右上角波形、overlay 不阻塞游戏输入、ASR→pipeline→TTS 朗读、Diagnostics/latest-request `hotkey_voice:text`。
    - 待通过：用更清晰短句复测“角色什么时候转职？”和“下一步去哪？不要剧透”，确认分别命中 `sf2.promotion` / `sf2.early_route`。
    - 如果仍出现 ASR 误识别，先不加复杂 ASR 模式；只记录误识别样本，再考虑最小的 GKP alias/query fallback。
-2. **真机验证 RetroArch 官方 UI + Settings 设置助手。**
-   - 主验收路径：在 RetroArch `Settings → Accessibility → AI Service` 设置 ON、Image Mode、URL 保持默认 `http://localhost:4404`。
+2. **真机验证 RetroArch 官方 UI + Settings 连接说明。**
+   - 主验收路径：在 RetroArch `Settings → Accessibility → AI Service` 设置为开启，URL 保持默认 `http://localhost:4404`，`AI Service Output` 选择 `旁白模式（Narrator Mode）`。
    - RetroSprite Settings 只用于显示/复制默认 URL；不再尝试写入 cfg。
 3. **M11.4/M11.5：TTS 路线只做验证和方案，不阻塞 GKP。**
    - 先用 sherpa-onnx TTS Engine APK 作为系统 TTS engine 验证本地离线朗读。

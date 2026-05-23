@@ -52,6 +52,21 @@ class HomeViewModelTest {
     }
 
     @Test
+    fun `advanced question tools are collapsed until explicitly expanded`() = runTest(mainDispatcherRule.dispatcher) {
+        val viewModel = newViewModel()
+
+        assertFalse(viewModel.askState.value.advancedQuestionToolsExpanded)
+
+        viewModel.toggleAdvancedQuestionTools()
+
+        assertTrue(viewModel.askState.value.advancedQuestionToolsExpanded)
+
+        viewModel.toggleAdvancedQuestionTools()
+
+        assertFalse(viewModel.askState.value.advancedQuestionToolsExpanded)
+    }
+
+    @Test
     fun `ignores app debug diagnostic failed and blank labels when choosing context`() = runTest(mainDispatcherRule.dispatcher) {
         val requestLog = FakeRequestLogProvider()
         val viewModel = newViewModel(requestLog = requestLog)

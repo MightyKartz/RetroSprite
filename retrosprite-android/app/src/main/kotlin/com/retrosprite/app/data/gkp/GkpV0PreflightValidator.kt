@@ -245,8 +245,23 @@ class GkpV0PreflightValidator {
                 } else {
                     tmpl.stringOrNull("template_id")?.let { requireIdentifier(it, "template_id", rowPath, issues) }
                         ?: issue(GkpPreflightSeverity.Error, "missing_field", rowPath, "answer_template 缺少 template_id。")
-                    requireIn(tmpl.stringOrNull("spoiler_level"), SPOILER_LEVELS, "template.spoiler_level", rowPath, issues)
-                    requireNonBlank(tmpl.stringOrNull("answer"), "template.answer", rowPath, issues)
+                    tmpl.stringOrNull("intent")?.let {
+                        requireIn(it, ANSWER_INTENTS, "template.intent", rowPath, issues)
+                    }
+                    tmpl.stringOrNull("spoiler_level")?.let {
+                        requireIn(it, SPOILER_LEVELS, "template.spoiler_level", rowPath, issues)
+                    }
+                    listOf("spoiler_light", "spoiler_clear", "spoiler_direct").forEach { field ->
+                        tmpl.stringOrNull(field)?.let { level ->
+                            requireIn(level, SPOILER_LEVELS, "template.$field", rowPath, issues)
+                        }
+                    }
+                    val hasFlatAnswer = !tmpl.stringOrNull("answer").isNullOrBlank()
+                    val hasTieredAnswer = listOf("answer_light", "answer_clear", "answer_direct")
+                        .any { !tmpl.stringOrNull(it).isNullOrBlank() }
+                    if (!hasFlatAnswer && !hasTieredAnswer) {
+                        issue(GkpPreflightSeverity.Error, "missing_field", rowPath, "answer_template 缺少 answer 或 answer_* 分层答案。")
+                    }
                     tmpl.arrayOrNull("source_refs").orEmpty().forEach { source ->
                         val sourceId = source.primitiveStringOrNull()
                         if (sourceId == null || sourceId !in sourceIdSet) {
@@ -632,6 +647,21 @@ class GkpV0PreflightValidator {
         )
         val SPOILER_LEVELS = setOf("none", "light", "medium", "heavy")
         val CONFIDENCE_LEVELS = setOf("verified", "community", "uncertain")
+        val ANSWER_INTENTS = setOf(
+            "game_overview",
+            "beginner_guide",
+            "team_build",
+            "leveling",
+            "name_mapping",
+            "location",
+            "usage",
+            "mechanic",
+            "route_hint",
+            "strategy",
+            "production",
+            "no_evidence",
+            "unknown_or_out_of_scope",
+        )
         val BLOCKED_EXTENSIONS = setOf(
             "apk",
             "apks",

@@ -3,10 +3,12 @@
 > 一句话定位：玩家在 RetroArch 中按下热键，向 RetroSprite 发起一个简短、准确、低剧透的游戏内问题，得到基于本地知识包的可信答案。
 >
 > *RetroSprite is an in-game Q&A companion for RetroArch — local-first, low-spoiler, evidence-grounded.*
+>
+> 仓库首页版 README 见 [../README.md](../README.md)；本文保留 Android App 的详细构建、联调和目录说明。
 
-**当前阶段：M6 · 快速提问体验**
+**当前阶段：M10/M11 · Hotkey Voice Overlay + Zero-LLM GKP**
 
-RetroArch AI Service → Android 本地 endpoint → Diagnostics 记录这条链路已经打通；当前重点是把“热键刷新当前游戏上下文 → App 内准备问题 → 下一次热键返回本地 GKP evidence 答案”的路径压短。应用已包含内置 `sample-2048`、自写 `sample-relay-station` GKP、首个真实游戏试点 `shining-force-ii-md` GKP、Home 页文字提问入口、pending hotkey 问题、快捷问题草稿、BYOK DeepSeek/OpenAI-compatible adapter、Packs 管理和本地诊断。
+RetroArch AI Service → Android 本地 endpoint → 热键唤醒 RetroSprite 游戏内语音 overlay → 本地 ASR → GKP/AnswerPolicy → 短答 TTS 这条主路径已经接通并进入体验打磨。Home 页文字提问、pending hotkey 问题和 debug curl 仍保留为设置验证与开发 fallback；玩家主体验应是在 RetroArch 中按热键呼出科技感语音波形，不需要频繁回到 App 里操作。
 
 ---
 
@@ -117,7 +119,7 @@ retrosprite-android/
 
 > 完整列表见 [SKILL.md](../.qoder/skills/retrosprite-dev/SKILL.md)。
 
-- 不以 `MediaProjection` / Accessibility Service / 全局悬浮窗作为主集成路径。
+- 不以 `MediaProjection` / Accessibility Service / 连续后台悬浮捕获作为主集成路径；当前只使用热键触发的短时语音 overlay。
 - 不要求修改 RetroArch 内核或核心。
 - 不把 LLM 输出当作未经核实的事实来源。
 - 不以实时联网搜索作为默认知识来源。

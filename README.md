@@ -25,6 +25,14 @@ spoiler level.
 
 RetroSprite is in the M10/M11 track: Hotkey Voice Overlay plus Zero-LLM GKP.
 
+### Supported Games
+
+RetroSprite currently has one real supported game pack:
+**Shining Force II / 光明力量2** for Sega Mega Drive / Genesis. The bundled
+`sample-2048` and `sample-relay-station` packs are test/demo packs for
+development and smoke testing; they do not represent broader production game
+support.
+
 Implemented pieces include:
 
 - Android app in Kotlin with Jetpack Compose and Material 3.
@@ -37,8 +45,8 @@ Implemented pieces include:
   enable/disable state, and migration schemas.
 - Game Knowledge Pack v0 parser, bundled importer, external-pack preflight,
   install/replace confirmation, and Packs management UI.
-- Bundled sample packs for `sample-2048`, `sample-relay-station`, and the first
-  real-game pack, `community.shining-force-ii-md`.
+- Bundled demo packs for `sample-2048`, `sample-relay-station`, plus the first
+  real supported game pack, `community.shining-force-ii-md`.
 - Local retrieval through template, alias/entity, and FTS-style matching with
   spoiler gating and source IDs.
 - Settings for RetroArch setup guidance, endpoint port, overlay permission,

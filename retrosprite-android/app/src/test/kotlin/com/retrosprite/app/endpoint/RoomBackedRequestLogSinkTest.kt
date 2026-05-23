@@ -161,6 +161,11 @@ class RoomBackedRequestLogSinkTest {
             outputMode = "text",
             question = "why?",
             questionSource = "app",
+            rawQuestion = "修医是谁",
+            normalizedQuestion = "修伊是谁",
+            questionNormalizationReason = "homophone",
+            normalizedQuestionMatchedTerm = "修伊",
+            normalizedQuestionMatchedEntityId = "character.chester",
             responseText = "answer",
             errorMessage = "boom",
             feedback = "helpful",
@@ -180,6 +185,11 @@ class RoomBackedRequestLogSinkTest {
         assertEquals("answer", entry.responseText)
         assertEquals("why?", entry.question)
         assertEquals("app", entry.questionSource)
+        assertEquals("修医是谁", entry.rawQuestion)
+        assertEquals("修伊是谁", entry.normalizedQuestion)
+        assertEquals("homophone", entry.questionNormalizationReason)
+        assertEquals("修伊", entry.normalizedQuestionMatchedTerm)
+        assertEquals("character.chester", entry.normalizedQuestionMatchedEntityId)
         assertEquals("boom", entry.errorMessage)
         assertEquals("helpful", entry.feedback)
         assertEquals(77L, entry.feedbackTimestamp)
@@ -198,6 +208,11 @@ class RoomBackedRequestLogSinkTest {
             outputMode = "text",
             question = "why?",
             questionSource = "app",
+            rawQuestion = "修医是谁",
+            normalizedQuestion = "修伊是谁",
+            questionNormalizationReason = "homophone",
+            normalizedQuestionMatchedTerm = "修伊",
+            normalizedQuestionMatchedEntityId = "character.chester",
             responseText = "r",
             errorMessage = null,
             feedback = "incorrect",
@@ -213,6 +228,11 @@ class RoomBackedRequestLogSinkTest {
         assertEquals("smw", domain.game)
         assertEquals("why?", domain.question)
         assertEquals("app", domain.questionSource)
+        assertEquals("修医是谁", domain.rawQuestion)
+        assertEquals("修伊是谁", domain.normalizedQuestion)
+        assertEquals("homophone", domain.questionNormalizationReason)
+        assertEquals("修伊", domain.normalizedQuestionMatchedTerm)
+        assertEquals("character.chester", domain.normalizedQuestionMatchedEntityId)
         assertEquals("incorrect", domain.feedback)
         assertEquals(88L, domain.feedbackTimestamp)
     }

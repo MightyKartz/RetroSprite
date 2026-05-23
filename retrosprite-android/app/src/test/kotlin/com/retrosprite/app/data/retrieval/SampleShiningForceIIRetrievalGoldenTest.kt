@@ -5,6 +5,7 @@ import com.retrosprite.app.data.models.KnowledgeChunkDomain
 import com.retrosprite.app.data.repository.KnowledgeRepository
 import com.retrosprite.app.domain.models.RetrievalQuery
 import com.retrosprite.app.domain.models.SpoilerLevel
+import com.retrosprite.app.domain.normalization.GameTermNormalizer
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -15,6 +16,7 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -36,9 +38,14 @@ class SampleShiningForceIIRetrievalGoldenTest {
         val goldens = readJsonl(fixture.packDir.resolve("qa_goldens.jsonl")).map { it.toGoldenCase() }
 
         goldens.forEach { golden ->
+            val normalizedQuestion = normalizeGoldenQuestion(
+                pipeline = pipeline,
+                golden = golden,
+                rows = fixture.knowledge,
+            )
             val query = RetrievalQuery(
                 gameId = golden.gameId,
-                normalizedQuery = pipeline.normalizeQuestion(golden.question, golden.language),
+                normalizedQuery = normalizedQuestion,
                 language = golden.language,
                 progressGate = golden.progressGate,
                 spoilerLevel = golden.spoilerLevel.toDomainSpoiler(),
@@ -141,6 +148,7 @@ class SampleShiningForceIIRetrievalGoldenTest {
         val gameId: String,
         val spoilerLevel: String,
         val progressGate: String?,
+        val expectedNormalizedQuestion: String?,
         val expectedEntityIds: List<String>,
         val sourceRefs: List<String>,
     )
@@ -208,9 +216,23 @@ class SampleShiningForceIIRetrievalGoldenTest {
             gameId = string("game_id"),
             spoilerLevel = string("spoiler_level"),
             progressGate = stringOrNull("progress_gate"),
+            expectedNormalizedQuestion = stringOrNull("expected_normalized_question"),
             expectedEntityIds = arrayStrings("expected_entity_ids"),
             sourceRefs = arrayStrings("source_refs"),
         )
+
+    private suspend fun normalizeGoldenQuestion(
+        pipeline: LocalKnowledgeRetrievalPipeline,
+        golden: GoldenCase,
+        rows: List<KnowledgeChunkDomain>,
+    ): String {
+        val baseNormalized = pipeline.normalizeQuestion(golden.question, golden.language)
+        val termNormalized = GameTermNormalizer().normalize(baseNormalized, rows).normalizedQuestion
+        golden.expectedNormalizedQuestion?.let { expected ->
+            assertEquals("${golden.qaId} normalized question", expected, termNormalized)
+        }
+        return termNormalized
+    }
 
     private fun String.toDomainSpoiler(): SpoilerLevel = when (lowercase()) {
         "none", "light" -> SpoilerLevel.LIGHT

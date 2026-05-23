@@ -12,8 +12,12 @@ import com.retrosprite.app.domain.models.AnswerType
 import com.retrosprite.app.domain.models.LlmRequest
 import com.retrosprite.app.domain.models.LlmResponse
 import com.retrosprite.app.domain.models.SpoilerLevel
+import com.retrosprite.app.domain.normalization.GameTermNormalizer
 import com.retrosprite.app.domain.policy.AnswerComposer
 import com.retrosprite.app.domain.policy.EvidenceAnswerPolicy
+import com.retrosprite.app.endpoint.QueryPipelineResponseGenerator
+import com.retrosprite.app.endpoint.model.RetroArchRequest
+import com.retrosprite.app.endpoint.model.RetroArchState
 import com.retrosprite.app.llm.LlmAdapter
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
@@ -358,6 +362,85 @@ class SampleShiningForceIIQuestionPipelineTest {
     }
 
     @Test
+    fun `shining force ii yzzl translation aliases resolve characters items and places`() = runTest {
+        val fixture = loadSamplePack()
+        val llm = CountingLlmAdapter()
+        val pipeline = newPipeline(fixture, llm)
+
+        val cases = listOf(
+            TranslationAliasCase("修伊怎么用？", "Chester", "sf2.manual_translation"),
+            TranslationAliasCase("佳佳值得练吗？", "Jaha", "sf2.manual_translation"),
+            TranslationAliasCase("卡森怎么用？", "Kazin", "sf2.manual_translation"),
+            TranslationAliasCase("吉布是谁？", "Slade", "sf2.characters"),
+            TranslationAliasCase("皮特是谁？", "Peter", "sf2.characters"),
+            TranslationAliasCase("气合之玉怎么用？", "Vigor Ball", "sf2.promotion"),
+            TranslationAliasCase("米斯里鲁银有什么用？", "Mithril", "sf2.items"),
+            TranslationAliasCase("精灵森林是什么？", "Elven Town", "sf2.secrets"),
+        )
+
+        cases.forEach { case ->
+            val result = pipeline.answerDetailed(
+                label = "mega_drive__光明力量2",
+                question = case.question,
+                spoilerLevel = SpoilerLevel.LIGHT,
+            )
+
+            assertTrue(
+                "question=<${case.question}> answer=<${result.text}>",
+                result.text.contains(case.expectedPhrase),
+            )
+            assertTrue(
+                "question=<${case.question}> answer=<${result.text}>",
+                result.text.contains("来源：${case.expectedSource}"),
+            )
+            assertEquals("question=<${case.question}>", "skipped", result.llmTrace.status)
+        }
+        assertEquals(0, llm.callCount)
+    }
+
+    @Test
+    fun `shining force ii voice homophone question normalizes to character evidence`() = runTest {
+        val fixture = loadSamplePack()
+        val llm = CountingLlmAdapter()
+        val games = FakeGameRepository(listOf(fixture.game))
+        val knowledge = FakeKnowledgeRepository(fixture.knowledge)
+        val directNormalization = GameTermNormalizer().normalize("修医是谁", fixture.knowledge)
+        assertEquals(directNormalization.toString(), "修伊是谁", directNormalization.normalizedQuestion)
+        val generator = QueryPipelineResponseGenerator(
+            pipeline = DefaultQueryPipeline(
+                resolver = RepositoryGameResolver(games),
+                retrieval = LocalKnowledgeRetrievalPipeline(knowledge),
+                policy = EvidenceAnswerPolicy(),
+                composer = AnswerComposer(),
+                llm = llm,
+            ),
+            gameResolver = RepositoryGameResolver(games),
+            knowledgeRepository = knowledge,
+        )
+
+        val response = generator.generate(
+            request = RetroArchRequest(
+                image = "",
+                label = "mega_drive__光明力量2",
+                question = "修医是谁",
+                state = RetroArchState(paused = 1),
+            ),
+            outputMode = "hotkey_voice:text",
+        )
+
+        val text = response.text.orEmpty()
+        assertEquals("修伊是谁", response.diagnostics.question)
+        assertEquals("修医是谁", response.diagnostics.rawQuestion)
+        assertEquals("修伊是谁", response.diagnostics.normalizedQuestion)
+        assertEquals("homophone", response.diagnostics.questionNormalizationReason)
+        assertEquals("修伊", response.diagnostics.normalizedQuestionMatchedTerm)
+        assertTrue("answer=<$text>", text.contains("Chester"))
+        assertTrue("answer=<$text>", text.contains("来源：sf2.manual_translation"))
+        assertEquals("skipped", response.diagnostics.llmStatus)
+        assertEquals(0, llm.callCount)
+    }
+
+    @Test
     fun `shining force ii localized item name question bypasses route spoilers`() = runTest {
         val fixture = loadSamplePack()
         val llm = CountingLlmAdapter()
@@ -464,6 +547,18 @@ class SampleShiningForceIIQuestionPipelineTest {
                 phrase = "队伍",
             ),
             NaturalVariantCase(
+                question = "这游戏玩什么？",
+                type = AnswerType.GameOverview,
+                sourceId = "sf2.official_overview",
+                phrase = "队伍",
+            ),
+            NaturalVariantCase(
+                question = "这个游戏主要是干嘛的？",
+                type = AnswerType.GameOverview,
+                sourceId = "sf2.official_overview",
+                phrase = "队伍",
+            ),
+            NaturalVariantCase(
                 question = "刚开始应该干嘛？",
                 type = AnswerType.BeginnerGuide,
                 sourceId = "sf2.early_route",
@@ -488,6 +583,36 @@ class SampleShiningForceIIQuestionPipelineTest {
                 phrase = "治疗",
             ),
             NaturalVariantCase(
+                question = "角色如何搭配？",
+                type = AnswerType.TeamBuild,
+                sourceId = "sf2.project_mechanics",
+                phrase = "治疗",
+            ),
+            NaturalVariantCase(
+                question = "职业怎么搭配？",
+                type = AnswerType.TeamBuild,
+                sourceId = "sf2.project_mechanics",
+                phrase = "前排",
+            ),
+            NaturalVariantCase(
+                question = "对我怎么搭配",
+                type = AnswerType.TeamBuild,
+                sourceId = "sf2.project_mechanics",
+                phrase = "治疗",
+            ),
+            NaturalVariantCase(
+                question = "对于我怎么搭配",
+                type = AnswerType.TeamBuild,
+                sourceId = "sf2.project_mechanics",
+                phrase = "治疗",
+            ),
+            NaturalVariantCase(
+                question = "哪些角色直练",
+                type = AnswerType.TeamBuild,
+                sourceId = "sf2.project_mechanics",
+                phrase = "通用原则",
+            ),
+            NaturalVariantCase(
                 question = "升级有什么技巧？",
                 type = AnswerType.Leveling,
                 sourceId = "sf2.project_mechanics",
@@ -498,6 +623,18 @@ class SampleShiningForceIIQuestionPipelineTest {
                 type = AnswerType.Strategy,
                 sourceId = "sf2.project_mechanics",
                 phrase = "撤退",
+            ),
+            NaturalVariantCase(
+                question = "怎么才能赢？",
+                type = AnswerType.Strategy,
+                sourceId = "sf2.project_mechanics",
+                phrase = "抱团",
+            ),
+            NaturalVariantCase(
+                question = "这个游戏玩的话有什么技巧吗？",
+                type = AnswerType.Strategy,
+                sourceId = "sf2.project_mechanics",
+                phrase = "前排",
             ),
             NaturalVariantCase(
                 question = "米斯里鲁有什么用？",
@@ -589,6 +726,12 @@ class SampleShiningForceIIQuestionPipelineTest {
         val type: AnswerType,
         val sourceId: String,
         val phrase: String,
+    )
+
+    private data class TranslationAliasCase(
+        val question: String,
+        val expectedPhrase: String,
+        val expectedSource: String,
     )
 
     private class FakeGameRepository(

@@ -31,6 +31,7 @@ import kotlinx.serialization.json.jsonPrimitive
 class LocalKnowledgeRetrievalPipeline(
     private val knowledgeRepository: KnowledgeRepository,
 ) : RetrievalPipeline {
+    private val templateDocumentMatcher = TemplateDocumentMatcher()
 
     override suspend fun retrieve(query: RetrievalQuery): List<RetrievalResult> {
         val gameId = query.gameId?.trim().orEmpty()
@@ -44,6 +45,7 @@ class LocalKnowledgeRetrievalPipeline(
         val candidates = buildList {
             addAll(nameMappingMatches(rows, normalizedQuery))
             addAll(templateMatches(rows, normalizedQuery, query))
+            addAll(templateDocumentMatches(rows, normalizedQuery, query, queryIntent))
             addAll(aliasAndEntityMatches(allRows, normalizedQuery, queryIntent))
             addAll(ftsMatches(gameId, normalizedQuery, query, queryIntent))
         }
@@ -90,12 +92,18 @@ class LocalKnowledgeRetrievalPipeline(
                 val template = runCatching { JSON.parseToJsonElement(rawTemplate).jsonObject }
                     .getOrNull()
                     ?: return@mapNotNull null
-                val intent = template.stringOrNull("intent")
+                val intent = template.templateStringOrNull("intent")
                 if (intent != null && intent != queryIntent.wireName) return@mapNotNull null
-                val selectedAnswer = template.selectAnswer(query.spoilerLevel)
+                val selectedAnswer = TemplateAnswerSelector.select(template, query.spoilerLevel)
                     ?: return@mapNotNull null
-                val patterns = template.arrayStrings("question_patterns")
+                val patterns = template.templateArrayStrings("question_patterns")
                 if (!gkpSpoilerAllowed(selectedAnswer.spoilerLevel, query.spoilerLevel)) return@mapNotNull null
+                val selectedSpoiler = selectedAnswer.spoilerLevel.toDomainSpoiler()
+                if (!progressGateAllowed(row.progressGate, query.progressGate) &&
+                    selectedSpoiler != SpoilerLevel.LIGHT
+                ) {
+                    return@mapNotNull null
+                }
                 val matched = patterns.any { pattern ->
                     val normalizedPattern = normalizeSync(pattern)
                     normalizedPattern.isNotEmpty() && (
@@ -107,12 +115,38 @@ class LocalKnowledgeRetrievalPipeline(
                 row.toResult(
                     snippet = selectedAnswer.text,
                     matchScore = TEMPLATE_MATCH_SCORE,
-                    sourceId = template.arrayStrings("source_refs").firstOrNull(),
-                    spoilerOverride = selectedAnswer.spoilerLevel.toDomainSpoiler(),
+                    sourceId = template.templateArrayStrings("source_refs").firstOrNull(),
+                    spoilerOverride = selectedSpoiler,
                     progressGateOverride = null,
                 )
             }
         }
+    }
+
+    private fun templateDocumentMatches(
+        rows: List<KnowledgeChunkDomain>,
+        normalizedQuery: String,
+        query: RetrievalQuery,
+        queryIntent: AnswerType,
+    ): List<RetrievalResult> {
+        val match = templateDocumentMatcher.bestMatch(
+            query = normalizedQuery,
+            queryIntent = queryIntent,
+            rows = rows,
+            tolerance = query.spoilerLevel,
+            progressGate = query.progressGate,
+        ) ?: return emptyList()
+        val row = rows.firstOrNull { it.entityId == match.document.entityId }
+            ?: return emptyList()
+        return listOf(
+            row.toResult(
+                snippet = match.document.selectedAnswer,
+                matchScore = TEMPLATE_DOCUMENT_MATCH_SCORE,
+                sourceId = match.document.sourceRefs.firstOrNull(),
+                spoilerOverride = match.document.spoilerLevel,
+                progressGateOverride = null,
+            )
+        )
     }
 
     private fun aliasAndEntityMatches(
@@ -403,6 +437,7 @@ class LocalKnowledgeRetrievalPipeline(
         }
 
         const val TEMPLATE_MATCH_SCORE = 1.0
+        const val TEMPLATE_DOCUMENT_MATCH_SCORE = 0.98
         const val NAME_MAPPING_MATCH_SCORE = 1.0
         const val ALIAS_MATCH_SCORE = 0.82
         const val FTS_MATCH_SCORE = 0.66

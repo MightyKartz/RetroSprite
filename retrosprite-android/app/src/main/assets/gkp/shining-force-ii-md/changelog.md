@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.5 - 2026-05-23
+
+- Added 意志之路/汉化版 name aliases for early and mid-game character questions, including 修伊, 佳佳, 卡森, 吉布, 皮特, 玛琪露达, 盖鲁哈特, and 鲁德.
+- Added Chinese translation aliases for promotion and material items such as 战士的荣耀, 天马之翼, 气合之玉, 奥义之书, 银色战车, and 米斯里鲁银.
+- Added a low-spoiler Elven Town/精灵森林 mapping and golden Q&A rows so these names resolve through zero-LLM retrieval.
+- Added true-device player phrasing for team composition and tactics, including 角色如何搭配, 职业怎么搭配, 怎么才能赢, and 这个游戏玩的话有什么技巧吗.
+
 ## 0.2.4 - 2026-05-23
 
 - Added ASR-observed gameplay variants such as “这游戏要怎么玩？” and “这游戏该怎么玩？” to the zero-LLM core gameplay template.

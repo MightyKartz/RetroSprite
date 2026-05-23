@@ -430,6 +430,14 @@ private fun MicrophonePermissionSection(
                     modifier = Modifier.testTag("settings_microphone_test_status"),
                 )
             }
+            if (voiceInputState.asrBiasingProfileId != null) {
+                Text(
+                    text = "ASR 游戏名词热词已启用：${voiceInputState.asrHotwordCount} 个",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.secondary,
+                    modifier = Modifier.testTag("settings_asr_hotwords_status"),
+                )
+            }
         }
     }
 }

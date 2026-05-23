@@ -9,6 +9,7 @@ import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import com.retrosprite.app.ui.viewmodel.UiVoiceInputState
 import com.retrosprite.app.ui.viewmodel.VoiceInputProvider
+import com.retrosprite.app.voice.asr.AsrRecognitionContext
 import java.util.Locale
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -33,7 +34,7 @@ class AndroidVoiceInputProvider(
     private var recognizer: SpeechRecognizer? = null
     private var eventId: Long = 0L
 
-    override suspend fun startListening() {
+    override suspend fun startListening(context: AsrRecognitionContext?) {
         if (!isRecognizerAvailable()) {
             _state.update {
                 it.copy(
@@ -56,6 +57,8 @@ class AndroidVoiceInputProvider(
                 isListening = true,
                 engineLabel = engineLabel(),
                 errorMessage = null,
+                asrBiasingProfileId = context?.biasingProfile?.fingerprint,
+                asrHotwordCount = context?.biasingProfile?.normalizedEntries?.size ?: 0,
             )
         }
         speechRecognizer.startListening(recognizerIntent())

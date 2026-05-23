@@ -24,6 +24,11 @@ data class RequestLogEntry(
     val outputMode: String,
     val question: String? = null,
     val questionSource: String? = null,
+    val rawQuestion: String? = null,
+    val normalizedQuestion: String? = null,
+    val questionNormalizationReason: String? = null,
+    val normalizedQuestionMatchedTerm: String? = null,
+    val normalizedQuestionMatchedEntityId: String? = null,
     val answerShort: String? = null,
     val answerDetail: String? = null,
     val answerType: String? = null,
@@ -137,10 +142,17 @@ class RequestLogger(
         diagnostics: ResponseDiagnostics = ResponseDiagnostics(),
         question: String? = diagnostics.question,
         questionSource: String? = diagnostics.questionSource,
+        rawQuestion: String? = diagnostics.rawQuestion,
+        normalizedQuestion: String? = diagnostics.normalizedQuestion,
+        questionNormalizationReason: String? = diagnostics.questionNormalizationReason,
+        normalizedQuestionMatchedTerm: String? = diagnostics.normalizedQuestionMatchedTerm,
+        normalizedQuestionMatchedEntityId: String? = diagnostics.normalizedQuestionMatchedEntityId,
     ): RequestLogEntry {
         val parsed = LabelParser.parse(label)
         val cleanQuestion = question?.trim()?.takeIf { it.isNotEmpty() }
         val cleanQuestionSource = questionSource?.trim()?.takeIf { it.isNotEmpty() }
+        val cleanRawQuestion = rawQuestion?.trim()?.takeIf { it.isNotEmpty() }
+        val cleanNormalizedQuestion = normalizedQuestion?.trim()?.takeIf { it.isNotEmpty() }
         val entry = RequestLogEntry(
             label = label,
             system = parsed.system,
@@ -150,6 +162,11 @@ class RequestLogger(
             outputMode = outputMode,
             question = cleanQuestion,
             questionSource = cleanQuestionSource,
+            rawQuestion = cleanRawQuestion,
+            normalizedQuestion = cleanNormalizedQuestion,
+            questionNormalizationReason = questionNormalizationReason,
+            normalizedQuestionMatchedTerm = normalizedQuestionMatchedTerm,
+            normalizedQuestionMatchedEntityId = normalizedQuestionMatchedEntityId,
             answerShort = diagnostics.answerShort,
             answerDetail = diagnostics.answerDetail,
             answerType = diagnostics.answerType,

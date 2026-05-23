@@ -24,6 +24,12 @@ RetroArch AI Service 热键
 
 RetroSprite 当前处在 M10/M11：Hotkey Voice Overlay + Zero-LLM GKP。
 
+### 当前支持的游戏
+
+目前真实支持的游戏只有 1 个：**Shining Force II / 光明力量2**（Sega Mega
+Drive / Genesis）。内置的 `sample-2048` 和 `sample-relay-station` 是开发和
+冒烟测试用的演示知识包，不代表更广泛的正式游戏支持。
+
 已经具备：
 
 - Kotlin Android App，使用 Jetpack Compose + Material 3。
@@ -33,7 +39,7 @@ RetroSprite 当前处在 M10/M11：Hotkey Voice Overlay + Zero-LLM GKP。
 - 热键触发的游戏内语音 overlay：短时录音、本地 ASR、GKP 回答、日志记录和 TTS 朗读。
 - Room 本地数据库：请求日志、游戏、知识行、GKP 元数据、启用/禁用状态和迁移 schema。
 - GKP v0 解析、内置导入、外部知识包预检、安装/覆盖确认和 Packs 管理界面。
-- 内置 `sample-2048`、`sample-relay-station`，以及首个真实游戏试点
+- 内置演示包 `sample-2048`、`sample-relay-station`，以及首个真实支持游戏包
   `community.shining-force-ii-md`。
 - template / alias / entity / FTS 风格的本地检索，带剧透等级过滤和来源 ID。
 - Settings 支持 RetroArch 设置助手、endpoint 端口、overlay 授权、默认剧透级别、

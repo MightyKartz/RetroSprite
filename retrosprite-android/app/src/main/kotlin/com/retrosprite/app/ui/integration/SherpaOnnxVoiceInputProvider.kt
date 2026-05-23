@@ -10,6 +10,11 @@ import com.k2fsa.sherpa.onnx.OnlineRecognizer
 import com.k2fsa.sherpa.onnx.OnlineStream
 import com.retrosprite.app.ui.viewmodel.UiVoiceInputState
 import com.retrosprite.app.ui.viewmodel.VoiceInputProvider
+import com.retrosprite.app.voice.asr.AsrBiasingProfile
+import com.retrosprite.app.voice.asr.AsrHotwordMode
+import com.retrosprite.app.voice.asr.AsrRecognitionContext
+import com.retrosprite.app.voice.asr.SherpaHotwordFileWriter
+import java.io.File
 import kotlin.coroutines.coroutineContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -38,6 +43,7 @@ class SherpaOnnxVoiceInputProvider(
 
     private val appContext = context.applicationContext
     private val assets: AssetManager = appContext.assets
+    private val hotwordFileWriter = SherpaHotwordFileWriter(File(appContext.cacheDir, "asr-hotwords"))
     private val mutex = Mutex()
 
     private val _state = MutableStateFlow(initialState())
@@ -47,11 +53,13 @@ class SherpaOnnxVoiceInputProvider(
     @Volatile
     private var shouldRecord: Boolean = false
     private var recognizer: OnlineRecognizer? = null
+    private var recognizerProfileFingerprint: String? = null
+    private var recognizerHotwords: String? = null
     private var audioRecord: AudioRecord? = null
     private var recordingJob: Job? = null
     private var eventId: Long = 0L
 
-    override suspend fun startListening() {
+    override suspend fun startListening(context: AsrRecognitionContext?) {
         mutex.withLock {
             if (_state.value.isListening) return
 
@@ -79,8 +87,7 @@ class SherpaOnnxVoiceInputProvider(
                         )
                     }
                 }
-                recognizer ?: withContext(Dispatchers.Default) { createRecognizer() }
-                    .also { recognizer = it }
+                recognizerFor(context)
             } catch (error: Throwable) {
                 _state.value = UiVoiceInputState(
                     isAvailable = false,
@@ -107,7 +114,7 @@ class SherpaOnnxVoiceInputProvider(
                 return
             }
 
-            val stream = runCatching { activeRecognizer.createStream() }
+            val stream = runCatching { activeRecognizer.createStream(recognizerHotwords.orEmpty()) }
                 .getOrElse { error ->
                     releaseAudioRecord(record)
                     _state.update {
@@ -144,6 +151,8 @@ class SherpaOnnxVoiceInputProvider(
                     engineLabel = model.engineLabel,
                     statusMessage = null,
                     errorMessage = null,
+                    asrBiasingProfileId = context?.biasingProfile?.fingerprint,
+                    asrHotwordCount = context?.biasingProfile?.normalizedEntries?.size ?: 0,
                 )
             }
 
@@ -314,11 +323,60 @@ class SherpaOnnxVoiceInputProvider(
         )
     }
 
-    private fun createRecognizer(): OnlineRecognizer =
-        SherpaOnnxRecognizerFactory.create(
-            assetManager = assets,
-            model = model,
-        )
+    private suspend fun recognizerFor(context: AsrRecognitionContext?): OnlineRecognizer {
+        val profile = context?.biasingProfile?.takeIf { it.enabled && it.normalizedEntries.isNotEmpty() }
+        val hotwordMode = context?.hotwordMode ?: AsrHotwordMode.Auto
+        val hotwordPlan = hotwordPlanFor(profile, hotwordMode)
+        val fingerprint = listOfNotNull(
+            profile?.fingerprint,
+            hotwordMode.name,
+            hotwordPlan.streamHotwords,
+            hotwordPlan.hotwordsFile,
+        ).joinToString(":").takeIf { it.isNotBlank() }
+        recognizer?.takeIf { recognizerProfileFingerprint == fingerprint }?.let { return it }
+
+        recognizer?.release()
+        recognizer = null
+        recognizerProfileFingerprint = null
+        recognizerHotwords = null
+
+        profile?.let { hotwordFileWriter.write(it) }
+        return withContext(Dispatchers.Default) {
+            SherpaOnnxRecognizerFactory.create(
+                assetManager = assets,
+                model = model,
+                hotwordsFile = hotwordPlan.hotwordsFile,
+                hotwordsScore = DEFAULT_HOTWORDS_SCORE,
+                enableHotwords = hotwordPlan.enabled,
+            )
+        }.also {
+            recognizer = it
+            recognizerProfileFingerprint = fingerprint
+            recognizerHotwords = hotwordPlan.streamHotwords
+        }
+    }
+
+    private fun hotwordPlanFor(
+        profile: AsrBiasingProfile?,
+        mode: AsrHotwordMode,
+    ): SherpaHotwordPlan {
+        if (profile == null || mode == AsrHotwordMode.None) return SherpaHotwordPlan.Disabled
+        return when (mode) {
+            AsrHotwordMode.AssetFileSmall -> SherpaHotwordPlan(
+                enabled = true,
+                streamHotwords = null,
+                hotwordsFile = ASSET_FILE_SMALL_HOTWORDS,
+            )
+            else -> {
+                val streamHotwords = hotwordFileWriter.streamTextFor(profile, mode).takeIf { it.isNotBlank() }
+                SherpaHotwordPlan(
+                    enabled = streamHotwords != null,
+                    streamHotwords = streamHotwords,
+                    hotwordsFile = null,
+                )
+            }
+        }
+    }
 
     @SuppressLint("MissingPermission")
     private fun createAudioRecord(): AudioRecord {
@@ -367,5 +425,21 @@ class SherpaOnnxVoiceInputProvider(
     private companion object {
         const val PCM_FLOAT_SCALE = 32768.0f
         const val VISUAL_FRAME_MS = 10
+        const val DEFAULT_HOTWORDS_SCORE = 2.5f
+        const val ASSET_FILE_SMALL_HOTWORDS = "asr-hotwords/shining-force-ii-md-small.hotwords.txt"
+    }
+}
+
+private data class SherpaHotwordPlan(
+    val enabled: Boolean,
+    val streamHotwords: String?,
+    val hotwordsFile: String?,
+) {
+    companion object {
+        val Disabled = SherpaHotwordPlan(
+            enabled = false,
+            streamHotwords = null,
+            hotwordsFile = null,
+        )
     }
 }

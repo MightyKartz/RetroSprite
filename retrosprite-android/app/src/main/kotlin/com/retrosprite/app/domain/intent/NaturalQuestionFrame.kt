@@ -94,6 +94,9 @@ internal fun String.normalizeObservedAsrConfusions(): String =
         .replace("那些队员", "哪些角色")
         .replace("哪些人物", "哪些角色")
         .replace("哪些队员", "哪些角色")
+        .replace("对于我怎么搭配", "队伍怎么搭配")
+        .replace("对我怎么搭配", "队伍怎么搭配")
+        .replace("直练", "值得练")
 
 internal fun String.containsAny(terms: Iterable<String>): Boolean =
     terms.any { contains(it.lowercase()) }

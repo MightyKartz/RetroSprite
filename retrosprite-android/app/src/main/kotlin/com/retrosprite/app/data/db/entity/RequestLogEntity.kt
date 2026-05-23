@@ -53,6 +53,21 @@ data class RequestLogEntity(
     @ColumnInfo(name = "question_source")
     val questionSource: String? = null,
 
+    @ColumnInfo(name = "raw_question")
+    val rawQuestion: String? = null,
+
+    @ColumnInfo(name = "normalized_question")
+    val normalizedQuestion: String? = null,
+
+    @ColumnInfo(name = "question_normalization_reason")
+    val questionNormalizationReason: String? = null,
+
+    @ColumnInfo(name = "normalized_question_matched_term")
+    val normalizedQuestionMatchedTerm: String? = null,
+
+    @ColumnInfo(name = "normalized_question_matched_entity_id")
+    val normalizedQuestionMatchedEntityId: String? = null,
+
     @ColumnInfo(name = "answer_short")
     val answerShort: String? = null,
 

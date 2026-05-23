@@ -138,6 +138,91 @@ class LocalKnowledgeRetrievalPipelineTest {
     }
 
     @Test
+    fun `matches nearby gameplay template question through template documents`() = runTest {
+        val pipeline = LocalKnowledgeRetrievalPipeline(
+            FakeKnowledgeRepository(
+                listOf(
+                    chunk(
+                        entityId = "mechanic.basic-controls",
+                        entityType = "mechanic",
+                        canonicalName = "基础操作",
+                        aliases = listOf("游戏", "怎么玩"),
+                        descriptionShort = "菜单和操作是基础。",
+                        spoilerLevel = "none",
+                    ),
+                    chunk(
+                        entityId = "note.core-gameplay-loop",
+                        entityType = "note",
+                        canonicalName = "核心玩法",
+                        aliases = listOf("这游戏怎么玩", "主要玩什么", "好玩在哪"),
+                        descriptionShort = "核心是推进剧情、组建队伍，并在网格回合战斗中打赢战斗。",
+                        spoilerLevel = "none",
+                        sourceRefs = listOf("sf2.official_overview"),
+                        answerTemplates = listOf(
+                            """{"template_id":"template.sf2.core-gameplay.zh","intent":"game_overview","question_patterns":["这游戏怎么玩","主要玩什么","核心玩法是什么"],"answer":"主要玩剧情推进、队伍培养和网格回合制战斗。","source_refs":["sf2.official_overview"],"spoiler_level":"none"}"""
+                        ),
+                    ),
+                )
+            )
+        )
+
+        val results = pipeline.retrieve(query("这游戏玩什么"))
+
+        assertEquals("note.core-gameplay-loop", results.first().entityId)
+        assertEquals("主要玩剧情推进、队伍培养和网格回合制战斗。", results.first().evidence.first().snippet)
+        assertEquals("sf2.official_overview", results.first().evidence.first().sourceId)
+
+        val colloquialResults = pipeline.retrieve(query("这个游戏主要是干嘛的"))
+
+        assertEquals("note.core-gameplay-loop", colloquialResults.first().entityId)
+        assertEquals("主要玩剧情推进、队伍培养和网格回合制战斗。", colloquialResults.first().evidence.first().snippet)
+    }
+
+    @Test
+    fun `template document matching respects progress gate and spoiler tolerance`() = runTest {
+        val pipeline = LocalKnowledgeRetrievalPipeline(
+            FakeKnowledgeRepository(
+                listOf(
+                    chunk(
+                        entityId = "location.secret-route",
+                        entityType = "location",
+                        canonicalName = "隐藏路线",
+                        aliases = listOf("隐藏路线"),
+                        descriptionShort = "隐藏路线需要到中期后再提示。",
+                        spoilerLevel = "medium",
+                        progressGate = "mid_game",
+                        sourceRefs = listOf("sample.secret"),
+                        answerTemplates = listOf(
+                            """{"template_id":"template.secret.route","intent":"location","question_patterns":["隐藏路线在哪","秘密路线在哪"],"answer":"直接从中期城镇向东走。","source_refs":["sample.secret"],"spoiler_level":"medium"}"""
+                        ),
+                    ),
+                )
+            )
+        )
+
+        assertTrue(
+            pipeline.retrieve(
+                query("秘密路线在哪", spoilerLevel = SpoilerLevel.LIGHT)
+            ).isEmpty()
+        )
+        assertTrue(
+            pipeline.retrieve(
+                query("秘密路线在哪", spoilerLevel = SpoilerLevel.CLEAR)
+            ).isEmpty()
+        )
+        assertEquals(
+            "location.secret-route",
+            pipeline.retrieve(
+                query(
+                    "秘密路线在哪",
+                    spoilerLevel = SpoilerLevel.CLEAR,
+                    progressGate = "mid_game",
+                )
+            ).first().entityId,
+        )
+    }
+
+    @Test
     fun `intent boost can outrank generic alias matches when template is absent`() = runTest {
         val pipeline = LocalKnowledgeRetrievalPipeline(
             FakeKnowledgeRepository(

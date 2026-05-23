@@ -1,5 +1,6 @@
 package com.retrosprite.app.ui.viewmodel
 
+import com.retrosprite.app.voice.asr.AsrRecognitionContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -428,8 +429,15 @@ private class FakeVoiceInputProvider : VoiceInputProvider {
     override val requiresRecordAudioPermission: Boolean = false
     private var eventId: Long = 0L
 
-    override suspend fun startListening() {
-        _state.update { it.copy(isListening = true, errorMessage = null) }
+    override suspend fun startListening(context: AsrRecognitionContext?) {
+        _state.update {
+            it.copy(
+                isListening = true,
+                errorMessage = null,
+                asrBiasingProfileId = context?.biasingProfile?.fingerprint,
+                asrHotwordCount = context?.biasingProfile?.normalizedEntries?.size ?: 0,
+            )
+        }
         delay(120)
         eventId += 1
         _state.value = UiVoiceInputState(
@@ -438,6 +446,8 @@ private class FakeVoiceInputProvider : VoiceInputProvider {
             transcript = "两个 2 怎么合并？",
             transcriptEventId = eventId,
             engineLabel = "预览语音",
+            asrBiasingProfileId = context?.biasingProfile?.fingerprint,
+            asrHotwordCount = context?.biasingProfile?.normalizedEntries?.size ?: 0,
         )
     }
 

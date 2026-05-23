@@ -1,5 +1,10 @@
 package com.retrosprite.app.endpoint
 
+import com.retrosprite.app.data.models.GameDomain
+import com.retrosprite.app.data.models.KnowledgeChunkDomain
+import com.retrosprite.app.data.repository.GameRepository
+import com.retrosprite.app.data.repository.KnowledgeRepository
+import com.retrosprite.app.data.resolver.RepositoryGameResolver
 import com.retrosprite.app.domain.policy.AnswerComposer
 import com.retrosprite.app.domain.policy.FixedTextAnswerPolicy
 import com.retrosprite.app.domain.resolver.LabelGameResolver
@@ -16,6 +21,8 @@ import com.retrosprite.app.domain.models.SpoilerLevel
 import com.retrosprite.app.endpoint.model.RetroArchRequest
 import com.retrosprite.app.endpoint.model.RetroArchState
 import com.retrosprite.app.llm.MockLlmAdapter
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -103,6 +110,50 @@ class QueryPipelineResponseGeneratorTest {
 
         assertEquals("两个 2 怎么合并？", capturedQuestion)
         assertEquals("answered: 两个 2 怎么合并？", response.text)
+    }
+
+    @Test
+    fun `normalizes hotkey voice question before forwarding to pipeline`() = runTest {
+        val games = FakeGameRepository()
+        val knowledge = FakeKnowledgeRepository()
+        var capturedQuestion: String? = null
+        val generator = QueryPipelineResponseGenerator(
+            pipeline = object : QueryPipeline {
+                override suspend fun answer(
+                    label: String,
+                    romHash: String?,
+                    question: String?,
+                    screenshot: String?,
+                    state: Map<String, Int>?,
+                    spoilerLevel: SpoilerLevel,
+                    language: String,
+                ): String {
+                    capturedQuestion = question
+                    return "answered: $question"
+                }
+            },
+            gameResolver = RepositoryGameResolver(games),
+            knowledgeRepository = knowledge,
+        )
+
+        val response = generator.generate(
+            request = RetroArchRequest(
+                image = "",
+                label = "mega_drive__光明力量2",
+                question = "修医是谁",
+                state = RetroArchState(paused = 1),
+            ),
+            outputMode = "hotkey_voice:text",
+        )
+
+        assertEquals("修伊是谁", capturedQuestion)
+        assertEquals("answered: 修伊是谁", response.text)
+        assertEquals("修伊是谁", response.diagnostics.question)
+        assertEquals("修医是谁", response.diagnostics.rawQuestion)
+        assertEquals("修伊是谁", response.diagnostics.normalizedQuestion)
+        assertEquals("homophone", response.diagnostics.questionNormalizationReason)
+        assertEquals("修伊", response.diagnostics.normalizedQuestionMatchedTerm)
+        assertEquals("npc.jaha", response.diagnostics.normalizedQuestionMatchedEntityId)
     }
 
     @Test
@@ -297,5 +348,57 @@ class QueryPipelineResponseGeneratorTest {
     fun `flag map omits paused since it is plumbed separately`() {
         val map = RetroArchState(paused = 1).toFlagMap()
         assertEquals(emptyMap<String, Int>(), map)
+    }
+
+    private class FakeGameRepository : GameRepository {
+        private val game = GameDomain(
+            gameId = "shining_force_ii_md",
+            packId = "community.shining-force-ii-md",
+            title = "Shining Force II / 光明力量2",
+            platform = "mega_drive",
+            region = null,
+            languages = listOf("zh", "en"),
+            romCrc32 = null,
+            romSha1 = null,
+            packVersion = "0.2.5",
+            schemaVersion = "gkp.v0",
+            trustLevel = "community",
+            installedAt = 0L,
+        )
+
+        override fun observeAll(): Flow<List<GameDomain>> = flowOf(listOf(game))
+        override suspend fun getById(gameId: String): GameDomain? = game.takeIf { it.gameId == gameId }
+        override suspend fun getByRomSha1(sha1: String): GameDomain? = null
+        override suspend fun getByRomCrc32(crc32: String): GameDomain? = null
+        override suspend fun searchByLabel(platform: String, titleQuery: String): List<GameDomain> = listOf(game)
+        override suspend fun upsert(game: GameDomain) = Unit
+        override suspend fun delete(gameId: String) = Unit
+    }
+
+    private class FakeKnowledgeRepository : KnowledgeRepository {
+        override suspend fun listByGame(gameId: String): List<KnowledgeChunkDomain> =
+            listOf(
+                KnowledgeChunkDomain(
+                    id = 0L,
+                    gameId = gameId,
+                    entityId = "npc.jaha",
+                    entityType = "npc",
+                    canonicalName = "Jaha / 吉布",
+                    aliases = listOf("修伊"),
+                    descriptionShort = "desc",
+                    descriptionLong = null,
+                    progressGate = "start",
+                    spoilerLevel = "light",
+                    sourceRefs = listOf("test.source"),
+                    confidence = "verified",
+                    answerTemplates = emptyList(),
+                )
+            )
+
+        override suspend fun searchFts(gameId: String, query: String, limit: Int) = emptyList<KnowledgeChunkDomain>()
+        override suspend fun getByEntityId(gameId: String, entityId: String): KnowledgeChunkDomain? = null
+        override suspend fun listByType(gameId: String, entityType: String) = emptyList<KnowledgeChunkDomain>()
+        override suspend fun upsertAll(chunks: List<KnowledgeChunkDomain>) = Unit
+        override suspend fun clearForGame(gameId: String) = Unit
     }
 }

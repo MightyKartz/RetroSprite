@@ -21,7 +21,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 /**
  * Root Room database for RetroSprite.
  *
- * Schema v7 entities:
+ * Schema v8 entities:
  *  - request_logs (RequestLogEntity)
  *  - games        (GameEntity)
  *  - knowledge    (KnowledgeEntity)
@@ -38,7 +38,7 @@ import java.util.concurrent.atomic.AtomicBoolean
         GameEntity::class,
         KnowledgeEntity::class
     ],
-    version = 7,
+    version = 8,
     exportSchema = true
 )
 @TypeConverters(StringListConverter::class)
@@ -214,6 +214,16 @@ abstract class RetroSpriteDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_7_8: Migration = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE request_logs ADD COLUMN raw_question TEXT")
+                db.execSQL("ALTER TABLE request_logs ADD COLUMN normalized_question TEXT")
+                db.execSQL("ALTER TABLE request_logs ADD COLUMN question_normalization_reason TEXT")
+                db.execSQL("ALTER TABLE request_logs ADD COLUMN normalized_question_matched_term TEXT")
+                db.execSQL("ALTER TABLE request_logs ADD COLUMN normalized_question_matched_entity_id TEXT")
+            }
+        }
+
         internal val MIGRATIONS: Array<Migration> = arrayOf(
             MIGRATION_1_2,
             MIGRATION_2_3,
@@ -221,6 +231,7 @@ abstract class RetroSpriteDatabase : RoomDatabase() {
             MIGRATION_4_5,
             MIGRATION_5_6,
             MIGRATION_6_7,
+            MIGRATION_7_8,
         )
 
         private fun installFts(db: SupportSQLiteDatabase) {

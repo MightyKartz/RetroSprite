@@ -1,7 +1,11 @@
 package com.retrosprite.app.endpoint
 
+import com.retrosprite.app.data.repository.KnowledgeRepository
 import com.retrosprite.app.domain.QueryPipeline
 import com.retrosprite.app.domain.models.SpoilerLevel
+import com.retrosprite.app.domain.normalization.GameTermNormalizationResult
+import com.retrosprite.app.domain.normalization.GameTermNormalizer
+import com.retrosprite.app.domain.resolver.GameResolver
 import com.retrosprite.app.endpoint.model.RetroArchRequest
 import com.retrosprite.app.endpoint.model.RetroArchResponse
 import com.retrosprite.app.endpoint.model.ResponseDiagnostics
@@ -31,18 +35,26 @@ class QueryPipelineResponseGenerator(
     private val defaultSpoilerLevel: SpoilerLevel = SpoilerLevel.LIGHT,
     private val spoilerLevelProvider: () -> SpoilerLevel = { defaultSpoilerLevel },
     private val defaultLanguage: String = "zh",
+    private val gameResolver: GameResolver? = null,
+    private val knowledgeRepository: KnowledgeRepository? = null,
+    private val gameTermNormalizer: GameTermNormalizer = GameTermNormalizer(),
 ) : ResponseGenerator {
 
     override suspend fun generate(
         request: RetroArchRequest,
         outputMode: String,
     ): RetroArchResponse {
+        val normalization = normalizeQuestionIfVoice(request, outputMode)
+        val pipelineQuestion = normalization.normalizedQuestion.takeIf { it.isNotBlank() }
+        val rawRequestQuestion = request.question.trim()
+        val questionChanged = pipelineQuestion != null && rawRequestQuestion.isNotBlank() &&
+            rawRequestQuestion != pipelineQuestion
         val result = pipeline.answerDetailed(
             label = request.label,
             romHash = null,
             // Official RetroArch AI-Service bodies do not currently include a
             // question field. The optional field is for app/debug text entry.
-            question = request.question.takeIf { it.isNotBlank() },
+            question = pipelineQuestion,
             screenshot = request.image.takeIf { it.isNotBlank() },
             state = request.state.toFlagMap().ifEmpty { null },
             spoilerLevel = request.spoilerLevel.toSpoilerLevelOrNull() ?: spoilerLevelProvider(),
@@ -51,6 +63,14 @@ class QueryPipelineResponseGenerator(
         return RetroArchResponse.text(
             content = result.text,
             diagnostics = ResponseDiagnostics(
+                question = pipelineQuestion,
+                rawQuestion = normalization.rawQuestion.takeIf { normalization.applied }
+                    ?: rawRequestQuestion.takeIf { questionChanged },
+                normalizedQuestion = normalization.normalizedQuestion.takeIf { normalization.applied }
+                    ?: pipelineQuestion.takeIf { questionChanged },
+                questionNormalizationReason = normalization.reason ?: "normalized".takeIf { questionChanged },
+                normalizedQuestionMatchedTerm = normalization.matchedTerm,
+                normalizedQuestionMatchedEntityId = normalization.matchedEntityId,
                 answerShort = result.answerResult.answerShort,
                 answerDetail = result.answerResult.answerDetail,
                 answerType = result.answerResult.answerType.wireName,
@@ -69,7 +89,31 @@ class QueryPipelineResponseGenerator(
             )
         )
     }
+
+    private suspend fun normalizeQuestionIfVoice(
+        request: RetroArchRequest,
+        outputMode: String,
+    ): GameTermNormalizationResult {
+        val rawQuestion = request.question.trim()
+        if (rawQuestion.isBlank()) {
+            return GameTermNormalizationResult(rawQuestion, rawQuestion, applied = false)
+        }
+        if (!outputMode.startsWith(HOTKEY_VOICE_OUTPUT_PREFIX)) {
+            return GameTermNormalizationResult(rawQuestion, rawQuestion, applied = false)
+        }
+        val resolver = gameResolver
+            ?: return GameTermNormalizationResult(rawQuestion, rawQuestion, applied = false)
+        val repository = knowledgeRepository
+            ?: return GameTermNormalizationResult(rawQuestion, rawQuestion, applied = false)
+        val identity = resolver.resolve(label = request.label, romHash = null)
+        val gameId = identity.gameId
+            ?: return GameTermNormalizationResult(rawQuestion, rawQuestion, applied = false)
+        val rows = repository.listByGame(gameId)
+        return gameTermNormalizer.normalize(rawQuestion = rawQuestion, rows = rows)
+    }
 }
+
+private const val HOTKEY_VOICE_OUTPUT_PREFIX = "hotkey_voice"
 
 private fun String.toSpoilerLevelOrNull(): SpoilerLevel? = when (trim().lowercase()) {
     "light", "none", "hint" -> SpoilerLevel.LIGHT

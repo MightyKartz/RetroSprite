@@ -1,7 +1,7 @@
 {
   "schema_version": "gkp.v0",
   "pack_id": "community.shining-force-ii-md",
-  "pack_version": "0.2.4",
+  "pack_version": "0.2.5",
   "default_language": "zh",
   "game": {
     "game_id": "shining_force_ii_md",
@@ -26,7 +26,7 @@
   },
   "trust_level": "community",
   "min_app_version": "0.1.0",
-  "generated_at": "2026-05-21T00:00:00Z",
+  "generated_at": "2026-05-23T00:00:00Z",
   "contents": {
     "knowledge": [
       "knowledge/mechanics.jsonl",

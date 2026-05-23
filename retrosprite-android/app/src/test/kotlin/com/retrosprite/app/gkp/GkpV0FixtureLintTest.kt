@@ -114,8 +114,21 @@ class GkpV0FixtureLintTest {
             row.arrayOrEmpty("answer_templates").forEach { template ->
                 val tmpl = template.jsonObject
                 assertIdentifier(tmpl.string("template_id"), "template_id")
-                assertIn(tmpl.string("spoiler_level"), SPOILER_LEVELS, "template.spoiler_level")
-                assertNonBlank(tmpl.string("answer"), "template.answer")
+                tmpl.stringOrNull("intent")?.let { intent ->
+                    assertIn(intent, ANSWER_INTENTS, "template.intent")
+                }
+                tmpl.stringOrNull("spoiler_level")?.let { level ->
+                    assertIn(level, SPOILER_LEVELS, "template.spoiler_level")
+                }
+                listOf("spoiler_light", "spoiler_clear", "spoiler_direct").forEach { field ->
+                    tmpl.stringOrNull(field)?.let { level ->
+                        assertIn(level, SPOILER_LEVELS, "template.$field")
+                    }
+                }
+                val hasFlatAnswer = !tmpl.stringOrNull("answer").isNullOrBlank()
+                val hasLayeredAnswer = listOf("answer_light", "answer_clear", "answer_direct")
+                    .any { !tmpl.stringOrNull(it).isNullOrBlank() }
+                assertTrue("template must include answer or answer_* tier: $tmpl", hasFlatAnswer || hasLayeredAnswer)
                 tmpl.array("source_refs").forEach { source ->
                     assertTrue(
                         "unknown template source_ref '${source.jsonPrimitive.content}'",
@@ -257,5 +270,20 @@ class GkpV0FixtureLintTest {
         )
         val SPOILER_LEVELS = setOf("none", "light", "medium", "heavy")
         val CONFIDENCE_LEVELS = setOf("verified", "community", "uncertain")
+        val ANSWER_INTENTS = setOf(
+            "game_overview",
+            "beginner_guide",
+            "team_build",
+            "leveling",
+            "name_mapping",
+            "location",
+            "usage",
+            "mechanic",
+            "route_hint",
+            "strategy",
+            "production",
+            "no_evidence",
+            "unknown_or_out_of_scope",
+        )
     }
 }

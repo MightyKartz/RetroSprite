@@ -1,5 +1,6 @@
 package com.retrosprite.app.domain.models
 
+import com.retrosprite.app.domain.intent.NaturalQuestionFrame
 import kotlinx.serialization.Serializable
 
 /**
@@ -21,4 +22,6 @@ data class SessionContext(
     /** ISO 639-1 language tag. Defaults to Simplified Chinese. */
     val language: String = "zh",
     val recentTurns: List<QaTurn> = emptyList(),
+    val questionIntent: AnswerType = AnswerType.UnknownOrOutOfScope,
+    val naturalQuestionFrame: NaturalQuestionFrame = NaturalQuestionFrame(),
 )

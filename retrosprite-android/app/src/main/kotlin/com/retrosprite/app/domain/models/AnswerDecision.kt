@@ -17,6 +17,9 @@ sealed interface AnswerDecision {
         val text: String,
         val sources: List<String>,
         val spoilerLevel: SpoilerLevel,
+        val answerType: AnswerType = AnswerType.UnknownOrOutOfScope,
+        val confidence: AnswerConfidence = AnswerConfidence.Medium,
+        val nextActions: List<AnswerNextAction> = emptyList(),
     ) : AnswerDecision
 
     /**
@@ -27,6 +30,27 @@ sealed interface AnswerDecision {
         val prompt: String,
         val evidence: List<Evidence>,
         val spoilerLevel: SpoilerLevel,
+        val answerType: AnswerType = AnswerType.UnknownOrOutOfScope,
+        val confidence: AnswerConfidence = AnswerConfidence.Medium,
+        val nextActions: List<AnswerNextAction> = listOf(
+            AnswerNextAction.ViewSources,
+            AnswerNextAction.MarkIncorrect,
+        ),
+    ) : AnswerDecision
+
+    /**
+     * Multiple local evidence snippets can be rendered deterministically
+     * without using an LLM. This is the default zero-LLM natural question path.
+     */
+    data class LocalSummary(
+        val evidence: List<Evidence>,
+        val spoilerLevel: SpoilerLevel,
+        val answerType: AnswerType = AnswerType.UnknownOrOutOfScope,
+        val confidence: AnswerConfidence = AnswerConfidence.Medium,
+        val nextActions: List<AnswerNextAction> = listOf(
+            AnswerNextAction.ViewSources,
+            AnswerNextAction.MarkIncorrect,
+        ),
     ) : AnswerDecision
 
     /**

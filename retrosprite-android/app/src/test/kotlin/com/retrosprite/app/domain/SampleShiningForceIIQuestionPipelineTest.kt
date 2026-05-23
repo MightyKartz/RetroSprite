@@ -7,6 +7,8 @@ import com.retrosprite.app.data.repository.GameRepository
 import com.retrosprite.app.data.repository.KnowledgeRepository
 import com.retrosprite.app.data.resolver.RepositoryGameResolver
 import com.retrosprite.app.data.retrieval.LocalKnowledgeRetrievalPipeline
+import com.retrosprite.app.domain.models.AnswerConfidence
+import com.retrosprite.app.domain.models.AnswerType
 import com.retrosprite.app.domain.models.LlmRequest
 import com.retrosprite.app.domain.models.LlmResponse
 import com.retrosprite.app.domain.models.SpoilerLevel
@@ -164,6 +166,26 @@ class SampleShiningForceIIQuestionPipelineTest {
     }
 
     @Test
+    fun `shining force ii mithril location stays low spoiler with layered template`() = runTest {
+        val fixture = loadSamplePack()
+        val llm = CountingLlmAdapter()
+        val pipeline = newPipeline(fixture, llm)
+
+        val result = pipeline.answerDetailed(
+            label = "md__Shining Force II",
+            question = "Mithril 在哪里？",
+            spoilerLevel = SpoilerLevel.LIGHT,
+        )
+
+        assertTrue("answer=<${result.text}>", result.text.contains("低剧透"))
+        assertTrue("answer=<${result.text}>", result.text.contains("位置清单"))
+        assertTrue("answer=<${result.text}>", result.text.contains("来源：sf2.items"))
+        assertEquals(AnswerType.Location, result.answerResult.answerType)
+        assertEquals(AnswerConfidence.High, result.answerResult.confidence)
+        assertEquals(0, llm.callCount)
+    }
+
+    @Test
     fun `shining force ii hidden content overview stays low spoiler`() = runTest {
         val fixture = loadSamplePack()
         val llm = CountingLlmAdapter()
@@ -194,6 +216,52 @@ class SampleShiningForceIIQuestionPipelineTest {
 
         assertTrue("answer=<$text>", text.contains("20"))
         assertTrue("answer=<$text>", text.contains("来源：sf2.promotion"))
+        assertEquals(0, llm.callCount)
+    }
+
+    @Test
+    fun `shining force ii observed asr homophones still resolve promotion intent`() = runTest {
+        val fixture = loadSamplePack()
+        val llm = CountingLlmAdapter()
+        val pipeline = newPipeline(fixture, llm)
+
+        listOf(
+            "角色怎么转直",
+            "角色什么软直啊",
+            "觉得角色怎么转直",
+        ).forEach { question ->
+            val text = pipeline.answer(
+                label = "mega_drive__光明力量2",
+                question = question,
+                spoilerLevel = SpoilerLevel.LIGHT,
+            )
+
+            assertTrue("question=<$question> answer=<$text>", text.contains("20"))
+            assertTrue("question=<$question> answer=<$text>", text.contains("来源：sf2.promotion"))
+        }
+        assertEquals(0, llm.callCount)
+    }
+
+    @Test
+    fun `shining force ii observed asr promotion questions keep mechanic answer type`() = runTest {
+        val fixture = loadSamplePack()
+        val llm = CountingLlmAdapter()
+        val pipeline = newPipeline(fixture, llm)
+
+        listOf(
+            "角色怎么专职",
+            "角色怎么转直",
+            "接受他几部这个角色",
+        ).forEach { question ->
+            val result = pipeline.answerDetailed(
+                label = "mega_drive__光明力量2",
+                question = question,
+                spoilerLevel = SpoilerLevel.LIGHT,
+            )
+
+            assertTrue("question=<$question> answer=<${result.text}>", result.text.contains("转职"))
+            assertEquals("question=<$question>", AnswerType.Mechanic, result.answerResult.answerType)
+        }
         assertEquals(0, llm.callCount)
     }
 
@@ -239,6 +307,266 @@ class SampleShiningForceIIQuestionPipelineTest {
         assertEquals(0, llm.callCount)
     }
 
+    @Test
+    fun `shining force ii broad asr questions return local starter answers`() = runTest {
+        val fixture = loadSamplePack()
+        val llm = CountingLlmAdapter()
+        val pipeline = newPipeline(fixture, llm)
+
+        val intro = pipeline.answer(
+            label = "mega_drive__光明力量2",
+            question = "姐介绍下这个游戏",
+            spoilerLevel = SpoilerLevel.LIGHT,
+        )
+        assertTrue("answer=<$intro>", intro.contains("网格"))
+        assertTrue("answer=<$intro>", intro.contains("来源：sf2.official_overview"))
+
+        val basics = pipeline.answer(
+            label = "mega_drive__光明力量2",
+            question = "多基础是什么",
+            spoilerLevel = SpoilerLevel.LIGHT,
+        )
+        assertTrue("answer=<$basics>", basics.contains("队伍"))
+        assertTrue("answer=<$basics>", basics.contains("来源：sf2.official_overview"))
+
+        val items = pipeline.answer(
+            label = "mega_drive__光明力量2",
+            question = "道具和装备",
+            spoilerLevel = SpoilerLevel.LIGHT,
+        )
+        assertTrue("answer=<$items>", items.contains("回复"))
+        assertTrue("answer=<$items>", items.contains("来源：sf2.items"))
+
+        assertEquals(0, llm.callCount)
+    }
+
+    @Test
+    fun `shining force ii localized character name question returns english mapping`() = runTest {
+        val fixture = loadSamplePack()
+        val llm = CountingLlmAdapter()
+        val pipeline = newPipeline(fixture, llm)
+
+        val text = pipeline.answer(
+            label = "mega_drive__光明力量2",
+            question = "莎拉英文是谁？",
+            spoilerLevel = SpoilerLevel.LIGHT,
+        )
+
+        assertTrue("answer=<$text>", text.contains("莎拉对应英文名是 Sarah"))
+        assertTrue("answer=<$text>", text.contains("来源：sf2.manual_translation"))
+        assertEquals(0, llm.callCount)
+    }
+
+    @Test
+    fun `shining force ii localized item name question bypasses route spoilers`() = runTest {
+        val fixture = loadSamplePack()
+        val llm = CountingLlmAdapter()
+        val pipeline = newPipeline(fixture, llm)
+
+        val result = pipeline.answerDetailed(
+            label = "mega_drive__光明力量2",
+            question = "勇者之证英文叫什么？",
+            spoilerLevel = SpoilerLevel.LIGHT,
+        )
+
+        val text = result.text
+        assertTrue("answer=<$text>", text.contains("勇者之证对应英文名是 Warrior Pride"))
+        assertTrue("answer=<$text>", text.contains("来源：sf2.promotion"))
+        assertEquals("勇者之证对应英文名是 Warrior Pride。", result.answerResult.answerShort)
+        assertEquals(AnswerType.NameMapping, result.answerResult.answerType)
+        assertEquals(AnswerConfidence.High, result.answerResult.confidence)
+        assertEquals(0, llm.callCount)
+    }
+
+    @Test
+    fun `shining force ii natural gameplay question returns typed zero llm answer`() = runTest {
+        val fixture = loadSamplePack()
+        val llm = CountingLlmAdapter()
+        val pipeline = newPipeline(fixture, llm)
+
+        val result = pipeline.answerDetailed(
+            label = "mega_drive__光明力量2",
+            question = "这游戏怎么玩？",
+            spoilerLevel = SpoilerLevel.LIGHT,
+        )
+
+        assertTrue("answer=<${result.text}>", result.text.contains("队伍"))
+        assertTrue("answer=<${result.text}>", result.text.contains("网格"))
+        assertTrue("answer=<${result.text}>", result.text.contains("来源：sf2.official_overview"))
+        assertEquals(AnswerType.GameOverview, result.answerResult.answerType)
+        assertEquals("skipped", result.llmTrace.status)
+        assertEquals(0, llm.callCount)
+    }
+
+    @Test
+    fun `shining force ii current team building question asks for progress while giving safe principles`() = runTest {
+        val fixture = loadSamplePack()
+        val llm = CountingLlmAdapter()
+        val pipeline = newPipeline(fixture, llm)
+
+        val result = pipeline.answerDetailed(
+            label = "mega_drive__光明力量2",
+            question = "现在哪些角色适合培养？",
+            spoilerLevel = SpoilerLevel.LIGHT,
+        )
+
+        assertTrue("answer=<${result.text}>", result.text.contains("通用原则"))
+        assertTrue("answer=<${result.text}>", result.text.contains("到哪一章"))
+        assertTrue("answer=<${result.text}>", result.text.contains("来源：sf2.project_mechanics"))
+        assertEquals(AnswerType.TeamBuild, result.answerResult.answerType)
+        assertEquals("skipped", result.llmTrace.status)
+        assertEquals(0, llm.callCount)
+    }
+
+    @Test
+    fun `shining force ii leveling question returns zero llm mechanics answer`() = runTest {
+        val fixture = loadSamplePack()
+        val llm = CountingLlmAdapter()
+        val pipeline = newPipeline(fixture, llm)
+
+        val result = pipeline.answerDetailed(
+            label = "mega_drive__光明力量2",
+            question = "怎么玩经验高？",
+            spoilerLevel = SpoilerLevel.LIGHT,
+        )
+
+        assertTrue("answer=<${result.text}>", result.text.contains("低等级"))
+        assertTrue("answer=<${result.text}>", result.text.contains("补刀"))
+        assertTrue("answer=<${result.text}>", result.text.contains("来源：sf2.project_mechanics"))
+        assertEquals(AnswerType.Leveling, result.answerResult.answerType)
+        assertEquals("skipped", result.llmTrace.status)
+        assertEquals(0, llm.callCount)
+    }
+
+    @Test
+    fun `shining force ii observed natural variants resolve local answers without llm`() = runTest {
+        val fixture = loadSamplePack()
+        val llm = CountingLlmAdapter()
+        val pipeline = newPipeline(fixture, llm)
+
+        val cases = listOf(
+            NaturalVariantCase(
+                question = "这个游戏到底要怎么玩？",
+                type = AnswerType.GameOverview,
+                sourceId = "sf2.official_overview",
+                phrase = "网格",
+            ),
+            NaturalVariantCase(
+                question = "这游戏要怎么玩？",
+                type = AnswerType.GameOverview,
+                sourceId = "sf2.official_overview",
+                phrase = "网格",
+            ),
+            NaturalVariantCase(
+                question = "这游戏该怎么玩？",
+                type = AnswerType.GameOverview,
+                sourceId = "sf2.official_overview",
+                phrase = "队伍",
+            ),
+            NaturalVariantCase(
+                question = "刚开始应该干嘛？",
+                type = AnswerType.BeginnerGuide,
+                sourceId = "sf2.early_route",
+                phrase = "保护主角",
+            ),
+            NaturalVariantCase(
+                question = "新手前期怎么玩稳？",
+                type = AnswerType.BeginnerGuide,
+                sourceId = "sf2.early_route",
+                phrase = "抱团",
+            ),
+            NaturalVariantCase(
+                question = "角色练哪些比较稳？",
+                type = AnswerType.TeamBuild,
+                sourceId = "sf2.project_mechanics",
+                phrase = "通用原则",
+            ),
+            NaturalVariantCase(
+                question = "队伍怎么搭配？",
+                type = AnswerType.TeamBuild,
+                sourceId = "sf2.project_mechanics",
+                phrase = "治疗",
+            ),
+            NaturalVariantCase(
+                question = "升级有什么技巧？",
+                type = AnswerType.Leveling,
+                sourceId = "sf2.project_mechanics",
+                phrase = "补刀",
+            ),
+            NaturalVariantCase(
+                question = "打不过敌人怎么办？",
+                type = AnswerType.Strategy,
+                sourceId = "sf2.project_mechanics",
+                phrase = "撤退",
+            ),
+            NaturalVariantCase(
+                question = "米斯里鲁有什么用？",
+                type = AnswerType.Usage,
+                sourceId = "sf2.items",
+                phrase = "锻造",
+            ),
+            NaturalVariantCase(
+                question = "米斯里鲁在哪里？",
+                type = AnswerType.Location,
+                sourceId = "sf2.items",
+                phrase = "低剧透",
+            ),
+        )
+
+        cases.forEach { case ->
+            val result = pipeline.answerDetailed(
+                label = "mega_drive__光明力量2",
+                question = case.question,
+                spoilerLevel = SpoilerLevel.LIGHT,
+            )
+
+            assertTrue(
+                "question=<${case.question}> answer=<${result.text}>",
+                result.text.contains(case.phrase),
+            )
+            assertTrue(
+                "question=<${case.question}> answer=<${result.text}>",
+                result.text.contains("来源：${case.sourceId}"),
+            )
+            assertEquals("question=<${case.question}>", case.type, result.answerResult.answerType)
+            assertEquals("question=<${case.question}>", "skipped", result.llmTrace.status)
+        }
+        assertEquals(0, llm.callCount)
+    }
+
+    @Test
+    fun `shining force ii observed asr team building variants return local principles`() = runTest {
+        val fixture = loadSamplePack()
+        val llm = CountingLlmAdapter()
+        val pipeline = newPipeline(fixture, llm)
+
+        listOf(
+            "那些角色适合培养",
+            "那这些角色适合培养",
+            "那些人物适合培养",
+            "哪些人物适合培养",
+            "那些队员适合培养",
+        ).forEach { question ->
+            val result = pipeline.answerDetailed(
+                label = "mega_drive__光明力量2",
+                question = question,
+                spoilerLevel = SpoilerLevel.LIGHT,
+            )
+
+            assertTrue(
+                "question=<$question> answer=<${result.text}>",
+                result.text.contains("通用原则") || result.text.contains("治疗"),
+            )
+            assertTrue(
+                "question=<$question> answer=<${result.text}>",
+                result.text.contains("来源：sf2.project_mechanics"),
+            )
+            assertEquals("question=<$question>", AnswerType.TeamBuild, result.answerResult.answerType)
+            assertEquals("question=<$question>", "skipped", result.llmTrace.status)
+        }
+        assertEquals(0, llm.callCount)
+    }
+
     private fun newPipeline(
         fixture: SamplePackFixture,
         llm: LlmAdapter,
@@ -254,6 +582,13 @@ class SampleShiningForceIIQuestionPipelineTest {
     private data class SamplePackFixture(
         val game: GameDomain,
         val knowledge: List<KnowledgeChunkDomain>,
+    )
+
+    private data class NaturalVariantCase(
+        val question: String,
+        val type: AnswerType,
+        val sourceId: String,
+        val phrase: String,
     )
 
     private class FakeGameRepository(
@@ -337,7 +672,10 @@ class SampleShiningForceIIQuestionPipelineTest {
         val parser = GkpV0Parser(nowMillis = { 0L })
         val knowledgeFiles = parser.knowledgePaths(manifestText)
             .associateWith { relative -> readText(packDir.resolve(relative)) }
-        val parsed = parser.parse(manifestText, knowledgeFiles)
+        val aliasFiles = parser.aliasPath(manifestText)
+            ?.let { path -> mapOf(path to readText(packDir.resolve(path))) }
+            .orEmpty()
+        val parsed = parser.parse(manifestText, knowledgeFiles, aliasFiles)
         return SamplePackFixture(parsed.game, parsed.knowledge)
     }
 

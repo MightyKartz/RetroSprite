@@ -1,14 +1,14 @@
 # RetroArch AI Service 配置指南
 
-> 目标：让你在约 10 分钟内完成 RetroArch 与 RetroSprite 的对接，按下热键即可在 Diagnostics 屏看到请求记录，并能用 Home 输入框或 `/debug/ask` 验证本地 GKP 问答。
+> 目标：让你在约 10 分钟内完成 RetroArch 与 RetroSprite 的对接，按下热键即可呼出游戏内语音波形，并可在「设置 -> 开发者诊断」查看请求记录。
 
 ## 概述
 
 RetroArch 内建一个名为 **AI Service** 的功能。当玩家在游戏中按下绑定的 AI Service 热键时，RetroArch 会冻结画面、截取一帧，并以 HTTP POST 的方式把 PNG 图像、当前 ROM 的 `system__game` 标签以及手柄/暂停状态发送到玩家自行配置的 URL。
 
-RetroSprite Android 应用就是这个「自行配置的 URL」对应的本地服务端。它在手机/平板上启动一个默认监听 `127.0.0.1:4404` 的轻量 HTTP endpoint，推荐直接使用 RetroArch 默认 AI Service 地址 `http://localhost:4404`，接收 RetroArch 的请求，记录 `label/state/image`，把 label 映射到启用中的本地 GKP，并按 RetroArch 协议返回 `text` 响应。
+RetroSprite Android 应用就是这个「自行配置的 URL」对应的本地服务端。它在手机/平板上启动一个默认监听 `127.0.0.1:4404` 的轻量 HTTP endpoint，推荐直接使用 RetroArch 默认 AI Service 地址 `http://localhost:4404`，接收 RetroArch 的请求，记录 `label/state/image`，把 label 映射到启用中的本地 GKP，并把短答案交给游戏内语音波形和 TTS 链路。
 
-需要特别区分两条链路：RetroArch AI Service 原始请求只包含截图、ROM label 和手柄状态，**不包含玩家自然语言问题**；当前热键主要用于刷新游戏上下文和验证 endpoint。真正的文字问答入口在 RetroSprite Home 输入框，开发验证也可使用 loopback-only 的 `/debug/ask` route。只要有启用的本地 GKP 和匹配 evidence，RetroSprite 会优先返回带来源的低剧透答案；配置 BYOK LLM 后，也只会在有 evidence 时进入 LLM 组合。
+需要特别区分两条链路：RetroArch AI Service 原始请求只包含截图、ROM label 和手柄状态，**不包含玩家自然语言问题**；RetroSprite 收到热键信号后会在本机启动一次性语音识别，把玩家语音问题和最近游戏上下文一起送入本地 GKP/AnswerPolicy。开发验证仍可使用 loopback-only 的 `/debug/ask` route。只要有启用的本地 GKP 和匹配 evidence，RetroSprite 会优先返回带来源的低剧透答案；配置 BYOK LLM 后，也只会在有 evidence 时进入 LLM 组合。
 
 > AVD 备注（2026-05-19）：官方 RetroArch Android APK 在 `RetroSprite_API_34` 中可安装、可运行 2048 core，实体键盘热键已成功触发 AI Service 请求并写入 RetroSprite `request_logs`。ADB 注入键盘/gamepad/overlay/network command 仍不能可靠代表实体输入。详见 [RETROARCH_ANDROID_AI_SERVICE_FINDINGS.md](./RETROARCH_ANDROID_AI_SERVICE_FINDINGS.md)。
 
@@ -26,8 +26,8 @@ RetroSprite Android 应用就是这个「自行配置的 URL」对应的本地�
 
 ### 1. 启动 RetroSprite，确认 endpoint 运行
 
-打开 RetroSprite App，进入 **Home** 屏，确认 endpoint 状态指示为「运行中（绿色）」，并显示监听端口（默认 `4404`）。
-若未启动，点击 Home 屏的 **Start Endpoint** 按钮；首次启动会请求前台服务通知权限，请允许。
+打开 RetroSprite App，进入 **Home** 屏，确认本地服务状态为「运行中」，并显示监听端口（默认 `4404`）。
+若未启动，点击 Home 屏的 **启动本地端点** 按钮；首次启动会请求前台服务通知权限，请允许。
 
 ### 2. 记录 endpoint URL
 
@@ -46,16 +46,16 @@ RetroSprite Android 应用就是这个「自行配置的 URL」对应的本地�
 
 RetroArch 主菜单 → **Settings → Accessibility → AI Service**。
 
-> 备注：部分 RetroArch 版本/菜单驱动可能把 AI Service 放在 Settings 根目录下，或因翻译显示为“无障碍”。以能看到 `AI Service`、`AI Service URL`、`AI Service Mode` 的页面为准。
+> 备注：部分 RetroArch 版本/菜单驱动可能把 AI Service 放在 Settings 根目录下，或因翻译显示为“无障碍”。以能看到 `AI Service`、`AI Service URL`、`AI Service Output` 的页面为准。
 
 ### 4. 填写以下字段
 
 | 字段 | 推荐值 |
 | ---- | ---- |
-| AI Service | **ON** |
+| AI Service | **开启** |
 | AI Service URL | 步骤 2 记录的 URL |
-| AI Service Mode | **Image Mode**（RetroArch 发送截图/label/state；RetroSprite 当前以 `text` 字段返回） |
-| AI Service Output | **Text** 或 **Subtitles**（推荐 Subtitles，叠加在游戏画面上） |
+| AI Service Output | **旁白模式（Narrator Mode）** |
+| Pause During Translation | **ON**（推荐：监听时暂停游戏，减少游戏音乐干扰语音识别） |
 | Source Language | Auto，或当前游戏文本语言 |
 | Target Language | 中文（如需翻译） / None |
 
@@ -68,11 +68,11 @@ RetroArch 主菜单 → **Settings → Accessibility → AI Service**。
 
 ### 6. 启动游戏并触发
 
-载入任意游戏 ROM，按下上一步绑定的热键。RetroArch 会冻结画面并显示发送状态。
+载入任意游戏 ROM，按下上一步绑定的热键。若已开启 `Pause During Translation`，RetroArch 会在本次 AI Service 请求期间暂停游戏，减少 BGM 被麦克风录入。看完或听完 RetroSprite 回答后，再按一次同一个 AI Service 热键即可清除显示并恢复游戏。
 
 ### 7. 在 RetroSprite 验证
 
-切回 RetroSprite App，进入 **Diagnostics** 屏：
+切回 RetroSprite App，进入 **设置 -> 开发者诊断 -> 打开诊断日志**：
 
 - 应出现一条新的请求记录，包含 `label`、`output=text`、请求时间戳、pipeline stage、source ids、LLM 状态等诊断信息。
 - 如果这是 RetroArch 热键原始请求，因为没有自然语言问题，返回文本通常是上下文/诊断类回答。
@@ -111,7 +111,8 @@ curl -fsS 'http://127.0.0.1:18080/debug/latest-request'
 | RetroSprite 没有收到任何请求 | 1) Home 屏 endpoint 是否运行中；2) RetroArch 中 URL 拼写和端口是否正确；3) RetroArch 端 AI Service 是否 ON；4) 防火墙 / 路由器是否阻断；5) 跨设备时是否使用了正确的 Android IP。 |
 | RetroArch 提示 `Connection refused` | 1) 端口被其他应用占用，可在 RetroSprite Settings 屏修改端口；2) RetroSprite 进程被系统杀死，重新启动；3) 跨设备时当前未开放「允许局域网访问」，请改用同设备或 `adb forward` 验证。 |
 | RetroArch 提示超时 / Image too large | 1) RetroArch 截图尺寸过大，降低分辨率或缩小窗口；2) Wi-Fi 不稳定，改为同设备验证；3) RetroSprite 处于后台被系统冻结，调整电池优化白名单。 |
-| RetroArch 中显示 `N/A` 或没有字幕 | 1) `AI Service Output` 与 URL 中 `output=` 不一致；2) 当前仅返回 `text` 字段，不支持 `image` / `sound`，请确保 Output 选 `Text` 或 `Subtitles`。 |
+| 游戏中没有听到回答 | 1) `AI Service Output` 是否为 **旁白模式（Narrator Mode）**；2) RetroSprite 是否已获得麦克风和“显示在其他应用上层”权限；3) 开发者诊断中是否能看到最新 RetroArch 请求。 |
+| 游戏音乐影响语音识别 | 在 RetroArch 中开启 **Settings → AI Service → Pause During Translation → ON**，让监听期间暂停游戏；听完回答后再按一次 AI Service 热键恢复游戏。 |
 | Diagnostics 屏看到请求但 RetroArch 一直「Loading」 | 检查 RetroSprite 日志中是否抛错；可执行 `scripts/test_endpoint.sh` 快速复现，或在 AVD/真机上执行 `scripts/android_avd_smoke.sh` 同时验证 `/debug/latest-request`。 |
 | 找不到 AI Service 页面 | 优先查看 **Settings → Accessibility → AI Service**。RetroSprite Settings 只提供推荐值和“一键复制 AI Service URL”，不会写入 RetroArch cfg，也不会申请全文件权限。 |
 | Android 系统横幅提示后台限制 | 在系统 **设置 → 应用 → RetroSprite → 电池 → 不受限制** 中放行。 |

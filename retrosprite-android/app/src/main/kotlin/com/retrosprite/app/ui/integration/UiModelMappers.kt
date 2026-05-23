@@ -85,6 +85,13 @@ internal fun RequestLogEntry.toUi(): UiRequestLogItem = UiRequestLogItem(
     sourceIds = sourceIds,
     pipelineStage = pipelineStage,
     llmStatus = llmStatus,
+    answerShort = answerShort,
+    answerDetail = answerDetail,
+    answerType = answerType,
+    answerTypeLabel = answerType.toUiAnswerTypeLabelOrNull(),
+    answerConfidence = answerConfidence,
+    spoilerLevelUsed = spoilerLevelUsed,
+    nextActions = nextActions,
     llmProvider = llmProvider,
     llmModel = llmModel,
     llmMaxTokens = llmMaxTokens,
@@ -128,11 +135,18 @@ private fun buildFullResponseJson(entry: RequestLogEntry): String {
     // mapping path. Escapes only the bare minimum (\\, ", and newlines) that
     // would otherwise break a textual preview dialog.
     val sourcesJson = entry.sourceIds.joinToString(",") { "\"${escapeJson(it)}\"" }
+    val nextActionsJson = entry.nextActions.joinToString(",") { "\"${escapeJson(it)}\"" }
     val metadata = listOf(
         "\"output_mode\":\"${escapeJson(entry.outputMode)}\"",
         "\"debug\":${entry.isDebugRequest}",
         "\"question\":${entry.question.jsonStringOrNull()}",
         "\"question_source\":${entry.questionSource.jsonStringOrNull()}",
+        "\"answer_short\":${entry.answerShort.jsonStringOrNull()}",
+        "\"answer_detail\":${entry.answerDetail.jsonStringOrNull()}",
+        "\"answer_type\":${entry.answerType.jsonStringOrNull()}",
+        "\"answer_confidence\":${entry.answerConfidence.jsonStringOrNull()}",
+        "\"spoiler_level_used\":${entry.spoilerLevelUsed.jsonStringOrNull()}",
+        "\"next_actions\":[$nextActionsJson]",
         "\"pipeline_stage\":\"${escapeJson(entry.pipelineStage)}\"",
         "\"llm_status\":\"${escapeJson(entry.llmStatus)}\"",
         "\"llm_provider\":${entry.llmProvider.jsonStringOrNull()}",
@@ -169,6 +183,25 @@ private fun String?.toUiAnswerFeedbackOrNull(): UiAnswerFeedback? {
     if (raw.isEmpty()) return null
     return UiAnswerFeedback.values().firstOrNull { it.id == raw }
 }
+
+private fun String?.toUiAnswerTypeLabelOrNull(): String? =
+    when (this?.trim()) {
+        "game_overview" -> "核心玩法"
+        "beginner_guide" -> "新手建议"
+        "team_build" -> "角色培养"
+        "leveling" -> "练级经验"
+        "name_mapping" -> "名称对应"
+        "location" -> "位置"
+        "usage" -> "用途"
+        "mechanic" -> "机制"
+        "route_hint" -> "路线提示"
+        "strategy" -> "策略"
+        "production" -> "制作信息"
+        "no_evidence" -> "无证据"
+        "unknown_or_out_of_scope" -> "未知范围"
+        null, "" -> null
+        else -> this
+    }
 
 internal const val LOOPBACK_BASE_URL_TEMPLATE: String = "http://localhost:%d"
 private const val PREVIEW_MAX: Int = 80

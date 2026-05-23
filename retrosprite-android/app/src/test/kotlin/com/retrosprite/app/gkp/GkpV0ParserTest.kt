@@ -76,6 +76,52 @@ class GkpV0ParserTest {
         assertEquals("medium", alignment.spoilerLevel)
     }
 
+    @Test
+    fun `merges aliases file terms into parsed knowledge rows`() {
+        val manifestText = """
+            {
+              "schema_version": "gkp.v0",
+              "pack_id": "community.test",
+              "pack_version": "0.1.0",
+              "trust_level": "community",
+              "game": {
+                "game_id": "test_game",
+                "title": "Test Game",
+                "platform": "md",
+                "region": null,
+                "languages": ["zh", "en"],
+                "rom_identity": {"crc32": null, "sha1": null}
+              },
+              "contents": {
+                "knowledge": ["knowledge/items.jsonl"],
+                "aliases": "aliases.json"
+              }
+            }
+        """.trimIndent()
+        val knowledgeText = """
+            {"entity_id":"item.warrior-pride","entity_type":"item","canonical_name":"Warrior Pride / 勇者之证","language":"zh","aliases":["Warrior Pride","勇者之证"],"description_short":"Warrior Pride 是战士特殊转职道具。","description_long":null,"progress_gate":"start","spoiler_level":"light","source_refs":["test.source"],"confidence":"community","answer_templates":[]}
+        """.trimIndent()
+        val aliasesText = """
+            {
+              "language": "zh",
+              "aliases": [
+                {"term": "战士之傲", "entity_id": "item.warrior-pride", "weight": 1.0}
+              ]
+            }
+        """.trimIndent()
+
+        val parsed = parser.parse(
+            manifestText = manifestText,
+            knowledgeFiles = mapOf("knowledge/items.jsonl" to knowledgeText),
+            aliasFiles = mapOf("aliases.json" to aliasesText),
+        )
+
+        val item = parsed.knowledge.single()
+        assertTrue(item.aliases.contains("Warrior Pride"))
+        assertTrue(item.aliases.contains("勇者之证"))
+        assertTrue(item.aliases.contains("战士之傲"))
+    }
+
     @Test(expected = IllegalArgumentException::class)
     fun `rejects unsupported schema version`() {
         parser.knowledgePaths("""{"schema_version":"gkp.v9","contents":{"knowledge":[]}}""")
@@ -87,7 +133,10 @@ class GkpV0ParserTest {
         val knowledgeFiles = parser.knowledgePaths(manifestText).associateWith { path ->
             readText(packDir.resolve(path))
         }
-        return parser.parse(manifestText, knowledgeFiles)
+        val aliasFiles = parser.aliasPath(manifestText)
+            ?.let { path -> mapOf(path to readText(packDir.resolve(path))) }
+            .orEmpty()
+        return parser.parse(manifestText, knowledgeFiles, aliasFiles)
     }
 
     private fun moduleRoot(): Path {

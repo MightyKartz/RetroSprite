@@ -42,8 +42,16 @@ sealed class Destination(
 
     companion object {
         val ordered: List<Destination> = listOf(Home, Diagnostics, Packs, Settings)
+        val playerFacing: List<Destination> = listOf(Home, Packs, Settings)
+        const val HOME_ADVANCED_QUESTION_TOOLS_ROUTE: String = "home_advanced_question_tools"
 
         fun fromRoute(route: String?): Destination =
             ordered.firstOrNull { it.route == route } ?: Home
+
+        fun isSelected(destination: Destination, route: String?): Boolean =
+            when (destination) {
+                Home -> route == Home.route || route == HOME_ADVANCED_QUESTION_TOOLS_ROUTE
+                else -> route == destination.route
+            }
     }
 }

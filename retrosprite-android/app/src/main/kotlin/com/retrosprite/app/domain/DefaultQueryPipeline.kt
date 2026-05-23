@@ -1,5 +1,7 @@
 package com.retrosprite.app.domain
 
+import com.retrosprite.app.domain.intent.QuestionIntentClassifier
+import com.retrosprite.app.domain.intent.NaturalQuestionFrameParser
 import com.retrosprite.app.domain.models.ControllerState
 import com.retrosprite.app.domain.models.RetrievalQuery
 import com.retrosprite.app.domain.models.SessionContext
@@ -63,6 +65,8 @@ class DefaultQueryPipeline(
 
         // 2. normalize question (empty when null — keeps cache key stable)
         val normalized = retrieval.normalizeQuestion(question.orEmpty(), language)
+        val naturalQuestionFrame = NaturalQuestionFrameParser.parse(question.orEmpty())
+        val questionIntent = naturalQuestionFrame.answerType
 
         // 3. build session context
         val controllerState = state?.let { ControllerState(it) } ?: ControllerState.EMPTY
@@ -74,6 +78,8 @@ class DefaultQueryPipeline(
             spoilerLevel = spoilerLevel,
             language = language,
             recentTurns = emptyList(),
+            questionIntent = questionIntent,
+            naturalQuestionFrame = naturalQuestionFrame,
         )
 
         // 4. retrieval
@@ -95,6 +101,7 @@ class DefaultQueryPipeline(
         return QueryPipelineResult(
             text = answer.text,
             llmTrace = answer.llmTrace,
+            answerResult = answer.answerResult,
         )
     }
 }

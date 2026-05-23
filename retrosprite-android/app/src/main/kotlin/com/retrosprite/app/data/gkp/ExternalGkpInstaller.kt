@@ -103,9 +103,13 @@ class ExternalGkpInstaller(
         val knowledgeFiles = parser.knowledgePaths(manifestText).associateWith { path ->
             input.files[path] ?: error("缺少知识文件：$path")
         }
+        val aliasFiles = parser.aliasPath(manifestText)
+            ?.let { path -> mapOf(path to (input.files[path] ?: error("缺少别名文件：$path"))) }
+            .orEmpty()
         return parser.parse(
             manifestText = manifestText,
             knowledgeFiles = knowledgeFiles,
+            aliasFiles = aliasFiles,
             provenance = GkpPackProvenance.External,
             signature = parser.signatureMetadata(
                 manifestText = manifestText,

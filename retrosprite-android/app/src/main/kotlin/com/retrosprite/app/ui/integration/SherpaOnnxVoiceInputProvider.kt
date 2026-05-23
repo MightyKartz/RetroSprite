@@ -15,7 +15,11 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.ReceiveChannel
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -25,7 +29,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import kotlin.math.sqrt
 
 class SherpaOnnxVoiceInputProvider(
     context: Context,
@@ -179,40 +182,49 @@ class SherpaOnnxVoiceInputProvider(
         stream: OnlineStream,
         record: AudioRecord,
     ) {
-        var latestText = ""
         try {
-            val buffer = ShortArray((model.sampleRateHz * 0.1f).toInt())
-            while (shouldRecord && coroutineContext.isActive) {
-                val read = runCatching { record.read(buffer, 0, buffer.size) }.getOrDefault(0)
-                if (read <= 0) continue
-
-                val samples = FloatArray(read) { index -> buffer[index] / PCM_FLOAT_SCALE }
-                val amplitude = samples.rmsAmplitude()
-                stream.acceptWaveform(samples, model.sampleRateHz)
-                while (recognizer.isReady(stream)) {
-                    recognizer.decode(stream)
+            val finalText = coroutineScope {
+                val decodeFrames = Channel<FloatArray>(Channel.UNLIMITED)
+                val decodeJob = async(Dispatchers.Default) {
+                    decodeSamples(
+                        recognizer = recognizer,
+                        stream = stream,
+                        frames = decodeFrames,
+                    )
                 }
-
-                val partial = recognizer.getResult(stream).text.trim()
-                _state.update { it.copy(amplitude = amplitude) }
-                if (partial.isNotBlank()) {
-                    latestText = partial
-                    _state.update {
-                        it.copy(
-                            transcript = partial,
-                            amplitude = amplitude,
-                            statusMessage = null,
-                            errorMessage = null,
-                        )
+                decodeJob.invokeOnCompletion { error ->
+                    if (error != null) {
+                        shouldRecord = false
+                        runCatching { record.stop() }
                     }
                 }
 
-                if (recognizer.isEndpoint(stream) && partial.isNotBlank()) {
-                    shouldRecord = false
+                val fanOut = VoiceSampleFanOut(
+                    publishAmplitude = { amplitude ->
+                        _state.update { it.copy(amplitude = amplitude) }
+                    },
+                    enqueueForDecode = { samples ->
+                        decodeFrames.trySend(samples)
+                    },
+                )
+
+                try {
+                    val buffer = ShortArray(
+                        (model.sampleRateHz * VISUAL_FRAME_MS / 1_000).coerceAtLeast(1)
+                    )
+                    while (shouldRecord && coroutineContext.isActive) {
+                        val read = runCatching { record.read(buffer, 0, buffer.size) }.getOrDefault(0)
+                        if (read <= 0) continue
+
+                        val samples = FloatArray(read) { index -> buffer[index] / PCM_FLOAT_SCALE }
+                        fanOut.dispatch(samples)
+                    }
+                } finally {
+                    decodeFrames.close()
                 }
+                decodeJob.await()
             }
 
-            val finalText = finishStream(recognizer, stream, latestText)
             publishFinalTranscript(finalText)
         } catch (cancelled: CancellationException) {
             throw cancelled
@@ -232,6 +244,38 @@ class SherpaOnnxVoiceInputProvider(
                 audioRecord = null
             }
         }
+    }
+
+    private suspend fun decodeSamples(
+        recognizer: OnlineRecognizer,
+        stream: OnlineStream,
+        frames: ReceiveChannel<FloatArray>,
+    ): String {
+        var latestText = ""
+        for (samples in frames) {
+            stream.acceptWaveform(samples, model.sampleRateHz)
+            while (recognizer.isReady(stream)) {
+                recognizer.decode(stream)
+            }
+
+            val partial = recognizer.getResult(stream).text.trim()
+            if (partial.isNotBlank()) {
+                latestText = partial
+                _state.update {
+                    it.copy(
+                        transcript = partial,
+                        statusMessage = null,
+                        errorMessage = null,
+                    )
+                }
+            }
+
+            if (recognizer.isEndpoint(stream) && partial.isNotBlank()) {
+                shouldRecord = false
+                break
+            }
+        }
+        return finishStream(recognizer, stream, latestText)
     }
 
     private fun finishStream(
@@ -322,14 +366,6 @@ class SherpaOnnxVoiceInputProvider(
 
     private companion object {
         const val PCM_FLOAT_SCALE = 32768.0f
+        const val VISUAL_FRAME_MS = 10
     }
-}
-
-private fun FloatArray.rmsAmplitude(): Float {
-    if (isEmpty()) return 0f
-    var sum = 0.0
-    for (sample in this) {
-        sum += sample * sample
-    }
-    return sqrt(sum / size).toFloat().coerceIn(0f, 1f)
 }

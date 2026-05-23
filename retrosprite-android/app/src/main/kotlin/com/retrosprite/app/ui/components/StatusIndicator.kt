@@ -35,8 +35,7 @@ import com.retrosprite.app.ui.theme.StatusStopped
 import com.retrosprite.app.ui.viewmodel.UiEndpointPhase
 
 /**
- * Pill-shaped status chip: glowing dot + uppercase mono label.
- * The dot pulses while [pulse] is true (Starting / Running) for that "tube TV" liveness.
+ * Compact HUD status chip: glowing dot + label.
  */
 @Composable
 fun StatusIndicator(
@@ -61,8 +60,8 @@ fun StatusIndicator(
     Row(
         modifier = modifier
             .clip(RoundedCornerShape(999.dp))
-            .background(color.copy(alpha = 0.12f))
-            .border(1.dp, color.copy(alpha = 0.45f), RoundedCornerShape(999.dp))
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.72f))
+            .border(1.dp, color.copy(alpha = 0.62f), RoundedCornerShape(999.dp))
             .padding(horizontal = 10.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

@@ -103,6 +103,103 @@ class LocalKnowledgeRetrievalPipelineTest {
         assertTrue(pipeline.retrieve(query("   ")).isEmpty())
     }
 
+    @Test
+    fun `intent boosts broad gameplay questions toward overview rows`() = runTest {
+        val pipeline = LocalKnowledgeRetrievalPipeline(
+            FakeKnowledgeRepository(
+                listOf(
+                    chunk(
+                        entityId = "mechanic.basic-controls",
+                        entityType = "mechanic",
+                        canonicalName = "基础操作",
+                        aliases = listOf("游戏", "怎么玩"),
+                        descriptionShort = "菜单和操作是基础。",
+                        spoilerLevel = "none",
+                    ),
+                    chunk(
+                        entityId = "note.core-gameplay-loop",
+                        entityType = "note",
+                        canonicalName = "核心玩法",
+                        aliases = listOf("这游戏怎么玩", "主要玩什么", "好玩在哪"),
+                        descriptionShort = "核心是推进剧情、组建队伍，并在网格回合战斗中打赢战斗。",
+                        spoilerLevel = "none",
+                        answerTemplates = listOf(
+                            """{"intent":"game_overview","question_patterns":["这游戏怎么玩","主要玩什么"],"answer":"主要玩剧情推进、队伍培养和网格回合制战斗。","source_refs":["sf2.official_overview"],"spoiler_level":"none"}"""
+                        ),
+                    ),
+                )
+            )
+        )
+
+        val results = pipeline.retrieve(query("这游戏怎么玩"))
+
+        assertEquals("note.core-gameplay-loop", results.first().entityId)
+        assertEquals("主要玩剧情推进、队伍培养和网格回合制战斗。", results.first().evidence.first().snippet)
+    }
+
+    @Test
+    fun `intent boost can outrank generic alias matches when template is absent`() = runTest {
+        val pipeline = LocalKnowledgeRetrievalPipeline(
+            FakeKnowledgeRepository(
+                listOf(
+                    chunk(
+                        entityId = "mechanic.generic-how-to",
+                        entityType = "mechanic",
+                        canonicalName = "基础怎么玩",
+                        aliases = listOf("怎么玩"),
+                        descriptionShort = "这是一个很宽泛的操作说明。",
+                        spoilerLevel = "none",
+                    ),
+                    chunk(
+                        entityId = "note.core-gameplay-loop",
+                        entityType = "note",
+                        canonicalName = "核心玩法",
+                        aliases = listOf("主要玩什么", "核心玩法"),
+                        descriptionShort = "这游戏怎么玩：核心是剧情推进、队伍培养和网格战斗。",
+                        spoilerLevel = "none",
+                    ),
+                )
+            )
+        )
+
+        val results = pipeline.retrieve(query("这游戏怎么玩"))
+
+        assertEquals("note.core-gameplay-loop", results.first().entityId)
+    }
+
+    @Test
+    fun `intent boosts leveling questions toward leveling rows`() = runTest {
+        val pipeline = LocalKnowledgeRetrievalPipeline(
+            FakeKnowledgeRepository(
+                listOf(
+                    chunk(
+                        entityId = "strategy.safe-formation",
+                        entityType = "strategy",
+                        canonicalName = "稳健打法",
+                        aliases = listOf("怎么玩", "打法"),
+                        descriptionShort = "抱团推进更稳。",
+                        spoilerLevel = "none",
+                    ),
+                    chunk(
+                        entityId = "mechanic.leveling-general",
+                        entityType = "mechanic",
+                        canonicalName = "经验与练级",
+                        aliases = listOf("经验高", "练级快", "升级快"),
+                        descriptionShort = "让低等级角色补刀，治疗和辅助行动也能拿经验。",
+                        spoilerLevel = "none",
+                        answerTemplates = listOf(
+                            """{"intent":"leveling","question_patterns":["怎么玩经验高","怎么练级快"],"answer":"让低等级角色补刀，治疗和辅助行动也能拿经验。","source_refs":["sf2.project_mechanics"],"spoiler_level":"none"}"""
+                        ),
+                    ),
+                )
+            )
+        )
+
+        val results = pipeline.retrieve(query("怎么玩经验高"))
+
+        assertEquals("mechanic.leveling-general", results.first().entityId)
+    }
+
     private fun query(
         raw: String,
         gameId: String? = "2048",

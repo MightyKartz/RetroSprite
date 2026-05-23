@@ -8,12 +8,15 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -46,7 +49,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -103,6 +108,11 @@ private fun DiagnosticsContent(
     BoxWithConstraints(modifier = modifier.fillMaxSize().padding(contentPadding)) {
         val isWide = maxWidth >= 600.dp ||
             LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE && maxWidth >= 520.dp
+        val logListHeight = if (isWide) {
+            (maxHeight - 176.dp).coerceIn(190.dp, 440.dp)
+        } else {
+            (maxHeight - 248.dp).coerceIn(240.dp, 440.dp)
+        }
 
         if (isWide) {
             Row(
@@ -122,6 +132,7 @@ private fun DiagnosticsContent(
                         onSourceFilterSelected = onSourceFilterSelected,
                         onItemClick = { detail = it },
                         onClear = onClear,
+                        listHeight = logListHeight,
                     )
                 }
             }
@@ -139,6 +150,7 @@ private fun DiagnosticsContent(
                     onSourceFilterSelected = onSourceFilterSelected,
                     onItemClick = { detail = it },
                     onClear = onClear,
+                    listHeight = logListHeight,
                 )
             }
         }
@@ -156,7 +168,12 @@ private fun DiagnosticsContent(
                     )
                 },
                 text = {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column(
+                        modifier = Modifier
+                            .heightIn(max = 360.dp)
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
                         Text(
                             text = "${if (item.ok) "\u2713 \u6210\u529f" else "\u2715 \u5931\u8d25"}  \u00b7  ${item.durationMillis} ms",
                             style = MaterialTheme.typography.labelLarge,
@@ -167,6 +184,13 @@ private fun DiagnosticsContent(
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                        item.answerTypeLabel?.let { label ->
+                            Text(
+                                text = "答案类型：$label",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                         if (item.pipelineStage == GKP_DISABLED_STAGE) {
                             Text(
                                 text = "\u8bca\u65ad\uff1a\u5df2\u5339\u914d\u5230\u77e5\u8bc6\u5305\uff0c\u4f46\u8be5\u5305\u5df2\u5728 Packs \u4e2d\u7981\u7528\uff1b\u672c\u6b21\u6ca1\u6709\u8bfb\u53d6\u77e5\u8bc6\u6216\u8c03\u7528 LLM\u3002",
@@ -272,6 +296,11 @@ private fun ToolsCard(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+            Text(
+                text = "推荐：RetroArch -> Settings -> AI Service -> Pause During Translation -> ON",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.primary
+            )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(
                     onClick = onCheckHealth,
@@ -311,7 +340,8 @@ private fun LogCard(
     sourceFilter: DiagnosticsSourceFilter,
     onSourceFilterSelected: (DiagnosticsSourceFilter) -> Unit,
     onItemClick: (UiRequestLogItem) -> Unit,
-    onClear: () -> Unit
+    onClear: () -> Unit,
+    listHeight: Dp = 440.dp,
 ) {
     val sourceCounts = items.diagnosticsSourceCounts()
     val filteredItems = items.filterByDiagnosticsSource(sourceFilter)
@@ -338,22 +368,24 @@ private fun LogCard(
             }
         }
     ) {
-        SourceFilterBar(
-            selected = sourceFilter,
-            counts = sourceCounts,
-            onSelected = onSourceFilterSelected,
-        )
-        if (items.isEmpty()) {
-            EmptyLog()
-        } else if (filteredItems.isEmpty()) {
-            EmptyFilteredLog(sourceFilter)
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxWidth().height(440.dp),
-                contentPadding = PaddingValues(vertical = 4.dp)
-            ) {
-                items(filteredItems, key = { it.id }) { item ->
-                    LogItemRow(item = item, onClick = { onItemClick(item) })
+        Column(modifier = Modifier.fillMaxWidth()) {
+            SourceFilterBar(
+                selected = sourceFilter,
+                counts = sourceCounts,
+                onSelected = onSourceFilterSelected,
+            )
+            if (items.isEmpty()) {
+                EmptyLog()
+            } else if (filteredItems.isEmpty()) {
+                EmptyFilteredLog(sourceFilter)
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth().height(listHeight),
+                    contentPadding = PaddingValues(vertical = 4.dp)
+                ) {
+                    items(filteredItems, key = { it.id }) { item ->
+                        LogItemRow(item = item, onClick = { onItemClick(item) })
+                    }
                 }
             }
         }
@@ -409,6 +441,7 @@ private fun SourceFilterBar(
                             text = "${filter.displayName} ${counts.countFor(filter)}",
                             style = MaterialTheme.typography.labelSmall,
                             maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                         )
                     }
                 }
@@ -429,6 +462,7 @@ private fun SourceFilterBar(
 @Composable
 private fun LogItemRow(item: UiRequestLogItem, onClick: () -> Unit) {
     val statusColor = if (item.ok) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+    val tags = item.diagnosticTags()
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -449,41 +483,6 @@ private fun LogItemRow(item: UiRequestLogItem, onClick: () -> Unit) {
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Spacer(Modifier.width(8.dp))
-            if (item.paused) {
-                Tag(text = "PAUSED")
-                Spacer(Modifier.width(4.dp))
-            }
-            if (item.isDebug) {
-                Tag(text = "DEBUG")
-                Spacer(Modifier.width(4.dp))
-            }
-            if (item.rawOutputMode.startsWith("app:")) {
-                Tag(text = "APP")
-                Spacer(Modifier.width(4.dp))
-            }
-            if (item.questionSource == QUESTION_SOURCE_PENDING_HOTKEY) {
-                Tag(text = "PENDING")
-                Spacer(Modifier.width(4.dp))
-            } else if (item.question != null) {
-                Tag(text = "QUESTION")
-                Spacer(Modifier.width(4.dp))
-            }
-            item.feedback?.let {
-                Tag(text = it.diagnosticsTag)
-                Spacer(Modifier.width(4.dp))
-            }
-            Tag(text = item.outputMode.name.uppercase())
-            Spacer(Modifier.width(4.dp))
-            Tag(text = item.pipelineStage.uppercase())
-            item.llmProvider?.let {
-                Spacer(Modifier.width(4.dp))
-                Tag(text = it.uppercase())
-            }
-            if (item.sourceIds.isNotEmpty()) {
-                Spacer(Modifier.width(4.dp))
-                Tag(text = "SRC ${item.sourceIds.size}")
-            }
             Spacer(Modifier.weight(1f))
             Text(
                 text = "${item.imageBytes / 1024} KB",
@@ -491,18 +490,25 @@ private fun LogItemRow(item: UiRequestLogItem, onClick: () -> Unit) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-        Spacer(Modifier.height(6.dp))
+        if (tags.isNotEmpty()) {
+            Spacer(Modifier.height(8.dp))
+            DiagnosticTagFlow(tags = tags)
+        }
+        Spacer(Modifier.height(8.dp))
         Text(
             text = item.label ?: "\u672a\u547d\u540d\u6e38\u620f",
             style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurface
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
         Spacer(Modifier.height(2.dp))
         Text(
             text = item.responsePreview,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 2
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
         )
         Spacer(Modifier.height(8.dp))
         Box(
@@ -511,6 +517,20 @@ private fun LogItemRow(item: UiRequestLogItem, onClick: () -> Unit) {
                 .height(1.dp)
                 .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
         )
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun DiagnosticTagFlow(tags: List<String>) {
+    FlowRow(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        tags.forEach { tag ->
+            Tag(text = tag)
+        }
     }
 }
 
@@ -525,9 +545,27 @@ private fun Tag(text: String) {
         Text(
             text = text,
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
     }
+}
+
+private fun UiRequestLogItem.diagnosticTags(): List<String> = buildList {
+    if (paused) add("PAUSED")
+    if (isDebug) add("DEBUG")
+    if (rawOutputMode.startsWith("app:")) add("APP")
+    if (questionSource == QUESTION_SOURCE_PENDING_HOTKEY) {
+        add("PENDING")
+    } else if (question != null) {
+        add("QUESTION")
+    }
+    feedback?.let { add(it.diagnosticsTag) }
+    add(outputMode.name.uppercase())
+    add(pipelineStage.uppercase())
+    llmProvider?.let { add(it.uppercase()) }
+    if (sourceIds.isNotEmpty()) add("SRC ${sourceIds.size}")
 }
 
 @Composable
@@ -582,7 +620,7 @@ private fun relTime(ts: Long): String {
 
 private const val GKP_DISABLED_STAGE: String = "gkp_disabled"
 private const val QUESTION_SOURCE_PENDING_HOTKEY: String = "pending_hotkey"
-private const val SOURCE_FILTERS_PER_ROW: Int = 3
+private const val SOURCE_FILTERS_PER_ROW: Int = 2
 
 private fun String.displayNameForQuestionSource(): String = when (this) {
     "app" -> "App 内提问"

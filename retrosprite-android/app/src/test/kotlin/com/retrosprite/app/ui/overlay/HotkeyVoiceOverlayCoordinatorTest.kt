@@ -8,7 +8,7 @@ import org.junit.Test
 class HotkeyVoiceOverlayCoordinatorTest {
 
     @Test
-    fun `hotkey with overlay permission shows listening overlay`() {
+    fun `hotkey with overlay permission shows mic starting overlay`() {
         val renderer = FakeRenderer()
         val coordinator = HotkeyVoiceOverlayCoordinator(
             renderer = renderer,
@@ -21,6 +21,10 @@ class HotkeyVoiceOverlayCoordinatorTest {
         coordinator.onHotkey(event)
 
         assertEquals(listOf("show:mega_drive__光明力量2"), renderer.calls)
+        assertEquals(
+            listOf("Wake:MIC STARTING"),
+            renderer.renderCalls,
+        )
         assertEquals(HotkeyVoiceOverlayState.Listening(event), coordinator.state.value)
     }
 
@@ -70,9 +74,14 @@ class HotkeyVoiceOverlayCoordinatorTest {
 
     private class FakeRenderer : HotkeyVoiceOverlayRenderer {
         val calls = mutableListOf<String>()
+        val renderCalls = mutableListOf<String>()
 
         override fun show(event: RetroArchHotkeyEvent) {
             calls += "show:${event.label}"
+        }
+
+        override fun render(state: HotkeyVoiceOverlayRenderState) {
+            renderCalls += "${state.phase}:${state.message}"
         }
 
         override fun hide() {

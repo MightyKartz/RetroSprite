@@ -51,6 +51,12 @@ class QueryPipelineResponseGenerator(
         return RetroArchResponse.text(
             content = result.text,
             diagnostics = ResponseDiagnostics(
+                answerShort = result.answerResult.answerShort,
+                answerDetail = result.answerResult.answerDetail,
+                answerType = result.answerResult.answerType.wireName,
+                answerConfidence = result.answerResult.confidence.wireName,
+                spoilerLevelUsed = result.answerResult.spoilerLevelUsed.wireName,
+                nextActions = result.answerResult.nextActions.map { it.label },
                 llmStatus = result.llmTrace.status,
                 llmProvider = result.llmTrace.providerName,
                 llmModel = result.llmTrace.modelName,

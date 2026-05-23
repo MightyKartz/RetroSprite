@@ -256,6 +256,11 @@ fun Application.retroArchModule(
             }
             val durationMillis = System.currentTimeMillis() - startedAt
 
+            if (request.isSilentHotkeyWakeResponse(response)) {
+                call.respondJson(response)
+                return@post
+            }
+
             // 4. Record success path.
             requestLogger.log(
                 label = request.label,
@@ -289,6 +294,12 @@ private fun RequestLogEntry.toDebugLatestRequestResponse(): DebugLatestRequestRe
         ok = errorMessage == null,
         question = question,
         question_source = questionSource,
+        answer_short = answerShort,
+        answer_detail = answerDetail,
+        answer_type = answerType,
+        answer_confidence = answerConfidence,
+        spoiler_level_used = spoilerLevelUsed,
+        next_actions = nextActions,
         pipeline_stage = pipelineStage,
         llm_status = llmStatus,
         source_ids = sourceIds,
@@ -312,6 +323,17 @@ private suspend fun io.ktor.server.application.ApplicationCall.respondJson(
     val body = retroArchJson.encodeToString(RetroArchResponse.serializer(), response)
     respondText(text = body, contentType = ContentType.Application.Json, status = HttpStatusCode.OK)
 }
+
+private fun RetroArchRequest.isSilentHotkeyWakeResponse(response: RetroArchResponse): Boolean =
+    question.isBlank() &&
+        response.text.orEmpty().isBlank() &&
+        response.image == null &&
+        response.sound == null &&
+        response.text_position == null &&
+        response.press == null &&
+        response.auto == null &&
+        response.error == null &&
+        response.diagnostics == com.retrosprite.app.endpoint.model.ResponseDiagnostics()
 
 private fun RetroArchHotkeyListener.notifySafely(
     request: RetroArchRequest,

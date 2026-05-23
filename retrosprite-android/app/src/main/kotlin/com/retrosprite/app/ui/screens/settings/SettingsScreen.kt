@@ -1,6 +1,11 @@
 package com.retrosprite.app.ui.screens.settings
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.content.res.Configuration
+import android.os.SystemClock
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -22,8 +27,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
+import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.GraphicEq
-import androidx.compose.material.icons.filled.OpenInNew
+import androidx.compose.material.icons.filled.KeyboardCommandKey
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
@@ -41,37 +49,53 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import com.retrosprite.app.ui.viewmodel.DEFAULT_LLM_MAX_TOKENS
 import com.retrosprite.app.ui.viewmodel.DEFAULT_LLM_TIMEOUT_SECONDS
 import com.retrosprite.app.ui.components.CopyToClipboardButton
 import com.retrosprite.app.ui.components.SectionCard
+import com.retrosprite.app.endpoint.RetroArchHotkeyEvent
+import com.retrosprite.app.ui.overlay.AndroidHotkeyVoiceOverlayRenderer
+import com.retrosprite.app.ui.overlay.HotkeyVoiceOverlayPhase
+import com.retrosprite.app.ui.overlay.HotkeyVoiceOverlayRenderState
 import com.retrosprite.app.ui.theme.RetroSpriteTheme
 import com.retrosprite.app.ui.viewmodel.UiAboutInfo
 import com.retrosprite.app.ui.viewmodel.UiLlmProvider
 import com.retrosprite.app.ui.viewmodel.UiOverlayPermissionState
 import com.retrosprite.app.ui.viewmodel.UiSettings
 import com.retrosprite.app.ui.viewmodel.UiSpoilerLevel
+import com.retrosprite.app.ui.viewmodel.UiVoiceInputState
 import com.retrosprite.app.ui.viewmodel.rememberUiDependencies
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Composable
 fun SettingsScreen(
     contentPadding: PaddingValues,
+    onOpenDiagnostics: () -> Unit = {},
+    onOpenAppQuestionConsole: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val deps = rememberUiDependencies()
@@ -87,9 +111,47 @@ fun SettingsScreen(
     val settings by viewModel.settings.collectAsState(initial = UiSettings())
     val overlayPermissionState by viewModel.overlayPermissionState.collectAsState()
     val llmTestState by viewModel.llmTestState.collectAsState()
+    val voiceInputState by deps.voiceInput.state.collectAsState()
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val coroutineScope = rememberCoroutineScope()
+    val testOverlayRenderer = remember(context) {
+        AndroidHotkeyVoiceOverlayRenderer(context)
+    }
+    DisposableEffect(testOverlayRenderer) {
+        onDispose { testOverlayRenderer.hide() }
+    }
+    var hasRecordAudioPermission by remember(deps.voiceInput.requiresRecordAudioPermission) {
+        mutableStateOf(
+            !deps.voiceInput.requiresRecordAudioPermission ||
+                ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.RECORD_AUDIO,
+                ) == PackageManager.PERMISSION_GRANTED
+        )
+    }
+    val recordAudioPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        hasRecordAudioPermission = granted
+    }
 
     LaunchedEffect(Unit) {
         viewModel.refreshOverlayPermission()
+    }
+    DisposableEffect(lifecycleOwner, deps.overlayPermission, deps.voiceInput.requiresRecordAudioPermission) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                hasRecordAudioPermission = !deps.voiceInput.requiresRecordAudioPermission ||
+                    ContextCompat.checkSelfPermission(
+                        context,
+                        Manifest.permission.RECORD_AUDIO,
+                    ) == PackageManager.PERMISSION_GRANTED
+                viewModel.refreshOverlayPermission()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
     SettingsContent(
@@ -97,6 +159,8 @@ fun SettingsScreen(
         settings = settings,
         llmTestState = llmTestState,
         overlayPermissionState = overlayPermissionState,
+        voiceInputState = voiceInputState,
+        hasRecordAudioPermission = hasRecordAudioPermission,
         about = viewModel.about,
         onApplyPort = viewModel::applyPort,
         onApplyLlm = viewModel::applyLlmConfig,
@@ -104,6 +168,51 @@ fun SettingsScreen(
         onApplySpoiler = viewModel::applySpoilerLevel,
         onOpenOverlayPermission = viewModel::openOverlayPermissionSettings,
         onRefreshOverlayPermission = viewModel::refreshOverlayPermission,
+        onTestOverlay = {
+            coroutineScope.launch {
+                val event = RetroArchHotkeyEvent(
+                    label = "settings_overlay_test",
+                    outputMode = "test",
+                    imageBytes = 0,
+                    paused = false,
+                    receivedAtMillis = SystemClock.uptimeMillis(),
+                )
+                testOverlayRenderer.show(event)
+                testOverlayRenderer.render(
+                    HotkeyVoiceOverlayRenderState(
+                        event = event,
+                        phase = HotkeyVoiceOverlayPhase.Wake,
+                        message = "RETROSPRITE LISTENING",
+                    )
+                )
+                delay(2_500L)
+                testOverlayRenderer.hide()
+            }
+        },
+        onOpenMicrophonePermission = {
+            recordAudioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+        },
+        onTestMicrophone = {
+            coroutineScope.launch {
+                if (!hasRecordAudioPermission) {
+                    recordAudioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                } else if (voiceInputState.isListening) {
+                    deps.voiceInput.stopListening()
+                } else {
+                    deps.voiceInput.startListening()
+                }
+            }
+        },
+        onRefreshMicrophonePermission = {
+            hasRecordAudioPermission = !deps.voiceInput.requiresRecordAudioPermission ||
+                ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.RECORD_AUDIO,
+                ) == PackageManager.PERMISSION_GRANTED
+            coroutineScope.launch { deps.voiceInput.cancelListening() }
+        },
+        onOpenDiagnostics = onOpenDiagnostics,
+        onOpenAppQuestionConsole = onOpenAppQuestionConsole,
         modifier = modifier
     )
 }
@@ -114,6 +223,8 @@ private fun SettingsContent(
     settings: UiSettings,
     llmTestState: SettingsLlmTestState,
     overlayPermissionState: UiOverlayPermissionState,
+    voiceInputState: UiVoiceInputState,
+    hasRecordAudioPermission: Boolean,
     about: UiAboutInfo,
     onApplyPort: (Int) -> Unit,
     onApplyLlm: (UiLlmProvider, String, String, String, Int, Int) -> Unit,
@@ -121,6 +232,12 @@ private fun SettingsContent(
     onApplySpoiler: (UiSpoilerLevel) -> Unit,
     onOpenOverlayPermission: () -> Unit,
     onRefreshOverlayPermission: () -> Unit,
+    onTestOverlay: () -> Unit,
+    onOpenMicrophonePermission: () -> Unit,
+    onTestMicrophone: () -> Unit,
+    onRefreshMicrophonePermission: () -> Unit,
+    onOpenDiagnostics: () -> Unit,
+    onOpenAppQuestionConsole: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -131,20 +248,32 @@ private fun SettingsContent(
             .padding(horizontal = 16.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
+        RetroArchSetupSection(port = settings.port)
+        OverlayPermissionSection(
+            state = overlayPermissionState,
+            onOpenSettings = onOpenOverlayPermission,
+            onRefresh = onRefreshOverlayPermission,
+            onTestOverlay = onTestOverlay,
+        )
+        MicrophonePermissionSection(
+            voiceInputState = voiceInputState,
+            hasRecordAudioPermission = hasRecordAudioPermission,
+            onOpenPermission = onOpenMicrophonePermission,
+            onTestMicrophone = onTestMicrophone,
+            onRefresh = onRefreshMicrophonePermission,
+        )
         EndpointSection(currentPort = settings.port, onApply = onApplyPort)
+        SpoilerSection(level = settings.spoilerLevel, onApply = onApplySpoiler)
         LlmSection(
             settings = settings,
             testState = llmTestState,
             onApply = onApplyLlm,
             onTest = onTestLlm,
         )
-        SpoilerSection(level = settings.spoilerLevel, onApply = onApplySpoiler)
-        OverlayPermissionSection(
-            state = overlayPermissionState,
-            onOpenSettings = onOpenOverlayPermission,
-            onRefresh = onRefreshOverlayPermission,
+        DeveloperDiagnosticsSection(
+            onOpenAppQuestionConsole = onOpenAppQuestionConsole,
+            onOpenDiagnostics = onOpenDiagnostics,
         )
-        RetroArchSetupSection(port = settings.port)
         AboutSection(about = about)
         Spacer(Modifier.height(8.dp))
     }
@@ -155,8 +284,9 @@ private fun OverlayPermissionSection(
     state: UiOverlayPermissionState,
     onOpenSettings: () -> Unit,
     onRefresh: () -> Unit,
+    onTestOverlay: () -> Unit,
 ) {
-    SectionCard(title = "游戏内语音 Overlay") {
+    SectionCard(title = "助手模式", accent = state.isGranted) {
         Column(
             modifier = Modifier.testTag("settings_overlay_permission_section"),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -175,7 +305,7 @@ private fun OverlayPermissionSection(
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
                     Text(
-                        text = if (state.isGranted) "已启用游戏内语音波形" else "需要开启显示在其他应用上层",
+                        text = if (state.isGranted) "旁白模式 HUD 可用" else "需要开启显示在其他应用上层",
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurface,
                     )
@@ -188,19 +318,18 @@ private fun OverlayPermissionSection(
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(
-                    onClick = onOpenSettings,
+                    onClick = if (state.isGranted) onTestOverlay else onOpenSettings,
                     modifier = Modifier
                         .weight(1f)
                         .testTag("settings_overlay_permission_button"),
-                    enabled = !state.isGranted,
                 ) {
                     Icon(
-                        imageVector = Icons.Filled.OpenInNew,
+                        imageVector = Icons.AutoMirrored.Filled.OpenInNew,
                         contentDescription = null,
                         modifier = Modifier.size(16.dp),
                     )
                     Spacer(Modifier.width(6.dp))
-                    Text("打开系统授权")
+                    Text(if (state.isGranted) "测试游戏内波形" else "打开系统授权")
                 }
                 OutlinedButton(
                     onClick = onRefresh,
@@ -216,12 +345,167 @@ private fun OverlayPermissionSection(
 }
 
 @Composable
+private fun MicrophonePermissionSection(
+    voiceInputState: UiVoiceInputState,
+    hasRecordAudioPermission: Boolean,
+    onOpenPermission: () -> Unit,
+    onTestMicrophone: () -> Unit,
+    onRefresh: () -> Unit,
+) {
+    val ready = hasRecordAudioPermission && voiceInputState.isAvailable
+    val detail = when {
+        !hasRecordAudioPermission -> "热键呼出后需要一次性收音，请允许麦克风权限。RetroSprite 不会持续监听。"
+        !voiceInputState.isAvailable -> voiceInputState.errorMessage ?: "本地语音识别暂不可用，请检查 ASR 模型。"
+        else -> "麦克风和本地语音识别可用，热键呼出后可以直接提问。"
+    }
+    val testLabel = when {
+        !hasRecordAudioPermission -> "授权麦克风"
+        voiceInputState.isListening -> "停止测试"
+        else -> "测试麦克风"
+    }
+    val testStatus = when {
+        voiceInputState.isListening -> "正在听：${voiceInputState.engineLabel}，说一句短问题后可停止测试。"
+        !voiceInputState.transcript.isNullOrBlank() -> "最近识别：${voiceInputState.transcript}"
+        !voiceInputState.statusMessage.isNullOrBlank() -> voiceInputState.statusMessage
+        !voiceInputState.errorMessage.isNullOrBlank() -> voiceInputState.errorMessage
+        else -> null
+    }
+    SectionCard(title = "麦克风与语音识别", accent = ready) {
+        Column(
+            modifier = Modifier.testTag("settings_microphone_permission_section"),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Filled.Mic,
+                    contentDescription = null,
+                    tint = if (ready) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.error
+                    },
+                    modifier = Modifier.size(22.dp),
+                )
+                Spacer(Modifier.width(10.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        text = if (ready) "麦克风已就绪" else "需要麦克风权限",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        text = detail,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = if (hasRecordAudioPermission) onTestMicrophone else onOpenPermission,
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("settings_microphone_permission_button"),
+                ) {
+                    Text(testLabel)
+                }
+                OutlinedButton(
+                    onClick = onRefresh,
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("settings_microphone_permission_refresh_button"),
+                ) {
+                    Text("刷新状态")
+                }
+            }
+            testStatus?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (voiceInputState.errorMessage == it) {
+                        MaterialTheme.colorScheme.error
+                    } else {
+                        MaterialTheme.colorScheme.primary
+                    },
+                    modifier = Modifier.testTag("settings_microphone_test_status"),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun DeveloperDiagnosticsSection(
+    onOpenAppQuestionConsole: () -> Unit,
+    onOpenDiagnostics: () -> Unit,
+) {
+    SectionCard(title = "开发者诊断") {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.testTag("settings_developer_diagnostics_section"),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Filled.BugReport,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.secondary,
+                    modifier = Modifier.size(22.dp),
+                )
+                Spacer(Modifier.width(10.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        text = "请求日志和排错工具",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        text = "普通游玩不需要进入这里；当热键、GKP 或模型返回异常时再查看诊断记录。",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            OutlinedButton(
+                onClick = onOpenAppQuestionConsole,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("settings_app_question_console_open"),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.KeyboardCommandKey,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                )
+                Spacer(Modifier.width(6.dp))
+                Text("打开 App 内问答")
+            }
+            OutlinedButton(
+                onClick = onOpenDiagnostics,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("settings_developer_diagnostics_open"),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.BugReport,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                )
+                Spacer(Modifier.width(6.dp))
+                Text("打开诊断日志")
+            }
+        }
+    }
+}
+
+@Composable
 private fun EndpointSection(currentPort: Int, onApply: (Int) -> Unit) {
     var portInput by remember(currentPort) { mutableStateOf(currentPort.toString()) }
-    SectionCard(title = "ENDPOINT") {
+    SectionCard(title = "连接详情") {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(
-                text = "\u4fee\u6539\u540e\u70b9\u51fb\u4fdd\u5b58\u5c06\u91cd\u542f\u672c\u5730\u670d\u52a1\u3002",
+                text = "通常不需要修改。只有 RetroArch 里使用了不同端口时，才在这里同步调整本地服务。",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -257,21 +541,25 @@ private fun EndpointSection(currentPort: Int, onApply: (Int) -> Unit) {
 @Composable
 private fun RetroArchSetupSection(port: Int) {
     val aiServiceUrl = remember(port) { "http://localhost:$port" }
-    SectionCard(title = "RETROARCH 设置助手") {
+    SectionCard(title = "连接状态") {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(
-                text = "在 RetroArch 中进入 Settings → Accessibility → AI Service，保持默认地址或按下面的值设置。",
+                text = "RetroArch 快捷键指引",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            RetroArchSetupLine("AI Service", "ON")
-            RetroArchSetupLine("AI Service Mode", "Image Mode")
+            RetroArchSetupLine("AI Service", "开启")
             RetroArchSetupLine("AI Service URL", aiServiceUrl)
-            RetroArchSetupLine("AI Service Output", "Text 或 Subtitles")
+            RetroArchSetupLine("AI Service Output", "旁白模式（Narrator Mode）")
+            RetroArchSetupLine(
+                "Pause During Translation",
+                "RetroArch -> Settings -> AI Service -> Pause During Translation -> ON",
+            )
+            RetroArchSetupLine("AI Service 快捷键", "在 RetroArch 中确认或绑定")
             CopyToClipboardButton(
                 textToCopy = aiServiceUrl,
-                label = "复制 AI Service URL",
-                successMessage = "已复制 AI Service URL",
+                label = "复制本地服务地址",
+                successMessage = "已复制本地服务地址",
                 clipLabel = "RetroArch AI Service URL",
                 modifier = Modifier.testTag("settings_retroarch_ai_url_copy"),
             )
@@ -320,7 +608,7 @@ private fun LlmSection(
     var keyVisible by remember { mutableStateOf(false) }
     var dropdownOpen by remember { mutableStateOf(false) }
 
-    SectionCard(title = "LLM PROVIDER") {
+    SectionCard(title = "高级 AI 配置") {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             // Provider selector via the M3-recommended ExposedDropdownMenuBox.
             ExposedDropdownMenuBox(
@@ -498,7 +786,7 @@ private fun LlmTestResultBox(state: SettingsLlmTestState) {
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(
-                text = if (result.ok) "LLM TEST OK" else "LLM TEST FAILED",
+                text = if (result.ok) "模型连接正常" else "模型连接失败",
                 style = MaterialTheme.typography.labelLarge,
                 color = borderColor,
             )
@@ -539,10 +827,10 @@ private fun LlmTestResultBox(state: SettingsLlmTestState) {
 
 @Composable
 private fun SpoilerSection(level: UiSpoilerLevel, onApply: (UiSpoilerLevel) -> Unit) {
-    SectionCard(title = "\u5267\u900f\u7b49\u7ea7") {
+    SectionCard(title = "默认回答明确度") {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(
-                text = "\u63a7\u5236 AI \u63d0\u793a\u7684\u660e\u786e\u7a0b\u5ea6\u3002",
+                text = "作为默认低剧透策略。游玩中也可以直接说“别剧透”“直接告诉我”等自然跟进。",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -679,6 +967,8 @@ private fun SettingsPreview() {
             settings = UiSettings(),
             llmTestState = SettingsLlmTestState(),
             overlayPermissionState = UiOverlayPermissionState(isGranted = false),
+            voiceInputState = UiVoiceInputState(isAvailable = true),
+            hasRecordAudioPermission = false,
             about = UiAboutInfo(),
             onApplyPort = {},
             onApplyLlm = { _, _, _, _, _, _ -> },
@@ -686,6 +976,12 @@ private fun SettingsPreview() {
             onApplySpoiler = {},
             onOpenOverlayPermission = {},
             onRefreshOverlayPermission = {},
+            onTestOverlay = {},
+            onOpenMicrophonePermission = {},
+            onTestMicrophone = {},
+            onRefreshMicrophonePermission = {},
+            onOpenDiagnostics = {},
+            onOpenAppQuestionConsole = {},
         )
     }
 }

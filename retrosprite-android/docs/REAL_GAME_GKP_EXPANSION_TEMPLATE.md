@@ -47,7 +47,8 @@ languages: zh first, optional en aliases
 knowledge_rows: 35 to 60
 golden_questions: 25 to 40
 default_spoiler: light
-llm_expected_rate: below 30% for golden questions
+llm_expected_rate: 0% for required natural-question goldens; optional only for
+multi-evidence synthesis outside the core checklist
 ```
 
 For an existing pack, bump `pack_version` by one patch or minor version. For a
@@ -260,9 +261,29 @@ Example row:
 Golden questions:
 
 - "这个游戏主要是玩什么？乐趣在哪里？"
+- "这游戏怎么玩？"
 - "好玩在哪？"
 - "核心玩法是什么？"
 - "适合什么玩家？"
+
+### Lane A3: Natural Question Coverage Checklist
+
+Every real-game GKP must cover these natural voice/text questions without LLM:
+
+| Category | Required examples | Preferred intent |
+| --- | --- | --- |
+| Core gameplay | “这游戏怎么玩？” “主要玩什么？” “好玩在哪？” | `game_overview` |
+| Beginner guide | “新手怎么玩？” “开局先干什么？” | `beginner_guide` |
+| Team build | “哪些角色适合培养？” “谁值得练？” | `team_build` |
+| Leveling | “怎么玩经验高？” “怎么练级快？” | `leveling` |
+| Route hint | “卡住了下一步去哪？” “不要剧透下一步” | `route_hint` |
+| Mechanics | “怎么转职？” “为什么不能复活？” | `mechanic` |
+| Item usage | “这个道具干嘛？” “给谁用？” | `usage` |
+| Name mapping | “这个汉化名英文叫什么？” | `name_mapping` |
+
+For progress-sensitive questions such as “现在哪些角色适合培养？”, answer with
+safe general principles and ask for chapter/current roster unless the GKP has a
+trusted `progress_gate`.
 
 ### Lane B: Core Mechanics
 

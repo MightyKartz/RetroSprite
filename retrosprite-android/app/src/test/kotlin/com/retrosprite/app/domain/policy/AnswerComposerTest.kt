@@ -1,6 +1,8 @@
 package com.retrosprite.app.domain.policy
 
 import com.retrosprite.app.domain.models.AnswerDecision
+import com.retrosprite.app.domain.models.AnswerConfidence
+import com.retrosprite.app.domain.models.AnswerType
 import com.retrosprite.app.domain.models.ControllerState
 import com.retrosprite.app.domain.models.Evidence
 import com.retrosprite.app.domain.models.GameIdentity
@@ -21,17 +23,24 @@ class AnswerComposerTest {
 
     @Test
     fun `direct answers append traceable source ids`() = runTest {
-        val text = composer.compose(
+        val answer = composer.composeDetailed(
             decision = AnswerDecision.DirectAnswer(
                 text = "两个相同数字滑到一起会合并。",
                 sources = listOf("sample.2048.rules", "sample.2048.rules"),
                 spoilerLevel = SpoilerLevel.LIGHT,
+                answerType = AnswerType.Mechanic,
+                confidence = AnswerConfidence.High,
             ),
             context = ctx(),
             llm = MockLlmAdapter(),
         )
 
-        assertEquals("两个相同数字滑到一起会合并。\n来源：sample.2048.rules", text)
+        assertEquals("两个相同数字滑到一起会合并。\n来源：sample.2048.rules", answer.text)
+        assertEquals("两个相同数字滑到一起会合并。", answer.answerResult.answerShort)
+        assertEquals("两个相同数字滑到一起会合并。", answer.answerResult.answerDetail)
+        assertEquals(listOf("sample.2048.rules"), answer.answerResult.sources)
+        assertEquals(AnswerType.Mechanic, answer.answerResult.answerType)
+        assertEquals(AnswerConfidence.High, answer.answerResult.confidence)
     }
 
     @Test
@@ -77,6 +86,9 @@ class AnswerComposerTest {
         assertTrue(llm.lastRequest!!.userPrompt.contains("玩家问题：怎么合并？"))
         assertTrue(llm.lastRequest!!.userPrompt.contains("sample.2048.rules"))
         assertEquals("综合答案。\n来源：sample.2048.rules, sample.2048.strategy", answer.text)
+        assertEquals("综合答案。", answer.answerResult.answerShort)
+        assertEquals(AnswerType.Mechanic, answer.answerResult.answerType)
+        assertEquals(AnswerConfidence.Medium, answer.answerResult.confidence)
         assertEquals("used", answer.llmTrace.status)
         assertEquals("capturing", answer.llmTrace.providerName)
         assertEquals("capturing-model", answer.llmTrace.modelName)
@@ -85,6 +97,31 @@ class AnswerComposerTest {
         assertEquals(123L, answer.llmTrace.latencyMs)
         assertEquals(10, answer.llmTrace.tokensIn)
         assertEquals(4, answer.llmTrace.tokensOut)
+    }
+
+    @Test
+    fun `local summary does not call llm and preserves sources`() = runTest {
+        val llm = CapturingLlmAdapter(response = LlmResponse(text = "should not be called"))
+
+        val answer = composer.composeDetailed(
+            decision = AnswerDecision.LocalSummary(
+                evidence = listOf(
+                    evidence("sf2.rules", "让低等级角色补最后一击。"),
+                    evidence("sf2.tactics", "治疗和辅助行动也能帮助部分角色追经验。"),
+                ),
+                spoilerLevel = SpoilerLevel.LIGHT,
+                answerType = AnswerType.Leveling,
+                confidence = AnswerConfidence.Medium,
+            ),
+            context = ctx(),
+            llm = llm,
+        )
+
+        assertEquals(0, llm.callCount)
+        assertEquals("skipped", answer.llmTrace.status)
+        assertTrue(answer.text.contains("低等级角色"))
+        assertTrue(answer.text.contains("来源：sf2.rules, sf2.tactics"))
+        assertEquals(AnswerType.Leveling, answer.answerResult.answerType)
     }
 
     @Test
@@ -191,6 +228,7 @@ class AnswerComposerTest {
         spoilerLevel = SpoilerLevel.LIGHT,
         language = "zh",
         recentTurns = emptyList(),
+        questionIntent = AnswerType.Mechanic,
     )
 
     private fun evidence(sourceId: String, snippet: String): Evidence =

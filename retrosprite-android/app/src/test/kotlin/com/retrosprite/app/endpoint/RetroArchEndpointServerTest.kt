@@ -291,6 +291,32 @@ class RetroArchEndpointServerTest {
     }
 
     @Test
+    fun `silent hotkey wake notifies listener but does not replace latest request`() = testApplication {
+        val logger = RequestLogger()
+        val events = mutableListOf<RetroArchHotkeyEvent>()
+        val listener = RetroArchHotkeyListener { event -> events += event }
+        val generator = ResponseGenerator { _, _ -> RetroArchResponse.text("") }
+        application { retroArchModule(generator, logger, listener) }
+
+        client.post("/debug/ask?output=text") {
+            contentType(ContentType.Application.Json)
+            setBody("""{"label":"2048__","question":"两个 2 怎么合并？","state":{"paused":1}}""")
+        }
+        val before = client.get("/debug/latest-request").bodyAsText()
+
+        val wake = client.post("/?output=text") {
+            contentType(ContentType.Application.Json)
+            setBody("""{"label":"mega_drive__光明力量2","state":{"paused":1}}""")
+        }
+
+        assertEquals(HttpStatusCode.OK, wake.status)
+        assertEquals(1, events.size)
+        assertEquals("mega_drive__光明力量2", events.first().label)
+        assertEquals(1, logger.entries.value.size)
+        assertEquals(before, client.get("/debug/latest-request").bodyAsText())
+    }
+
+    @Test
     fun `debug latest request returns empty object before any request`() = testApplication {
         application { retroArchModule(PlaceholderResponseGenerator(), RequestLogger()) }
 

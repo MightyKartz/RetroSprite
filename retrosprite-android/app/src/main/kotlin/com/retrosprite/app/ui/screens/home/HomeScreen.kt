@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
@@ -21,6 +23,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -32,6 +35,7 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.KeyboardCommandKey
 import androidx.compose.material.icons.filled.Mic
@@ -51,6 +55,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -63,6 +68,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.ImeAction
@@ -70,6 +76,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.retrosprite.app.ui.components.CopyToClipboardButton
@@ -80,6 +88,7 @@ import com.retrosprite.app.ui.theme.RetroSpriteTheme
 import com.retrosprite.app.ui.viewmodel.UiAnswerFeedback
 import com.retrosprite.app.ui.viewmodel.UiEndpointPhase
 import com.retrosprite.app.ui.viewmodel.UiEndpointStatus
+import com.retrosprite.app.ui.viewmodel.UiOverlayPermissionState
 import com.retrosprite.app.ui.viewmodel.UiPendingQuestion
 import com.retrosprite.app.ui.viewmodel.UiPendingQuestionState
 import com.retrosprite.app.ui.viewmodel.UiQuestionResult
@@ -100,6 +109,7 @@ fun HomeScreen(
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
     onNavigateToTarget: (HomeNavigationTarget) -> Unit = {},
+    openAdvancedQuestionToolsOnStart: Boolean = false,
 ) {
     val deps = rememberUiDependencies()
     val viewModel: HomeViewModel = viewModel(
@@ -115,7 +125,9 @@ fun HomeScreen(
     val pendingQuestionState by viewModel.pendingQuestionState.collectAsStateWithLifecycle()
     val voiceInputState by deps.voiceInput.state.collectAsStateWithLifecycle()
     val speechOutputState by deps.speechOutput.state.collectAsStateWithLifecycle()
+    val overlayPermissionState by deps.overlayPermission.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     val coroutineScope = rememberCoroutineScope()
     var hasRecordAudioPermission by remember(deps.voiceInput.requiresRecordAudioPermission) {
         mutableStateOf(
@@ -145,6 +157,28 @@ fun HomeScreen(
             viewModel.updateQuestion(transcript)
         }
     }
+    LaunchedEffect(Unit) {
+        deps.overlayPermission.refresh()
+    }
+    DisposableEffect(lifecycleOwner, deps.overlayPermission, deps.voiceInput.requiresRecordAudioPermission) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                hasRecordAudioPermission = !deps.voiceInput.requiresRecordAudioPermission ||
+                    ContextCompat.checkSelfPermission(
+                        context,
+                        Manifest.permission.RECORD_AUDIO,
+                    ) == PackageManager.PERMISSION_GRANTED
+                coroutineScope.launch { deps.overlayPermission.refresh() }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+    LaunchedEffect(openAdvancedQuestionToolsOnStart) {
+        if (openAdvancedQuestionToolsOnStart) {
+            viewModel.expandAdvancedQuestionTools()
+        }
+    }
 
     HomeScreenContent(
         contentPadding = contentPadding,
@@ -153,6 +187,8 @@ fun HomeScreen(
         pendingQuestionState = pendingQuestionState,
         voiceInputState = voiceInputState,
         speechOutputState = speechOutputState,
+        overlayPermissionState = overlayPermissionState,
+        hasRecordAudioPermission = hasRecordAudioPermission,
         recordAudioPermissionDenied = recordAudioPermissionDenied,
         onRestart = viewModel::restart,
         onCheckHealth = viewModel::checkHealth,
@@ -164,6 +200,7 @@ fun HomeScreen(
         onClearPendingQuestion = viewModel::clearPendingQuestion,
         onFeedback = viewModel::submitAnswerFeedback,
         onRestoreContext = viewModel::restoreLatestRetroArchContext,
+        onToggleAdvancedQuestionTools = viewModel::toggleAdvancedQuestionTools,
         onConversationTurnSelected = viewModel::applyConversationTurn,
         onFollowUpDraftSelected = viewModel::applyConversationFollowUpDraft,
         onVoiceInputClick = {
@@ -195,6 +232,8 @@ private fun HomeScreenContent(
     pendingQuestionState: UiPendingQuestionState,
     voiceInputState: UiVoiceInputState,
     speechOutputState: UiSpeechOutputState,
+    overlayPermissionState: UiOverlayPermissionState,
+    hasRecordAudioPermission: Boolean,
     recordAudioPermissionDenied: Boolean,
     onRestart: () -> Unit,
     onCheckHealth: () -> Unit,
@@ -206,6 +245,7 @@ private fun HomeScreenContent(
     onClearPendingQuestion: () -> Unit,
     onFeedback: (UiAnswerFeedback) -> Unit,
     onRestoreContext: () -> Unit,
+    onToggleAdvancedQuestionTools: () -> Unit,
     onConversationTurnSelected: (HomeConversationTurn) -> Unit,
     onFollowUpDraftSelected: (HomeConversationTurn, HomeFollowUpDraft) -> Unit,
     onVoiceInputClick: () -> Unit,
@@ -219,21 +259,49 @@ private fun HomeScreenContent(
             LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE && maxWidth >= 520.dp
 
         if (isWide) {
-            Row(
-                modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                Column(
-                    modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(20.dp)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalAlignment = Alignment.Top,
                 ) {
-                    StatusHeader(status)
-                    EndpointCard(status, onRestart, onCheckHealth)
+                    Box(modifier = Modifier.weight(1f)) {
+                        GameLoopReadinessCard(
+                            status = status,
+                            askState = askState,
+                            voiceInputState = voiceInputState,
+                            overlayPermissionState = overlayPermissionState,
+                            hasRecordAudioPermission = hasRecordAudioPermission,
+                            onRestart = onRestart,
+                            onVoiceInputClick = onVoiceInputClick,
+                            onNavigateToTarget = onNavigateToTarget,
+                        )
+                    }
+                    Box(modifier = Modifier.weight(1f)) {
+                        HotkeySignalDiagnosticsCard(
+                            status = status,
+                            askState = askState,
+                            voiceInputState = voiceInputState,
+                            overlayPermissionState = overlayPermissionState,
+                            hasRecordAudioPermission = hasRecordAudioPermission,
+                            onNavigateToTarget = onNavigateToTarget,
+                        )
+                    }
                 }
-                Column(
-                    modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(20.dp)
-                ) {
+
+                EndpointSummaryCard(status, onRestart, onCheckHealth)
+
+                if (askState.advancedQuestionToolsExpanded) {
+                    AdvancedQuestionToolsCard(
+                        expanded = true,
+                        onToggleExpanded = onToggleAdvancedQuestionTools,
+                    )
                     TextQuestionCard(
                         askState = askState,
                         pendingQuestion = pendingQuestionState.pending,
@@ -255,8 +323,8 @@ private fun HomeScreenContent(
                         onStopSpeechOutput = onStopSpeechOutput,
                         onNavigateToTarget = onNavigateToTarget,
                     )
-                    HowToConfigureCard(status)
                 }
+                Spacer(Modifier.height(8.dp))
             }
         } else {
             Column(
@@ -267,30 +335,423 @@ private fun HomeScreenContent(
                 verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
                 StatusHeader(status)
-                EndpointCard(status, onRestart, onCheckHealth)
-                TextQuestionCard(
+                GameLoopReadinessCard(
+                    status = status,
                     askState = askState,
-                    pendingQuestion = pendingQuestionState.pending,
                     voiceInputState = voiceInputState,
-                    speechOutputState = speechOutputState,
-                    recordAudioPermissionDenied = recordAudioPermissionDenied,
-                    onLabelChange = onAskLabelChange,
-                    onQuestionChange = onQuestionChange,
-                    onQuestionDraftSelected = onQuestionDraftSelected,
-                    onAskQuestion = onAskQuestion,
-                    onPreparePendingQuestion = onPreparePendingQuestion,
-                    onClearPendingQuestion = onClearPendingQuestion,
-                    onFeedback = onFeedback,
-                    onRestoreContext = onRestoreContext,
-                    onConversationTurnSelected = onConversationTurnSelected,
-                    onFollowUpDraftSelected = onFollowUpDraftSelected,
+                    overlayPermissionState = overlayPermissionState,
+                    hasRecordAudioPermission = hasRecordAudioPermission,
+                    onRestart = onRestart,
                     onVoiceInputClick = onVoiceInputClick,
-                    onSpeakAnswer = onSpeakAnswer,
-                    onStopSpeechOutput = onStopSpeechOutput,
                     onNavigateToTarget = onNavigateToTarget,
                 )
-                HowToConfigureCard(status)
+                HotkeySignalDiagnosticsCard(
+                    status = status,
+                    askState = askState,
+                    voiceInputState = voiceInputState,
+                    overlayPermissionState = overlayPermissionState,
+                    hasRecordAudioPermission = hasRecordAudioPermission,
+                    onNavigateToTarget = onNavigateToTarget,
+                )
+                EndpointCard(status, onRestart, onCheckHealth)
+                if (askState.advancedQuestionToolsExpanded) {
+                    AdvancedQuestionToolsCard(
+                        expanded = true,
+                        onToggleExpanded = onToggleAdvancedQuestionTools,
+                    )
+                    TextQuestionCard(
+                        askState = askState,
+                        pendingQuestion = pendingQuestionState.pending,
+                        voiceInputState = voiceInputState,
+                        speechOutputState = speechOutputState,
+                        recordAudioPermissionDenied = recordAudioPermissionDenied,
+                        onLabelChange = onAskLabelChange,
+                        onQuestionChange = onQuestionChange,
+                        onQuestionDraftSelected = onQuestionDraftSelected,
+                        onAskQuestion = onAskQuestion,
+                        onPreparePendingQuestion = onPreparePendingQuestion,
+                        onClearPendingQuestion = onClearPendingQuestion,
+                        onFeedback = onFeedback,
+                        onRestoreContext = onRestoreContext,
+                        onConversationTurnSelected = onConversationTurnSelected,
+                        onFollowUpDraftSelected = onFollowUpDraftSelected,
+                        onVoiceInputClick = onVoiceInputClick,
+                        onSpeakAnswer = onSpeakAnswer,
+                        onStopSpeechOutput = onStopSpeechOutput,
+                        onNavigateToTarget = onNavigateToTarget,
+                    )
+                }
                 Spacer(Modifier.height(8.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun HotkeySignalDiagnosticsCard(
+    status: UiEndpointStatus,
+    askState: HomeAskState,
+    voiceInputState: UiVoiceInputState,
+    overlayPermissionState: UiOverlayPermissionState,
+    hasRecordAudioPermission: Boolean,
+    onNavigateToTarget: (HomeNavigationTarget) -> Unit,
+) {
+    val context = askState.latestRetroArchContext
+    val endpointReady = status.phase == UiEndpointPhase.Running
+    val overlayReady = overlayPermissionState.isGranted
+    val microphoneReady = hasRecordAudioPermission && voiceInputState.isAvailable
+    val hotkeyReceived = context != null
+    val ready = endpointReady && overlayReady && microphoneReady && hotkeyReceived
+    val title = when {
+        !endpointReady -> "本地服务未运行"
+        !hotkeyReceived -> "等待 RetroArch 热键"
+        !overlayReady -> "热键已收到，波形被权限拦截"
+        !microphoneReady -> "热键已收到，等待麦克风授权"
+        else -> "热键链路可用"
+    }
+    val detail = when {
+        !endpointReady -> "RetroArch 无法连接本机服务。先启动本地端点，再回游戏按快捷键。"
+        !hotkeyReceived -> "右侧会显示最近一次 RetroArch 请求。按你绑定的 AI Service 快捷键后，这里应立即更新。"
+        !overlayReady -> "RetroArch 已经发来请求，但 Android 未允许显示在其他应用上层，所以游戏内 RetroSprite UI 不能出现。"
+        !microphoneReady -> "RetroArch 热键已到达；授权麦克风后，RetroSprite 才能进入一次性语音提问。"
+        else -> "最近热键、游戏上下文、波形权限和麦克风都可用。"
+    }
+
+    SectionCard(
+        title = "热键信号诊断",
+        accent = ready,
+        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
+    ) {
+        Column(
+            modifier = Modifier
+                .testTag("home_hotkey_signal_diagnostics")
+                .heightIn(min = 176.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(34.dp)
+                        .clip(CircleShape)
+                        .background(
+                            if (ready) {
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
+                            } else {
+                                MaterialTheme.colorScheme.error.copy(alpha = 0.14f)
+                            }
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = if (ready) Icons.Filled.KeyboardCommandKey else Icons.Filled.ReportProblem,
+                        contentDescription = null,
+                        tint = if (ready) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = if (ready) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                    )
+                    Text(
+                        text = detail,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+
+            if (!ready) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Button(
+                        onClick = { onNavigateToTarget(HomeNavigationTarget.Settings) },
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp),
+                    ) {
+                        Text(
+                            text = when {
+                                !endpointReady -> "打开连接设置"
+                                !overlayReady || !microphoneReady -> "打开设置授权"
+                                else -> "检查连接设置"
+                            },
+                            style = MaterialTheme.typography.labelLarge,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                    OutlinedButton(
+                        onClick = { onNavigateToTarget(HomeNavigationTarget.Diagnostics) },
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp),
+                    ) {
+                        Text(
+                            text = "查看诊断日志",
+                            style = MaterialTheme.typography.labelLarge,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+            }
+
+            context?.let {
+                Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                    Text(
+                        text = "最近信号 · ${relTime(it.timestampMillis)}",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        text = it.label,
+                        style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                ContextTagRow(
+                    "输出 ${it.outputMode.toRetroArchOutputLabel()}",
+                    "截图 ${formatBytes(it.imageBytes)}",
+                    if (it.paused) "游戏暂停" else "游戏运行中",
+                )
+            } ?: Text(
+                text = "尚未收到 RetroArch 请求。按下 AI Service 快捷键后，这里会更新最近信号。",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+
+            ContextTagRow(
+                if (endpointReady) "本地服务 ${status.port}" else "端点未运行",
+                if (hotkeyReceived) "热键已收到" else "等待热键",
+                if (overlayReady) "波形已授权" else "波形未授权",
+                if (microphoneReady) "麦克风可用" else "麦克风未授权",
+            )
+        }
+    }
+}
+
+@Composable
+private fun HotkeyBlockerLine(
+    ok: Boolean,
+    text: String,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.Top,
+    ) {
+        Box(
+            modifier = Modifier
+                .padding(top = 7.dp)
+                .size(7.dp)
+                .clip(CircleShape)
+                .background(if (ok) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error),
+        )
+        Spacer(Modifier.width(8.dp))
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(1f),
+        )
+    }
+}
+
+@Composable
+private fun AdvancedQuestionToolsCard(
+    expanded: Boolean,
+    onToggleExpanded: () -> Unit,
+) {
+    SectionCard(
+        title = "高级调试问答",
+        accent = expanded,
+    ) {
+        Column(
+            modifier = Modifier.testTag("home_advanced_question_tools"),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(34.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.14f)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.KeyboardCommandKey,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.secondary,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text(
+                        text = if (expanded) "APP QUESTION CONSOLE" else "App 内问答已隐藏",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = if (expanded) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        text = "普通游玩只需要 RetroArch 热键语音；这里保留给调试、回放上下文和没有实体热键时的备用流程。",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            OutlinedButton(
+                onClick = onToggleExpanded,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("home_advanced_question_tools_toggle"),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+            ) {
+                Text(
+                    text = if (expanded) "收起 App 内问答" else "展开 App 内问答",
+                    style = MaterialTheme.typography.labelLarge,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun GameLoopReadinessCard(
+    status: UiEndpointStatus,
+    askState: HomeAskState,
+    voiceInputState: UiVoiceInputState,
+    overlayPermissionState: UiOverlayPermissionState,
+    hasRecordAudioPermission: Boolean,
+    onRestart: () -> Unit,
+    onVoiceInputClick: () -> Unit,
+    onNavigateToTarget: (HomeNavigationTarget) -> Unit,
+) {
+    val endpointReady = status.phase == UiEndpointPhase.Running
+    val overlayReady = overlayPermissionState.isGranted
+    val microphoneReady = hasRecordAudioPermission && voiceInputState.isAvailable
+    val context = askState.latestRetroArchContext
+    val gkpReady = context?.hasGkpEvidence == true
+    val ready = endpointReady && overlayReady && microphoneReady
+    val title = when {
+        ready -> "热键语音已就绪"
+        !endpointReady -> "需要启动本地端点"
+        !overlayReady -> "需要开启游戏内波形"
+        !microphoneReady -> "需要麦克风权限"
+        else -> "等待 RetroArch 热键"
+    }
+    val detail = when {
+        ready -> "回到 RetroArch，按你绑定的 AI Service 快捷键即可呼出语音波形。回答会优先使用本地知识包和低剧透策略。"
+        !endpointReady -> "RetroArch 需要先连到本地服务，RetroSprite 才能收到当前游戏上下文。"
+        !overlayReady -> "开启“显示在其他应用上层”后，RetroSprite 才能在游戏上方显示短时语音 HUD。"
+        !microphoneReady -> "授权麦克风后，热键呼出时才能进行一次性本地 ASR 识别。"
+        else -> "载入游戏后按 RetroArch AI Service 热键，RetroSprite 会记录当前游戏上下文。"
+    }
+
+    SectionCard(
+        title = "游戏内语音就绪",
+        accent = ready,
+        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
+    ) {
+        Column(
+            modifier = Modifier
+                .testTag("home_game_loop_readiness")
+                .heightIn(min = 176.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(34.dp)
+                        .clip(CircleShape)
+                        .background(
+                            if (ready) {
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
+                            } else {
+                                MaterialTheme.colorScheme.secondary.copy(alpha = 0.16f)
+                            }
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Mic,
+                        contentDescription = null,
+                        tint = if (ready) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = if (ready) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
+                    )
+                    Text(
+                        text = detail,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+
+            ContextTagRow(
+                if (endpointReady) "本地服务已运行" else "本地服务未运行",
+                if (overlayReady) "波形已授权" else "波形未授权",
+                if (microphoneReady) "麦克风可用" else "麦克风未授权",
+                if (gkpReady) "知识包已匹配" else context?.gkpStatusLabel ?: "等待游戏知识",
+            )
+            context?.let {
+                Text(
+                    text = "最近游戏：${it.label}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            if (ready) {
+                HotkeyBlockerLine(
+                    ok = true,
+                    text = "已准备好：回到 RetroArch 后按 AI Service 快捷键提问",
+                )
+            }
+
+            when {
+                !endpointReady -> Button(
+                    onClick = onRestart,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                    ),
+                ) {
+                    Text(text = "启动本地端点", style = MaterialTheme.typography.labelLarge)
+                }
+
+                !overlayReady -> OutlinedButton(
+                    onClick = { onNavigateToTarget(HomeNavigationTarget.Settings) },
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+                ) {
+                    Text(text = "去设置开启游戏内波形", style = MaterialTheme.typography.labelLarge)
+                }
+
+                !microphoneReady -> OutlinedButton(
+                    onClick = onVoiceInputClick,
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+                ) {
+                    Text(text = "授权麦克风", style = MaterialTheme.typography.labelLarge)
+                }
             }
         }
     }
@@ -518,7 +979,11 @@ private fun VoiceControlsBox(
                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp),
             ) {
                 Icon(
-                    imageVector = if (speechOutputState.isSpeaking) Icons.Filled.Stop else Icons.Filled.VolumeUp,
+                    imageVector = if (speechOutputState.isSpeaking) {
+                        Icons.Filled.Stop
+                    } else {
+                        Icons.AutoMirrored.Filled.VolumeUp
+                    },
                     contentDescription = null,
                     modifier = Modifier.size(16.dp)
                 )
@@ -862,7 +1327,7 @@ private fun ProcessingStatusBox(startedAtMillis: Long?) {
                 color = MaterialTheme.colorScheme.primary
             )
             Text(
-                text = "先查本地 GKP；只有证据需要综合时才会调用 LLM。若模型超时，会在这里显示错误并写入 Diagnostics。",
+                text = "先查本地 GKP；只有证据需要综合时才会调用 LLM。若模型超时，会在这里显示错误并写入开发者诊断。",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -904,10 +1369,7 @@ private fun InputFlowBox(askState: HomeAskState) {
                 color = MaterialTheme.colorScheme.onSurface
             )
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    ContextTag(text = contextSource)
-                    ContextTag(text = "问题：App 内输入")
-                }
+                ContextTagRow(contextSource, "问题：App 内输入")
                 ContextTag(text = labelSource)
             }
         }
@@ -961,14 +1423,12 @@ private fun RetroArchContextBox(
                     }
                 }
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                ContextTag(text = relTime(context.timestampMillis))
-                ContextTag(text = if (context.paused) "\u5df2\u6682\u505c" else "\u8fd0\u884c\u4e2d")
-                ContextTag(text = context.gkpStatusLabel)
-                context.questionSource?.let {
-                    ContextTag(text = it.displayNameForQuestionSource())
-                }
-            }
+            ContextTagRow(
+                relTime(context.timestampMillis),
+                if (context.paused) "\u5df2\u6682\u505c" else "\u8fd0\u884c\u4e2d",
+                context.gkpStatusLabel,
+                context.questionSource?.displayNameForQuestionSource(),
+            )
             context.question?.let {
                 Text(
                     text = "热键问题：$it",
@@ -1060,8 +1520,23 @@ private fun ContextTag(text: String) {
         Text(
             text = text,
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ContextTagRow(vararg tags: String?) {
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        tags.filterNotNull().forEach { tag ->
+            ContextTag(text = tag)
+        }
     }
 }
 
@@ -1217,36 +1692,36 @@ private fun UiQuestionResult.recoveryHint(): RecoveryHint? {
     return when {
         !ok || stage == "error" -> RecoveryHint(
             title = "下一步：查看诊断详情",
-            detail = "打开 Diagnostics 对应记录，确认请求、label、provider 和错误信息；修复后再提交同一个问题。",
-            actionLabel = "打开 Diagnostics",
+            detail = "打开诊断日志对应记录，确认请求、游戏标签、供应商和错误信息；修复后再提交同一个问题。",
+            actionLabel = "打开诊断日志",
             target = HomeNavigationTarget.Diagnostics,
         )
 
         stage == "gkp_disabled" || text.contains("知识包已禁用") -> RecoveryHint(
             title = "下一步：重新启用 GKP",
-            detail = "到 Packs 找到当前游戏知识包并点击启用；禁用状态下不会检索本地知识，也不会调用 LLM。",
-            actionLabel = "打开 Packs",
+            detail = "到知识包页面找到当前游戏知识包并点击启用；禁用状态下不会检索本地知识，也不会调用 LLM。",
+            actionLabel = "打开知识包",
             target = HomeNavigationTarget.Packs,
         )
 
         llm == "failed" -> RecoveryHint(
             title = "下一步：检查 LLM 配置",
-            detail = "到 Settings 运行 LLM 自检，确认 API key、provider/model、timeout 和 max token；本地 evidence 仍会保留在 Diagnostics。",
-            actionLabel = "打开 Settings",
+            detail = "到设置运行 LLM 自检，确认 API key、供应商/模型、超时和 token 预算；本地证据仍会保留在开发者诊断。",
+            actionLabel = "打开设置",
             target = HomeNavigationTarget.Settings,
         )
 
         stage == "no_evidence" || text.contains("没有足够证据") || text.contains("暂时不能给可靠答案") -> RecoveryHint(
             title = "下一步：补充上下文",
             detail = "换成更具体的问题，补充当前位置、版本或目标；如果当前游戏没有 GKP，请先安装或启用对应知识包。",
-            actionLabel = "打开 Packs",
+            actionLabel = "打开知识包",
             target = HomeNavigationTarget.Packs,
         )
 
         stage == "unknown" && sourceIds.isEmpty() -> RecoveryHint(
             title = "下一步：确认游戏识别",
-            detail = "检查 Home 的 label 是否来自最近 RetroArch 热键；必要时手动改 label，或在 Packs 安装对应 GKP。",
-            actionLabel = "打开 Packs",
+            detail = "检查首页的游戏标签是否来自最近 RetroArch 热键；必要时手动改标签，或在知识包页面安装对应 GKP。",
+            actionLabel = "打开知识包",
             target = HomeNavigationTarget.Packs,
         )
 
@@ -1372,6 +1847,73 @@ private fun StatusHeader(status: UiEndpointStatus) {
 }
 
 @Composable
+private fun EndpointSummaryCard(
+    status: UiEndpointStatus,
+    onRestart: () -> Unit,
+    onCheckHealth: () -> Unit,
+) {
+    val heartbeatLabel = status.lastHealthCheckMillis?.let { relTime(it) } ?: "尚未检查"
+    SectionCard(
+        title = "连接详情",
+        accent = false,
+        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
+        trailing = {
+            StatusIndicator(phase = status.phase, label = status.statusChipLabel())
+        },
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                Text(
+                    text = "RETROARCH 请求地址",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = status.baseUrl,
+                    style = MaterialTheme.typography.titleMedium.copy(fontFamily = FontFamily.Monospace),
+                    color = MaterialTheme.colorScheme.primary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = "端口 ${status.port} · 上次心跳 $heartbeatLabel",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            CopyToClipboardButton(textToCopy = status.baseUrl, label = "复制 URL")
+            OutlinedButton(
+                onClick = onCheckHealth,
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+            ) {
+                Text(text = "健康检查", style = MaterialTheme.typography.labelLarge)
+            }
+            OutlinedButton(
+                onClick = onRestart,
+                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Refresh,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(text = "重启", style = MaterialTheme.typography.labelLarge)
+            }
+        }
+    }
+}
+
+@Composable
 private fun EndpointCard(
     status: UiEndpointStatus,
     onRestart: () -> Unit,
@@ -1379,7 +1921,7 @@ private fun EndpointCard(
 ) {
     val context = LocalContext.current
     SectionCard(
-        title = "\u672c\u673a\u7aef\u70b9",
+        title = "\u8fde\u63a5\u8be6\u60c5",
         accent = status.phase == UiEndpointPhase.Running,
         trailing = {
             StatusIndicator(phase = status.phase, label = status.statusChipLabel())
@@ -1490,62 +2032,6 @@ private fun EndpointCard(
     }
 }
 
-@Composable
-private fun HowToConfigureCard(status: UiEndpointStatus) {
-    SectionCard(title = "RETROARCH \u63a5\u5165\u6307\u5f15") {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Step(
-                index = 1,
-                title = "\u6253\u5f00 RetroArch \u8bbe\u7f6e",
-                detail = "进入 Settings → Accessibility → AI Service，打开 \"AI Service Enable\"。"
-            )
-            Step(
-                index = 2,
-                title = "\u586b\u5165\u672c\u5730\u7aef\u70b9",
-                detail = "将 AI Service URL 设为「${status.baseUrl}」，模式选择 Image。"
-            )
-            Step(
-                index = 3,
-                title = "\u9a8c\u8bc1\u8fde\u901a",
-                detail = "\u5728\u6e38\u620f\u4e2d\u6309\u4e0b AI Service \u70ed\u952e\uff08\u9ed8\u8ba4 ALT+...\uff09\uff0c\u8fd4\u56de\u672c App \u67e5\u770b\u201c\u8bca\u65ad\u201d\u9875\u3002"
-            )
-        }
-    }
-}
-
-@Composable
-private fun Step(index: Int, title: String, detail: String) {
-    Row(verticalAlignment = Alignment.Top) {
-        Box(
-            modifier = Modifier
-                .size(28.dp)
-                .clip(RoundedCornerShape(6.dp))
-                .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f)),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = index.toString(),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.secondary
-            )
-        }
-        Spacer(Modifier.width(12.dp))
-        Column(modifier = Modifier.fillMaxWidth()) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Spacer(Modifier.height(2.dp))
-            Text(
-                text = detail,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
-}
-
 private fun UiEndpointStatus.headline(): String = when (phase) {
     UiEndpointPhase.Running -> "\u670d\u52a1\u8fd0\u884c\u4e2d"
     UiEndpointPhase.Starting -> "\u542f\u52a8\u4e2d\u2026"
@@ -1575,6 +2061,21 @@ private fun relTime(ts: Long): String {
         diff < 3_600_000 -> "${diff / 60_000} \u5206\u949f\u524d"
         else -> "${diff / 3_600_000} \u5c0f\u65f6\u524d"
     }
+}
+
+private fun formatBytes(bytes: Int): String = when {
+    bytes <= 0 -> "0 B"
+    bytes < 1024 -> "$bytes B"
+    bytes < 1024 * 1024 -> "${bytes / 1024} KB"
+    else -> "${bytes / (1024 * 1024)} MB"
+}
+
+private fun String.toRetroArchOutputLabel(): String = when (trim().lowercase()) {
+    "text" -> "旁白模式"
+    "sound" -> "声音"
+    "image" -> "图像"
+    "" -> "未知"
+    else -> this
 }
 
 private fun String.displayNameForQuestionSource(): String = when (this) {
@@ -1612,6 +2113,8 @@ private fun HomeScreenPreviewRunning() {
                     paused = true,
                     pipelineStage = "evidence",
                     sourceIds = listOf("sample.2048.rules"),
+                    outputMode = "text",
+                    imageBytes = 56_322,
                 ),
                 lastResult = UiQuestionResult(
                     requestLogId = "preview-question",
@@ -1628,6 +2131,8 @@ private fun HomeScreenPreviewRunning() {
             pendingQuestionState = UiPendingQuestionState(),
             voiceInputState = UiVoiceInputState(engineLabel = "预览语音"),
             speechOutputState = UiSpeechOutputState(isAvailable = true, isReady = true),
+            overlayPermissionState = UiOverlayPermissionState(isGranted = true),
+            hasRecordAudioPermission = true,
             recordAudioPermissionDenied = false,
             onRestart = {},
             onCheckHealth = {},
@@ -1639,6 +2144,7 @@ private fun HomeScreenPreviewRunning() {
             onClearPendingQuestion = {},
             onFeedback = {},
             onRestoreContext = {},
+            onToggleAdvancedQuestionTools = {},
             onConversationTurnSelected = {},
             onFollowUpDraftSelected = { _, _ -> },
             onVoiceInputClick = {},
@@ -1671,6 +2177,8 @@ private fun HomeScreenPreviewError() {
             pendingQuestionState = UiPendingQuestionState(),
             voiceInputState = UiVoiceInputState(engineLabel = "预览语音"),
             speechOutputState = UiSpeechOutputState(isAvailable = true, isReady = true),
+            overlayPermissionState = UiOverlayPermissionState(isGranted = false),
+            hasRecordAudioPermission = false,
             recordAudioPermissionDenied = false,
             onRestart = {},
             onCheckHealth = {},
@@ -1682,6 +2190,7 @@ private fun HomeScreenPreviewError() {
             onClearPendingQuestion = {},
             onFeedback = {},
             onRestoreContext = {},
+            onToggleAdvancedQuestionTools = {},
             onConversationTurnSelected = {},
             onFollowUpDraftSelected = { _, _ -> },
             onVoiceInputClick = {},

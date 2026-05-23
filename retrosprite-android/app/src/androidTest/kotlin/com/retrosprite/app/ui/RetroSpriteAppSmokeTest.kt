@@ -36,6 +36,7 @@ import com.retrosprite.app.ui.viewmodel.UiSettings
 import com.retrosprite.app.ui.viewmodel.UiSpoilerLevel
 import com.retrosprite.app.ui.viewmodel.UiVoiceInputState
 import com.retrosprite.app.ui.viewmodel.VoiceInputProvider
+import com.retrosprite.app.voice.asr.AsrRecognitionContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -980,7 +981,7 @@ class RetroSpriteAppSmokeTest {
         fun setState(nextState: UiVoiceInputState) {
             mutableState.value = nextState
         }
-        override suspend fun startListening() = Unit
+        override suspend fun startListening(context: AsrRecognitionContext?) = Unit
         override suspend fun stopListening() = Unit
         override suspend fun cancelListening() = Unit
     }

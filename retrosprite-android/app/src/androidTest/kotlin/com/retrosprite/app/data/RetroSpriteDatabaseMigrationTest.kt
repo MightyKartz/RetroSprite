@@ -114,8 +114,56 @@ class RetroSpriteDatabaseMigrationTest {
         db.close()
     }
 
+    @Test
+    fun migration7To8AddsQuestionNormalizationColumnsToRequestLogs() {
+        helper.createDatabase(TEST_DB_7_8, 7).apply {
+            execSQL(
+                """
+                INSERT INTO request_logs (
+                    timestamp, request_key, label, system, game, image_size, paused,
+                    output_mode, question, question_source,
+                    answer_short, answer_detail, answer_type, answer_confidence,
+                    spoiler_level_used, next_actions, response_text, error_message,
+                    duration_millis, llm_tokens_in, llm_tokens_out
+                ) VALUES (
+                    1, 'request-1', 'mega_drive__光明力量2', 'mega_drive', '光明力量2', 0, 1,
+                    'hotkey_voice:text', '修医是谁', 'hotkey_voice',
+                    NULL, NULL, NULL, NULL,
+                    NULL, NULL, 'ok', NULL,
+                    0, 0, 0
+                )
+                """.trimIndent()
+            )
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(
+            TEST_DB_7_8,
+            8,
+            true,
+            *RetroSpriteDatabase.MIGRATIONS,
+        )
+
+        db.query(
+            """
+            SELECT raw_question, normalized_question, question_normalization_reason,
+                   normalized_question_matched_term, normalized_question_matched_entity_id
+            FROM request_logs WHERE label = 'mega_drive__光明力量2'
+            """.trimIndent()
+        ).use { cursor ->
+            cursor.moveToFirst()
+            assertEquals(true, cursor.isNull(0))
+            assertEquals(true, cursor.isNull(1))
+            assertEquals(true, cursor.isNull(2))
+            assertEquals(true, cursor.isNull(3))
+            assertEquals(true, cursor.isNull(4))
+        }
+        db.close()
+    }
+
     private companion object {
         const val TEST_DB = "migration-3-5"
         const val TEST_DB_5_6 = "migration-5-6"
+        const val TEST_DB_7_8 = "migration-7-8"
     }
 }

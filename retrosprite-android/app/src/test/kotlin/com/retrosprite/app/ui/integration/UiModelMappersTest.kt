@@ -213,6 +213,38 @@ class UiModelMappersTest {
     }
 
     @Test
+    fun `question normalization diagnostics map into detail json`() {
+        val entry = RequestLogEntry(
+            id = "voice-normalized",
+            timestamp = 1L,
+            label = "mega_drive__光明力量2",
+            system = "mega_drive",
+            game = "光明力量2",
+            imageBytes = 0,
+            paused = true,
+            outputMode = "hotkey_voice:text",
+            question = "修伊是谁",
+            questionSource = "hotkey_voice",
+            rawQuestion = "修医是谁",
+            normalizedQuestion = "修伊是谁",
+            questionNormalizationReason = "homophone",
+            normalizedQuestionMatchedTerm = "修伊",
+            normalizedQuestionMatchedEntityId = "npc.jaha",
+            responseText = "Jaha / 修伊 是前期队友。\n来源：sf2.manual_translation",
+        )
+
+        val ui = entry.toUi()
+
+        assertEquals("修伊是谁", ui.question)
+        assertEquals("hotkey_voice", ui.questionSource)
+        assertTrue(ui.fullResponseJson.contains(""""raw_question":"修医是谁""""))
+        assertTrue(ui.fullResponseJson.contains(""""normalized_question":"修伊是谁""""))
+        assertTrue(ui.fullResponseJson.contains(""""question_normalization_reason":"homophone""""))
+        assertTrue(ui.fullResponseJson.contains(""""normalized_question_matched_term":"修伊""""))
+        assertTrue(ui.fullResponseJson.contains(""""normalized_question_matched_entity_id":"npc.jaha""""))
+    }
+
+    @Test
     fun `feedback maps into ui and detail json`() {
         val entry = RequestLogEntry(
             id = "app-question",

@@ -1,6 +1,7 @@
 package com.retrosprite.app.ui.viewmodel
 
 import com.retrosprite.app.llm.LlmConfig
+import com.retrosprite.app.voice.asr.AsrRecognitionContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -130,6 +131,8 @@ data class UiVoiceInputState(
     val engineLabel: String = "系统语音",
     val statusMessage: String? = null,
     val errorMessage: String? = null,
+    val asrBiasingProfileId: String? = null,
+    val asrHotwordCount: Int = 0,
 )
 
 /** App-side short-answer speech output state. */
@@ -383,7 +386,7 @@ interface PendingQuestionProvider {
 interface VoiceInputProvider {
     val state: StateFlow<UiVoiceInputState>
     val requiresRecordAudioPermission: Boolean get() = true
-    suspend fun startListening()
+    suspend fun startListening(context: AsrRecognitionContext? = null)
     suspend fun stopListening()
     suspend fun cancelListening()
 }

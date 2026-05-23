@@ -55,6 +55,7 @@ import com.retrosprite.app.ui.viewmodel.SpeechOutputProvider
 import com.retrosprite.app.ui.viewmodel.UiDependencies
 import com.retrosprite.app.ui.viewmodel.UiSettings
 import com.retrosprite.app.ui.viewmodel.VoiceInputProvider
+import com.retrosprite.app.voice.asr.AsrBiasingProfileProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -203,8 +204,10 @@ object ServiceLocator {
             configProvider = { settingsState.value.toLlmConfigOrNull() },
         )
 
+        val gameResolver = RepositoryGameResolver(gameRepository)
+
         val queryPipeline: QueryPipeline = DefaultQueryPipeline(
-            resolver = RepositoryGameResolver(gameRepository),
+            resolver = gameResolver,
             retrieval = LocalKnowledgeRetrievalPipeline(knowledgeRepository),
             policy = EvidenceAnswerPolicy(),
             composer = AnswerComposer(
@@ -219,6 +222,8 @@ object ServiceLocator {
         val queryPipelineResponseGenerator: ResponseGenerator = QueryPipelineResponseGenerator(
             pipeline = queryPipeline,
             spoilerLevelProvider = { settingsState.value.spoilerLevel.toDomainSpoilerLevel() },
+            gameResolver = gameResolver,
+            knowledgeRepository = knowledgeRepository,
         )
 
         val responseGenerator: ResponseGenerator = PendingQuestionResponseGenerator(
@@ -268,6 +273,12 @@ object ServiceLocator {
             scope = ServiceLocator.applicationScope,
         )
 
+        val asrBiasingProfileProvider: AsrBiasingProfileProvider = AsrBiasingProfileProvider(
+            resolver = gameResolver,
+            gameRepository = gameRepository,
+            knowledgeRepository = knowledgeRepository,
+        )
+
         val speechOutputProvider: SpeechOutputProvider = AndroidSpeechOutputProvider(appContext)
 
         val hotkeyVoiceOverlayController: RetroArchHotkeyListener =
@@ -277,6 +288,7 @@ object ServiceLocator {
                 responseGenerator = queryPipelineResponseGenerator,
                 speechOutput = speechOutputProvider,
                 loggerProvider = { com.retrosprite.app.endpoint.EndpointController.requestLogger },
+                asrBiasingProfileProvider = asrBiasingProfileProvider,
             )
 
         val overlayPermissionProvider: OverlayPermissionProvider =

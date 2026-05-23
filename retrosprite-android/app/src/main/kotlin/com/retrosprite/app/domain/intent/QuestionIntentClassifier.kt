@@ -17,7 +17,7 @@ object QuestionIntentClassifier {
         if (question.containsAny("英文", "中文", "汉化名", "原名", "对应", "叫什么", "叫啥")) {
             return AnswerType.NameMapping
         }
-        if (question.containsAny("这游戏怎么玩", "这个游戏怎么玩", "游戏怎么玩", "这游戏要怎么玩", "这个游戏要怎么玩", "游戏要怎么玩", "这游戏该怎么玩", "要怎么玩", "该怎么玩", "到底要怎么玩", "主要玩什么", "好玩在哪", "好玩在哪里", "乐趣", "核心玩法", "适合什么玩家")) {
+        if (question.containsAny("这游戏怎么玩", "这个游戏怎么玩", "游戏怎么玩", "这游戏要怎么玩", "这个游戏要怎么玩", "游戏要怎么玩", "这游戏该怎么玩", "要怎么玩", "该怎么玩", "到底要怎么玩", "这游戏玩什么", "这个游戏玩什么", "游戏玩什么", "主要玩什么", "玩法是什么", "主要干什么", "主要是干嘛", "干嘛的", "玩点是什么", "好玩在哪", "好玩在哪里", "乐趣", "核心玩法", "适合什么玩家")) {
             return AnswerType.GameOverview
         }
         if (question.isLocationQuestion()) {
@@ -38,10 +38,10 @@ object QuestionIntentClassifier {
         if (question.containsAny("怎么复活", "为什么不能", "怎么转职", "几级转职", "转职", "复活", "机制")) {
             return AnswerType.Mechanic
         }
-        if (question.containsAny("值得练", "培养", "练谁", "练哪些", "角色练", "谁强", "阵容", "队伍里谁", "队伍怎么搭配", "队伍搭配", "哪些角色")) {
+        if (question.containsAny("值得练", "培养", "练谁", "练哪些", "角色练", "谁强", "阵容", "队伍里谁", "队伍怎么搭配", "队伍搭配", "角色怎么搭配", "角色如何搭配", "职业怎么搭配", "怎么搭配", "搭配", "哪些角色")) {
             return AnswerType.TeamBuild
         }
-        if (question.containsAny("打不过", "敌人怎么办", "值得练", "怎么打", "打法", "策略", "培养", "站位", "稳吗")) {
+        if (question.containsAny("打不过", "敌人怎么办", "怎么打", "打法", "策略", "培养", "站位", "稳吗", "怎么才能赢", "怎样才能赢", "如何才能赢", "怎么赢", "有什么技巧", "技巧")) {
             return AnswerType.Strategy
         }
         return AnswerType.UnknownOrOutOfScope
@@ -49,5 +49,6 @@ object QuestionIntentClassifier {
 
     private fun String.isLocationQuestion(): Boolean =
         containsAny("在哪里", "在哪儿", "哪拿", "怎么拿", "位置", "怎么找") ||
-            (contains("在哪") && !contains("哪些"))
+            (contains("在哪") && !contains("哪些")) ||
+            (containsAny("是什么", "什么地方") && containsAny("森林", "村庄", "村", "城镇", "城堡", "塔"))
 }

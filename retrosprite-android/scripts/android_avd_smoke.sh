@@ -118,7 +118,9 @@ else
 fi
 
 info "[4/7] starting RetroSprite"
-"$ADB" shell am start -n "${APP_ID}/.MainActivity" >/dev/null \
+"$ADB" shell am force-stop "${APP_ID}" >/dev/null \
+  || fail "failed to force-stop ${APP_ID}"
+"$ADB" shell am start -W -n "${APP_ID}/.MainActivity" >/dev/null \
   || fail "failed to start ${APP_ID}/.MainActivity"
 
 info "[5/7] adb forward tcp:${HOST_PORT} -> tcp:${DEVICE_PORT}"

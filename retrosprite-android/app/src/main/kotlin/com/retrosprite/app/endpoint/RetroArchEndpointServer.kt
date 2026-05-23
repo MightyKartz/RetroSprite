@@ -5,6 +5,7 @@ import com.retrosprite.app.endpoint.model.DebugLatestRequestResponse
 import com.retrosprite.app.endpoint.model.HealthResponse
 import com.retrosprite.app.endpoint.model.RetroArchRequest
 import com.retrosprite.app.endpoint.model.RetroArchResponse
+import com.retrosprite.app.endpoint.model.ResponseDiagnostics
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
@@ -190,6 +191,11 @@ fun Application.retroArchModule(
             }
             val durationMillis = System.currentTimeMillis() - startedAt
 
+            val normalizedQuestion = response.diagnostics.question
+                ?: response.diagnostics.normalizedQuestion
+            val inferredRawQuestion = request.question.trim().takeIf {
+                it.isNotBlank() && normalizedQuestion != null && it != normalizedQuestion
+            }
             requestLogger.log(
                 label = request.label,
                 imageBase64 = request.image,
@@ -198,9 +204,20 @@ fun Application.retroArchModule(
                 responseText = response.text.orEmpty(),
                 errorMessage = response.error,
                 durationMillis = durationMillis,
-                diagnostics = response.diagnostics,
-                question = request.question,
+                diagnostics = response.diagnostics.withInferredNormalization(
+                    rawQuestion = request.question,
+                ),
+                question = response.diagnostics.question
+                    ?: response.diagnostics.normalizedQuestion
+                    ?: request.question,
                 questionSource = QUESTION_SOURCE_DEBUG,
+                rawQuestion = response.diagnostics.rawQuestion ?: inferredRawQuestion,
+                normalizedQuestion = response.diagnostics.normalizedQuestion
+                    ?: normalizedQuestion.takeIf { inferredRawQuestion != null },
+                questionNormalizationReason = response.diagnostics.questionNormalizationReason
+                    ?: "normalized".takeIf { inferredRawQuestion != null },
+                normalizedQuestionMatchedTerm = response.diagnostics.normalizedQuestionMatchedTerm,
+                normalizedQuestionMatchedEntityId = response.diagnostics.normalizedQuestionMatchedEntityId,
             )
             call.respondJson(response)
         }
@@ -262,6 +279,11 @@ fun Application.retroArchModule(
             }
 
             // 4. Record success path.
+            val normalizedQuestion = response.diagnostics.question
+                ?: response.diagnostics.normalizedQuestion
+            val inferredRawQuestion = request.question.trim().takeIf {
+                it.isNotBlank() && normalizedQuestion != null && it != normalizedQuestion
+            }
             requestLogger.log(
                 label = request.label,
                 imageBase64 = request.image,
@@ -270,10 +292,19 @@ fun Application.retroArchModule(
                 responseText = response.text.orEmpty(),
                 errorMessage = response.error,
                 durationMillis = durationMillis,
-                diagnostics = response.diagnostics,
+                diagnostics = response.diagnostics.withInferredNormalization(
+                    rawQuestion = request.question,
+                ),
                 question = response.diagnostics.question ?: request.question,
                 questionSource = response.diagnostics.questionSource
                     ?: request.question.takeIf { it.isNotBlank() }?.let { QUESTION_SOURCE_RETROARCH },
+                rawQuestion = response.diagnostics.rawQuestion ?: inferredRawQuestion,
+                normalizedQuestion = response.diagnostics.normalizedQuestion
+                    ?: normalizedQuestion.takeIf { inferredRawQuestion != null },
+                questionNormalizationReason = response.diagnostics.questionNormalizationReason
+                    ?: "normalized".takeIf { inferredRawQuestion != null },
+                normalizedQuestionMatchedTerm = response.diagnostics.normalizedQuestionMatchedTerm,
+                normalizedQuestionMatchedEntityId = response.diagnostics.normalizedQuestionMatchedEntityId,
             )
             call.respondJson(response)
         }
@@ -294,6 +325,11 @@ private fun RequestLogEntry.toDebugLatestRequestResponse(): DebugLatestRequestRe
         ok = errorMessage == null,
         question = question,
         question_source = questionSource,
+        raw_question = rawQuestion,
+        normalized_question = normalizedQuestion,
+        question_normalization_reason = questionNormalizationReason,
+        normalized_question_matched_term = normalizedQuestionMatchedTerm,
+        normalized_question_matched_entity_id = normalizedQuestionMatchedEntityId,
         answer_short = answerShort,
         answer_detail = answerDetail,
         answer_type = answerType,
@@ -315,6 +351,19 @@ private fun RequestLogEntry.toDebugLatestRequestResponse(): DebugLatestRequestRe
         llm_tokens_out = llmTokensOut,
         llm_error = llmError,
     )
+
+private fun ResponseDiagnostics.withInferredNormalization(rawQuestion: String): ResponseDiagnostics {
+    val cleanRaw = rawQuestion.trim()
+    val cleanQuestion = question?.trim().orEmpty()
+    if (cleanRaw.isBlank() || cleanQuestion.isBlank() || cleanRaw == cleanQuestion) {
+        return this
+    }
+    return copy(
+        rawQuestion = this.rawQuestion ?: cleanRaw,
+        normalizedQuestion = this.normalizedQuestion ?: cleanQuestion,
+        questionNormalizationReason = questionNormalizationReason ?: "normalized",
+    )
+}
 
 /** Helper that serializes via the lenient parser regardless of negotiated content type. */
 private suspend fun io.ktor.server.application.ApplicationCall.respondJson(

@@ -1,5 +1,7 @@
 # RetroSprite
 
+[中文说明](./README.zh-CN.md) | English
+
 RetroSprite is an Android companion for RetroArch that lets a player press the
 RetroArch AI Service hotkey, ask a short in-game question, and receive a
 low-spoiler answer grounded in local Game Knowledge Packs.

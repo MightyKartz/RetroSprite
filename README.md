@@ -12,7 +12,7 @@ The project is currently focused on a local-first, evidence-first loop:
 RetroArch AI Service hotkey
   -> RetroSprite localhost endpoint
   -> short in-game voice overlay
-  -> local sherpa-onnx ASR
+  -> local sherpa-onnx Paraformer ASR
   -> GKP resolver + local retrieval + AnswerPolicy
   -> short answer + Android TTS
 ```
@@ -21,17 +21,37 @@ External LLMs are optional BYOK composers. They are not the default fact source
 and are skipped when local evidence is missing, disabled, or over the selected
 spoiler level.
 
+The next development direction is **GKP Lite plus optional BYOK LLM assistance**:
+each game's first support package should be a lightweight, source-cited,
+testable knowledge anchor rather than a complete walkthrough. When enabled by
+the player, an LLM can improve query understanding, cross-language mapping,
+evidence synthesis, translation, and phrasing, but it must not bare-answer
+game-specific facts without local evidence.
+
 ## Current Status
 
 RetroSprite is in the M10/M11 track: Hotkey Voice Overlay plus Zero-LLM GKP.
 
 ### Supported Games
 
-RetroSprite currently has one real supported game pack:
-**Shining Force II / 光明力量2** for Sega Mega Drive / Genesis. The bundled
-`sample-2048` and `sample-relay-station` packs are test/demo packs for
-development and smoke testing; they do not represent broader production game
-support.
+RetroSprite currently supports exactly **six** bundled real games:
+
+- **Shining Force II / 光明力量2** (Sega Mega Drive / Genesis) —
+  `community.shining-force-ii-md`
+- **Golden Sun / 黄金太阳** (Game Boy Advance) —
+  `community.golden-sun-gba-zh`
+- **Phantasy Star IV / 梦幻之星 IV** (Sega Mega Drive / Genesis) —
+  `community.phantasy-star-iv-md-zh`
+- **Langrisser II / 梦幻模拟战 II** (Sega Mega Drive / Genesis) —
+  `community.langrisser-ii-md-zh`
+- **Chrono Trigger / 时空之轮** (Super Nintendo / Super Famicom) —
+  `community.chrono-trigger-snes-zh`
+- **Final Fantasy VI / 最终幻想 VI** (Super Nintendo / Super Famicom) —
+  `community.final-fantasy-vi-snes-zh`
+
+This is the full current game support surface. The former `sample-2048` and
+`sample-relay-station` demo packs have been removed from bundled assets; smoke
+checks should use real GKP packs.
 
 Implemented pieces include:
 
@@ -45,8 +65,8 @@ Implemented pieces include:
   enable/disable state, and migration schemas.
 - Game Knowledge Pack v0 parser, bundled importer, external-pack preflight,
   install/replace confirmation, and Packs management UI.
-- Bundled demo packs for `sample-2048`, `sample-relay-station`, plus the first
-  real supported game pack, `community.shining-force-ii-md`.
+- Six bundled real GKP packs: `community.shining-force-ii-md` plus five Retro
+  JRPG/SRPG Chinese Lite packs.
 - Local retrieval through template, alias/entity, and FTS-style matching with
   spoiler gating and source IDs.
 - Settings for RetroArch setup guidance, endpoint port, overlay permission,
@@ -148,6 +168,8 @@ cd retrosprite-android
 Useful documentation:
 
 - [`retrosprite-android/docs/GKP_V0_SCHEMA.md`](./retrosprite-android/docs/GKP_V0_SCHEMA.md)
+- [`retrosprite-android/docs/GKP_LITE_OPTIONAL_LLM_DIRECTION.md`](./retrosprite-android/docs/GKP_LITE_OPTIONAL_LLM_DIRECTION.md)
+- [`retrosprite-android/docs/REAL_GAME_GKP_EXPANSION_TEMPLATE.md`](./retrosprite-android/docs/REAL_GAME_GKP_EXPANSION_TEMPLATE.md)
 - [`retrosprite-android/docs/PROTOCOL_REFERENCE.md`](./retrosprite-android/docs/PROTOCOL_REFERENCE.md)
 - [`retrosprite-android/docs/TEST_COVERAGE.md`](./retrosprite-android/docs/TEST_COVERAGE.md)
 - [`retrosprite-android/docs/NEXT_IMPLEMENTATION_PLAN.md`](./retrosprite-android/docs/NEXT_IMPLEMENTATION_PLAN.md)
@@ -166,4 +188,23 @@ RetroSprite deliberately avoids several tempting shortcuts:
 
 ## License
 
-TBD.
+RetroSprite's project license is TBD.
+
+### Third-Party Notices
+
+RetroSprite uses and may bundle third-party open-source ASR components:
+
+- `sherpa-onnx` by k2-fsa for local offline speech recognition.
+  Source: <https://github.com/k2-fsa/sherpa-onnx>
+  License: Apache License 2.0.
+- `csukuangfj/streaming-paraformer-zh` ONNX Paraformer model files for
+  local Chinese ASR.
+  Source: <https://huggingface.co/csukuangfj/streaming-paraformer-zh>
+  License: Apache License 2.0.
+- The Paraformer model is converted from the ModelScope Paraformer ASR model.
+  Source:
+  <https://modelscope.cn/models/iic/speech_paraformer-large_asr_nat-zh-cn-16k-common-vocab8404-online-onnx>
+  License: Apache License 2.0.
+
+Apache-2.0 permits commercial use, modification, and redistribution, provided
+the applicable license and attribution notices are preserved.

@@ -1,0 +1,39 @@
+{
+  "schema_version": "gkp.v0",
+  "pack_id": "{{pack_id}}",
+  "pack_version": "0.1.0",
+  "coverage_tier": "{{coverage_tier}}",
+  "default_language": "{{language}}",
+  "game": {
+    "game_id": "{{game_id}}",
+    "title": "{{display_title}}",
+    "platform": "{{platform}}",
+    "region": {{region_json}},
+    "languages": ["{{language}}"],
+    "retroarch_system_ids": ["{{platform}}"],
+    "retroarch_labels": {{retroarch_labels_json}},
+    "rom_identity": {
+      "crc32": null,
+      "sha1": null
+    }
+  },
+  "trust_level": "community",
+  "min_app_version": "0.1.0",
+  "generated_at": "{{generated_at}}",
+  "contents": {
+    "knowledge": [
+      "knowledge/production.jsonl",
+      "knowledge/mechanics.jsonl",
+      "knowledge/strategies.jsonl",
+      "knowledge/entities.jsonl",
+      "knowledge/items.jsonl",
+      "knowledge/locations.jsonl",
+      "knowledge/bosses.jsonl",
+      "knowledge/enemies.jsonl"
+    ],
+    "citations": "sources/citations.jsonl",
+    "aliases": "aliases.json",
+    "spoiler_graph": "spoiler_graph.json",
+    "qa_goldens": "qa_goldens.jsonl"
+  }
+}

@@ -17,18 +17,33 @@ data class BundledGkpImportStatus(
     val updatedAtMillis: Long? = null,
 )
 
-class BundledGkpImporter(
-    private val context: Context,
+class BundledGkpImporter internal constructor(
+    private val assetReader: BundledGkpAssetReader,
     private val gameRepository: GameRepository,
     private val knowledgeRepository: KnowledgeRepository,
     private val parser: GkpV0Parser = GkpV0Parser(),
     private val nowMillis: () -> Long = { System.currentTimeMillis() },
 ) {
 
+    constructor(
+        context: Context,
+        gameRepository: GameRepository,
+        knowledgeRepository: KnowledgeRepository,
+        parser: GkpV0Parser = GkpV0Parser(),
+        nowMillis: () -> Long = { System.currentTimeMillis() },
+    ) : this(
+        assetReader = AndroidBundledGkpAssetReader(context),
+        gameRepository = gameRepository,
+        knowledgeRepository = knowledgeRepository,
+        parser = parser,
+        nowMillis = nowMillis,
+    )
+
     suspend fun importBundledPacks(
         onStatus: (BundledGkpImportStatus) -> Unit = {},
     ): BundledGkpImportStatus = withContext(Dispatchers.IO) {
-        val total = BUNDLED_PACK_PATHS.size
+        val packPaths = discoverPackPaths()
+        val total = packPaths.size
         var imported = 0
         var failed = 0
         val failures = mutableListOf<String>()
@@ -47,7 +62,7 @@ class BundledGkpImporter(
 
         onStatus(status(BundledGkpImportPhase.Importing, "importing bundled GKP packs"))
 
-        BUNDLED_PACK_PATHS.forEach { path ->
+        packPaths.forEach { path ->
             runCatching {
                 importPack(path)
                 imported += 1
@@ -69,6 +84,22 @@ class BundledGkpImporter(
         onStatus(finalStatus)
         finalStatus
     }
+
+    private fun discoverPackPaths(): List<String> =
+        assetReader.list(BUNDLED_GKP_ROOT)
+            .asSequence()
+            .map { it.trim().trim('/') }
+            .filter { it.isNotBlank() }
+            .map { child -> "$BUNDLED_GKP_ROOT/$child" }
+            .filter { path -> hasManifest(path) }
+            .sorted()
+            .toList()
+
+    private fun hasManifest(assetPackPath: String): Boolean =
+        runCatching {
+            readAsset("$assetPackPath/manifest.json")
+            true
+        }.getOrDefault(false)
 
     private suspend fun importPack(assetPackPath: String) {
         val manifestText = readAsset("$assetPackPath/manifest.json")
@@ -111,13 +142,25 @@ class BundledGkpImporter(
     }
 
     private fun readAsset(path: String): String =
-        context.assets.open(path).bufferedReader(Charsets.UTF_8).use { it.readText() }
+        assetReader.readText(path)
 
     private companion object {
-        val BUNDLED_PACK_PATHS = listOf(
-            "gkp/sample-2048",
-            "gkp/sample-relay-station",
-            "gkp/shining-force-ii-md",
-        )
+        const val BUNDLED_GKP_ROOT = "gkp"
     }
+}
+
+internal interface BundledGkpAssetReader {
+    fun list(path: String): List<String>
+    fun readText(path: String): String
+}
+
+private class AndroidBundledGkpAssetReader(
+    private val context: Context,
+) : BundledGkpAssetReader {
+
+    override fun list(path: String): List<String> =
+        context.assets.list(path).orEmpty().toList()
+
+    override fun readText(path: String): String =
+        context.assets.open(path).bufferedReader(Charsets.UTF_8).use { it.readText() }
 }

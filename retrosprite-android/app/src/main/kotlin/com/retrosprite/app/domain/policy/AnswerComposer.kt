@@ -42,7 +42,8 @@ class AnswerComposer(
                 answerType = decision.answerType,
                 spoilerLevelUsed = decision.spoilerLevel,
                 nextActions = decision.nextActions,
-            )
+                suggestedQuestions = decision.suggestedQuestions,
+            ).localizedFor(context)
             ComposedAnswer(
                 text = result.textWithSources,
                 llmTrace = llm.skippedTrace(),
@@ -58,7 +59,8 @@ class AnswerComposer(
                     answerType = AnswerType.NoEvidence,
                     spoilerLevelUsed = decision.spoilerLevel,
                     nextActions = listOf(AnswerNextAction.MoreSpecific, AnswerNextAction.MarkIncorrect),
-                )
+                    suggestedQuestions = decision.suggestedQuestions,
+                ).localizedFor(context)
                 ComposedAnswer(
                     text = result.textWithSources,
                     llmTrace = llm.skippedTrace(),
@@ -84,7 +86,8 @@ class AnswerComposer(
                             ?: context.questionIntent,
                         spoilerLevelUsed = decision.spoilerLevel,
                         nextActions = decision.nextActions,
-                    )
+                        suggestedQuestions = decision.suggestedQuestions,
+                    ).localizedFor(context)
                     ComposedAnswer(
                         text = result.textWithSources,
                         llmTrace = LlmCallTrace(
@@ -109,7 +112,8 @@ class AnswerComposer(
                         answerType = decision.answerType,
                         spoilerLevelUsed = decision.spoilerLevel,
                         nextActions = listOf(AnswerNextAction.ViewSources, AnswerNextAction.MarkIncorrect),
-                    )
+                        suggestedQuestions = decision.suggestedQuestions,
+                    ).localizedFor(context)
                     ComposedAnswer(
                         text = result.textWithSources,
                         llmTrace = LlmCallTrace(
@@ -137,7 +141,8 @@ class AnswerComposer(
                     ?: context.questionIntent,
                 spoilerLevelUsed = decision.spoilerLevel,
                 nextActions = decision.nextActions,
-            )
+                suggestedQuestions = decision.suggestedQuestions,
+            ).localizedFor(context)
             ComposedAnswer(
                 text = result.textWithSources,
                 llmTrace = llm.skippedTrace(),
@@ -152,7 +157,7 @@ class AnswerComposer(
                 answerType = context.questionIntent,
                 spoilerLevelUsed = context.spoilerLevel,
                 nextActions = listOf(AnswerNextAction.MoreSpecific, AnswerNextAction.MarkIncorrect),
-            )
+            ).localizedFor(context)
             ComposedAnswer(
                 text = result.textWithSources,
                 llmTrace = llm.skippedTrace(),
@@ -167,7 +172,7 @@ class AnswerComposer(
                 answerType = AnswerType.UnknownOrOutOfScope,
                 spoilerLevelUsed = context.spoilerLevel,
                 nextActions = listOf(AnswerNextAction.MarkIncorrect),
-            )
+            ).localizedFor(context)
             ComposedAnswer(
                 text = result.textWithSources,
                 llmTrace = llm.skippedTrace(),
@@ -239,3 +244,6 @@ class AnswerComposer(
         }
     }
 }
+
+private fun AnswerResult.localizedFor(context: SessionContext): AnswerResult =
+    ChineseAnswerTextLocalizer.localize(this, context)

@@ -11,6 +11,25 @@
 - Deterministic linting before a pack can be imported.
 - Direct mapping to the current Room `games` and `knowledge` tables.
 
+## GKP Lite Profile
+
+`gkp.v0` supports both small and deep packs. The next product direction uses
+**GKP Lite** as the first-support profile for real games: a lightweight,
+reviewed, source-cited package that anchors game identity, aliases, core
+gameplay, beginner direction, common mechanics, key terms, spoiler gates, and
+golden Q&A tests.
+
+GKP Lite is not a complete walkthrough. A game can be initially supported with a
+Lite pack and later grow into an expanded/deep pack through additional reviewed
+slices. LLM integration remains optional and evidence-gated: when enabled, it
+may rewrite questions, bridge languages, synthesize multiple evidence rows, or
+translate answers, but it must not become the factual source for game-specific
+claims without GKP evidence.
+
+See `GKP_LITE_OPTIONAL_LLM_DIRECTION.md` and
+`REAL_GAME_GKP_EXPANSION_TEMPLATE.md` for the product policy and production
+template.
+
 ## Package Layout
 
 ```text

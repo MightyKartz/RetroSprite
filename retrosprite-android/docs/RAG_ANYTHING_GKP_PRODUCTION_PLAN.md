@@ -11,6 +11,12 @@ RetroSprite should use RAG-Anything as a developer-side GKP factory.
 
 It should not be embedded into the Android app and should not replace the current local Room/FTS5 retrieval path. The Android app remains Kotlin, local-first, low-latency, inspectable, and evidence-gated. RAG-Anything belongs in an offline build pipeline that helps parse messy source material and generate reviewed GKP candidate data.
 
+2026-05-24 update: the builder's first target should be standardized **GKP
+Lite** packages, not large complete guide packs. A Lite package is generated
+from a reusable scaffold, then reviewed and linted before export. The same
+template should support human-authored content, RAG-Anything extraction, and
+LLM-assisted drafting without changing the Android runtime contract.
+
 Recommended boundary:
 
 ```text
@@ -51,11 +57,12 @@ RetroSprite should keep:
 ## 3. Goals
 
 1. Build a repeatable `gkp-builder` toolchain that uses RAG-Anything to turn approved source material into draft GKP v0 packages.
-2. Reduce manual GKP authoring time while increasing source coverage, alias coverage, and golden test coverage.
-3. Keep every generated knowledge row traceable to a source id and locator.
-4. Prevent copied long-form walkthrough text, ROM data, executable code, and unreviewed LLM claims from entering GKP packages.
-5. Produce packs that pass existing Android-side parser, lint, retrieval, and answer policy tests.
-6. Make the pipeline useful for `sample-2048` first, then one guide-heavy classic game and one mechanics-heavy game.
+2. Provide a standardized `gkp-lite` scaffold so a new game starts from the same manifest, knowledge lanes, source inventory, aliases, spoiler graph, golden tests, and changelog shape.
+3. Reduce manual GKP authoring time while increasing source coverage, alias coverage, and golden test coverage.
+4. Keep every generated knowledge row traceable to a source id and locator.
+5. Prevent copied long-form walkthrough text, ROM data, executable code, and unreviewed LLM claims from entering GKP packages.
+6. Produce packs that pass existing Android-side parser, lint, retrieval, and answer policy tests.
+7. Make the pipeline useful for `sample-2048` first, then one guide-heavy classic game and one mechanics-heavy game.
 
 ## 4. Non-Goals
 
@@ -94,6 +101,26 @@ Add a root-level tool directory because GKP production is not Android runtime co
 │     ├─ configs/
 │     │  ├─ builder.example.toml
 │     │  └─ source-policy.toml
+│     ├─ templates/
+│     │  └─ gkp-lite/
+│     │     ├─ profile.yaml
+│     │     ├─ manifest.template.json
+│     │     ├─ aliases.template.json
+│     │     ├─ spoiler_graph.template.json
+│     │     ├─ qa_goldens.template.jsonl
+│     │     ├─ changelog.template.md
+│     │     ├─ sources/
+│     │     │  ├─ citations.template.jsonl
+│     │     │  └─ licenses.template.md
+│     │     └─ knowledge/
+│     │        ├─ production.template.jsonl
+│     │        ├─ mechanics.template.jsonl
+│     │        ├─ strategies.template.jsonl
+│     │        ├─ entities.template.jsonl
+│     │        ├─ items.template.jsonl
+│     │        └─ locations.template.jsonl
+│     ├─ schemas/
+│     │  └─ gkp-lite-profile.schema.json
 │     ├─ prompts/
 │     │  ├─ extract_entities.zh.md
 │     │  ├─ extract_templates.zh.md
@@ -333,12 +360,14 @@ Initial CLI:
 ```bash
 cd /Users/kartz/Development/Sprite/tools/gkp-builder
 
-# Create a new pack workspace.
-uv run gkp-builder init \
+# Create a new GKP Lite workspace from the standard scaffold.
+uv run gkp-builder new \
+  --profile lite \
   --game-id 2048 \
   --pack-id sample.2048 \
   --title "2048" \
-  --language zh
+  --language zh \
+  --out workspaces/sample-2048
 
 # Register allowed sources.
 uv run gkp-builder source add \

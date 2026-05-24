@@ -59,6 +59,32 @@ class AnswerComposerTest {
     }
 
     @Test
+    fun `direct answers localize follow up questions for chinese display`() = runTest {
+        val answer = composer.composeDetailed(
+            decision = AnswerDecision.DirectAnswer(
+                text = "Vigor Ball 给 Priest 系角色用于转 Master Monk。",
+                sources = listOf("sf2.promotion"),
+                spoilerLevel = SpoilerLevel.LIGHT,
+                answerType = AnswerType.Usage,
+                confidence = AnswerConfidence.High,
+                suggestedQuestions = listOf("气合之玉在哪里？", "谁适合转 Master Monk？"),
+            ),
+            context = ctx(),
+            llm = MockLlmAdapter(),
+        )
+
+        assertTrue(answer.text.contains("气合之玉给僧侣系角色用于转武僧。"))
+        assertTrue(answer.text.contains("你还可以问："))
+        assertTrue(answer.text.contains("· 气合之玉在哪里？"))
+        assertTrue(answer.text.contains("· 谁适合转武僧？"))
+        assertEquals("气合之玉给僧侣系角色用于转武僧。", answer.answerResult.answerShort)
+        assertEquals(
+            listOf("气合之玉在哪里？", "谁适合转武僧？"),
+            answer.answerResult.suggestedQuestions,
+        )
+    }
+
+    @Test
     fun `compose with llm sends evidence prompt and appends fallback sources`() = runTest {
         val llm = CapturingLlmAdapter(
             response = LlmResponse(

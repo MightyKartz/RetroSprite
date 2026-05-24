@@ -69,6 +69,59 @@ class TemplateDocumentMatcherTest {
     }
 
     @Test
+    fun `rejects generic usage question without an entity anchor`() {
+        val match = TemplateDocumentMatcher().bestMatch(
+            query = "攻击力高有什么用",
+            queryIntent = AnswerType.Usage,
+            rows = listOf(nutRow()),
+            tolerance = SpoilerLevel.LIGHT,
+        )
+
+        assertNull(match)
+    }
+
+    @Test
+    fun `keeps entity anchored usage question matching its template`() {
+        val match = TemplateDocumentMatcher().bestMatch(
+            query = "坚果有什么用",
+            queryIntent = AnswerType.Usage,
+            rows = listOf(nutRow()),
+            tolerance = SpoilerLevel.LIGHT,
+        )
+
+        assertNotNull(match)
+        requireNotNull(match)
+        assertEquals("item.nut", match.document.entityId)
+        assertEquals("坚果是较强的回复道具。", match.document.selectedAnswer)
+    }
+
+    @Test
+    fun `rejects stat questions against unrelated mechanic templates`() {
+        val match = TemplateDocumentMatcher().bestMatch(
+            query = "攻击力高有什么用",
+            queryIntent = AnswerType.Mechanic,
+            rows = listOf(dualTechRow()),
+            tolerance = SpoilerLevel.LIGHT,
+        )
+
+        assertNull(match)
+    }
+
+    @Test
+    fun `keeps stat questions matching stat mechanic templates`() {
+        val match = TemplateDocumentMatcher().bestMatch(
+            query = "攻击力高有什么用",
+            queryIntent = AnswerType.Mechanic,
+            rows = listOf(statsRow()),
+            tolerance = SpoilerLevel.LIGHT,
+        )
+
+        assertNotNull(match)
+        requireNotNull(match)
+        assertEquals("mechanic.stats-equipment", match.document.entityId)
+    }
+
+    @Test
     fun `respects template spoiler selection`() {
         val match = TemplateDocumentMatcher().bestMatch(
             query = "Mithril 在哪里？",
@@ -119,6 +172,69 @@ class TemplateDocumentMatcherTest {
                   "question_patterns":["这游戏怎么玩","主要玩什么","核心玩法是什么"],
                   "answer":"主要玩剧情推进、队伍培养和网格回合制战斗。",
                   "source_refs":["sf2.official_overview"],
+                  "spoiler_level":"none"
+                }
+                """
+            ),
+        )
+
+    private fun nutRow(): KnowledgeChunkDomain =
+        chunk(
+            entityId = "item.nut",
+            entityType = "item",
+            canonicalName = "Nut / 坚果",
+            aliases = listOf("Nut", "坚果"),
+            answerTemplates = listOf(
+                """
+                {
+                  "template_id":"template.gs.nut.zh",
+                  "language":"zh",
+                  "intent":"usage",
+                  "question_patterns":["坚果有什么用","坚果要留吗"],
+                  "answer":"坚果是较强的回复道具。",
+                  "source_refs":["gs.official_manual"],
+                  "spoiler_level":"none"
+                }
+                """
+            ),
+        )
+
+    private fun dualTechRow(): KnowledgeChunkDomain =
+        chunk(
+            entityId = "mechanic.dual-triple-techs",
+            entityType = "mechanic",
+            canonicalName = "双人技与三人技",
+            aliases = listOf("双人技", "三人技", "组合技"),
+            answerTemplates = listOf(
+                """
+                {
+                  "template_id":"template.ct.dual-triple-techs.zh",
+                  "language":"zh",
+                  "intent":"mechanic",
+                  "question_patterns":["双人技有什么用","组合技要背吗"],
+                  "answer":"双人技和三人技是特定队友技能配合出的组合。",
+                  "source_refs":["ct.techs_wiki"],
+                  "spoiler_level":"light"
+                }
+                """
+            ),
+        )
+
+    private fun statsRow(): KnowledgeChunkDomain =
+        chunk(
+            entityId = "mechanic.stats-equipment",
+            entityType = "mechanic",
+            canonicalName = "基础属性与装备",
+            aliases = listOf("基础属性", "攻击力", "防御力", "速度"),
+            answerTemplates = listOf(
+                """
+                {
+                  "template_id":"template.gs.stats-equipment.zh",
+                  "language":"zh",
+                  "intent":"mechanic",
+                  "question_patterns":["攻击力高有什么用","防御力高有什么用","速度高有什么用"],
+                  "answer":"攻击力影响输出节奏，防御力影响承伤容错，速度影响行动先后。",
+                  "source_refs":["gs.project_notes"],
                   "spoiler_level":"none"
                 }
                 """

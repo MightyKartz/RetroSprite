@@ -18,6 +18,18 @@ interface RetrievalPipeline {
     suspend fun retrieve(query: RetrievalQuery): List<RetrievalResult>
 
     /**
+     * Suggest answerable follow-up or recovery questions for the current game.
+     *
+     * Implementations should ground suggestions in local knowledge, usually
+     * GKP template `question_patterns`. The default keeps existing retrievers
+     * source-compatible.
+     */
+    suspend fun suggestQuestions(
+        query: RetrievalQuery,
+        results: List<RetrievalResult>,
+    ): List<String> = emptyList()
+
+    /**
      * Locale-aware question normalization applied before retrieval and
      * also used as the cache key.
      */

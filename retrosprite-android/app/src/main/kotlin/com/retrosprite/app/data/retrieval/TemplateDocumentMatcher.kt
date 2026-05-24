@@ -32,10 +32,18 @@ internal data class TemplateDocumentScore(
     val conceptOverlap: Double,
     val aliasSimilarity: Double,
     val intentCompatible: Boolean,
+    val entityAnchored: Boolean,
+    val strongPatternMatch: Boolean,
+    val requiresEntityAnchor: Boolean,
+    val requiresSpecificConceptAnchor: Boolean,
 ) {
-    fun passesThreshold(): Boolean =
-        score >= DIRECT_ACCEPT_THRESHOLD ||
+    fun passesThreshold(): Boolean {
+        val passesEntityAnchor = !requiresEntityAnchor || entityAnchored || strongPatternMatch
+        val passesSpecificConceptAnchor = !requiresSpecificConceptAnchor || entityAnchored || strongPatternMatch
+        val passesScore = score >= DIRECT_ACCEPT_THRESHOLD ||
             (score >= CONDITIONAL_ACCEPT_THRESHOLD && intentCompatible && conceptOverlap > 0.0)
+        return passesEntityAnchor && passesSpecificConceptAnchor && passesScore
+    }
 
     private companion object {
         const val DIRECT_ACCEPT_THRESHOLD = 0.72
@@ -118,10 +126,12 @@ internal class TemplateDocumentMatcher {
         queryConcepts: Set<TemplateConceptTag>,
         document: TemplateRetrievalDocument,
     ): TemplateDocumentScore {
-        val exactPattern = document.questionPatterns.any { pattern ->
-            val normalizedPattern = normalize(pattern)
-            normalizedPattern.isNotEmpty() &&
-                (normalizedQuery.contains(normalizedPattern) || normalizedPattern.contains(normalizedQuery))
+        val normalizedPatterns = document.questionPatterns.map(::normalize).filter { it.isNotEmpty() }
+        val strongPatternMatch = normalizedPatterns.any { pattern ->
+            normalizedQuery == pattern || normalizedQuery.contains(pattern)
+        }
+        val exactPattern = normalizedPatterns.any { pattern ->
+            normalizedQuery.contains(pattern) || pattern.contains(normalizedQuery)
         }
         val patternSimilarity = document.questionPatterns.maxOfOrNull { pattern ->
             phraseSimilarity(normalizedQuery, normalize(pattern))
@@ -130,6 +140,9 @@ internal class TemplateDocumentMatcher {
         val aliasSimilarity = (document.aliases + document.canonicalName).maxOfOrNull { alias ->
             phraseSimilarity(normalizedQuery, normalize(alias))
         } ?: 0.0
+        val entityAnchored = entityAnchored(normalizedQuery, document)
+        val requiresEntityAnchor = requiresEntityAnchor(queryIntent, document)
+        val requiresSpecificConceptAnchor = requiresSpecificConceptAnchor(queryConcepts, document)
         val answerSimilarity = phraseSimilarity(normalizedQuery, normalize(document.selectedAnswer))
         val intentCompatible = intentCompatible(queryIntent, document.intent)
         val intentKnownMismatch = document.intent != null &&
@@ -150,6 +163,10 @@ internal class TemplateDocumentMatcher {
             conceptOverlap = conceptOverlap,
             aliasSimilarity = aliasSimilarity,
             intentCompatible = intentCompatible,
+            entityAnchored = entityAnchored,
+            strongPatternMatch = strongPatternMatch,
+            requiresEntityAnchor = requiresEntityAnchor,
+            requiresSpecificConceptAnchor = requiresSpecificConceptAnchor,
         )
     }
 
@@ -185,6 +202,40 @@ internal class TemplateDocumentMatcher {
         documentIntent == null ||
             queryIntent == AnswerType.UnknownOrOutOfScope ||
             queryIntent.wireName == documentIntent
+
+    private fun requiresEntityAnchor(
+        queryIntent: AnswerType,
+        document: TemplateRetrievalDocument,
+    ): Boolean {
+        if (document.entityType.lowercase() !in CONCRETE_USAGE_ENTITY_TYPES) return false
+        return queryIntent == AnswerType.Usage ||
+            document.intent == AnswerType.Usage.wireName ||
+            TemplateConceptTag.ItemUsage in document.conceptTags
+    }
+
+    private fun requiresSpecificConceptAnchor(
+        queryConcepts: Set<TemplateConceptTag>,
+        document: TemplateRetrievalDocument,
+    ): Boolean =
+        TemplateConceptTag.StatMechanic in queryConcepts &&
+            TemplateConceptTag.StatMechanic !in document.conceptTags
+
+    private fun entityAnchored(
+        normalizedQuery: String,
+        document: TemplateRetrievalDocument,
+    ): Boolean =
+        document.entityAnchorTerms()
+            .any { term -> normalizedQuery.contains(term) }
+
+    private fun TemplateRetrievalDocument.entityAnchorTerms(): List<String> =
+        buildList {
+            add(canonicalName)
+            canonicalName.split("/", "／", "-", " - ").forEach(::add)
+            addAll(aliases)
+        }
+            .map(::normalize)
+            .filter { it.length >= MIN_ENTITY_ANCHOR_LENGTH }
+            .distinct()
 
     private fun conceptOverlap(
         queryConcepts: Set<TemplateConceptTag>,
@@ -251,5 +302,13 @@ internal class TemplateDocumentMatcher {
         const val ANSWER_WEIGHT = 0.08
         const val INTENT_MATCH_BONUS = 0.12
         const val INTENT_MISMATCH_PENALTY = 0.25
+        const val MIN_ENTITY_ANCHOR_LENGTH = 2
+        val CONCRETE_USAGE_ENTITY_TYPES = setOf(
+            "item",
+            "equipment",
+            "weapon",
+            "armor",
+            "consumable",
+        )
     }
 }

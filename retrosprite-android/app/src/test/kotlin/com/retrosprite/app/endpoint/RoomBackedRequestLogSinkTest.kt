@@ -80,6 +80,7 @@ class RoomBackedRequestLogSinkTest {
             outputMode = "text",
             question = "queued question",
             questionSource = "pending_hotkey",
+            suggestedQuestions = listOf("气合之玉在哪里？"),
             responseText = "ok",
         )
         sink.append(endpointEntry)
@@ -98,6 +99,7 @@ class RoomBackedRequestLogSinkTest {
         assertEquals("request-1", first.id)
         assertEquals("queued question", first.question)
         assertEquals("pending_hotkey", first.questionSource)
+        assertEquals(listOf("气合之玉在哪里？"), first.suggestedQuestions)
         assertEquals("ok", first.responseText)
     }
 
@@ -166,6 +168,7 @@ class RoomBackedRequestLogSinkTest {
             questionNormalizationReason = "homophone",
             normalizedQuestionMatchedTerm = "修伊",
             normalizedQuestionMatchedEntityId = "character.chester",
+            suggestedQuestions = listOf("修伊什么时候加入？"),
             responseText = "answer",
             errorMessage = "boom",
             feedback = "helpful",
@@ -190,6 +193,7 @@ class RoomBackedRequestLogSinkTest {
         assertEquals("homophone", entry.questionNormalizationReason)
         assertEquals("修伊", entry.normalizedQuestionMatchedTerm)
         assertEquals("character.chester", entry.normalizedQuestionMatchedEntityId)
+        assertEquals(listOf("修伊什么时候加入？"), entry.suggestedQuestions)
         assertEquals("boom", entry.errorMessage)
         assertEquals("helpful", entry.feedback)
         assertEquals(77L, entry.feedbackTimestamp)
@@ -213,6 +217,7 @@ class RoomBackedRequestLogSinkTest {
             questionNormalizationReason = "homophone",
             normalizedQuestionMatchedTerm = "修伊",
             normalizedQuestionMatchedEntityId = "character.chester",
+            suggestedQuestions = listOf("修伊什么时候加入？"),
             responseText = "r",
             errorMessage = null,
             feedback = "incorrect",
@@ -233,6 +238,7 @@ class RoomBackedRequestLogSinkTest {
         assertEquals("homophone", domain.questionNormalizationReason)
         assertEquals("修伊", domain.normalizedQuestionMatchedTerm)
         assertEquals("character.chester", domain.normalizedQuestionMatchedEntityId)
+        assertEquals(listOf("修伊什么时候加入？"), domain.suggestedQuestions)
         assertEquals("incorrect", domain.feedback)
         assertEquals(88L, domain.feedbackTimestamp)
     }

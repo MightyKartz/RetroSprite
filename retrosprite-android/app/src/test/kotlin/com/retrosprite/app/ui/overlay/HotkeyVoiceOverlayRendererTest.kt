@@ -1,5 +1,6 @@
 package com.retrosprite.app.ui.overlay
 
+import com.retrosprite.app.endpoint.RetroArchHotkeyEvent
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -51,8 +52,8 @@ class HotkeyVoiceOverlayRendererTest {
             cardWidthDp = 420,
         )
 
-        assertEquals(7, spec.maxLines)
-        assertTrue(spec.heightDp <= 230)
+        assertEquals(8, spec.maxLines)
+        assertTrue(spec.heightDp <= 260)
     }
 
     @Test
@@ -82,6 +83,28 @@ class HotkeyVoiceOverlayRendererTest {
         )
         assertTrue(largeText.maxLines > normal.maxLines)
         assertTrue(largeText.heightDp > normal.heightDp)
+    }
+
+    @Test
+    fun `successful answer card has room for three follow up questions`() {
+        val answerWithFollowUps = """
+            Vigor Ball（活力球/气合之玉）给 Priest 系角色用于转 Master Monk。这个路线适合想让治疗角色也能打前线的队伍。
+
+            你还可以问：
+            · 气合之玉怎么用？
+            · Vigor Ball 给谁？
+            · 僧侣怎么变武僧？
+        """.trimIndent()
+
+        val spec = HotkeyVoiceOverlayPhase.Speaking.answerCardSpec(
+            fontScale = 1.0f,
+            answerText = answerWithFollowUps,
+            cardWidthDp = 420,
+        )
+
+        assertTrue(spec.maxLines >= 9)
+        assertTrue(spec.heightDp >= 250)
+        assertTrue(spec.estimatedCjkCapacity(cardWidthDp = 420, fontSizeSp = 18) >= 170)
     }
 
     @Test
@@ -281,6 +304,50 @@ class HotkeyVoiceOverlayRendererTest {
         assertTrue("answer HUD should attach to the bottom inset", spec.yDp <= 24)
         assertEquals(0.80f, spec.alpha, 0.001f)
     }
+
+    @Test
+    fun `transcript hud text shows heard question`() {
+        val state = HotkeyVoiceOverlayRenderState(
+            event = event(),
+            phase = HotkeyVoiceOverlayPhase.Listening,
+            transcript = "角色如何搭配",
+        )
+
+        assertEquals("听到：角色如何搭配", state.transcriptHudText())
+    }
+
+    @Test
+    fun `transcript hud text shows normalized search term when different`() {
+        val state = HotkeyVoiceOverlayRenderState(
+            event = event(),
+            phase = HotkeyVoiceOverlayPhase.Speaking,
+            transcript = "修医是谁",
+            normalizedTranscript = "修伊是谁",
+            transcriptMatchedTerm = "修伊",
+        )
+
+        assertEquals("听到：修医是谁 · 按「修伊」检索", state.transcriptHudText())
+    }
+
+    @Test
+    fun `transcript hud text truncates long recognized text`() {
+        val state = HotkeyVoiceOverlayRenderState(
+            event = event(),
+            phase = HotkeyVoiceOverlayPhase.Listening,
+            transcript = "这个游戏玩的话有什么技巧吗我现在应该怎么搭配角色",
+        )
+
+        assertEquals("听到：这个游戏玩的话有什么技巧吗我现在应该怎么...", state.transcriptHudText())
+    }
+
+    private fun event(): RetroArchHotkeyEvent =
+        RetroArchHotkeyEvent(
+            label = "mega_drive__光明力量2",
+            outputMode = "text",
+            imageBytes = 4,
+            paused = false,
+            receivedAtMillis = 1L,
+        )
 
     private val suggestedNoEvidenceText = """
         我还没有足够证据回答这个问题。

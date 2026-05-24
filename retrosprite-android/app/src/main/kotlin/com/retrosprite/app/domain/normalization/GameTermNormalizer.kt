@@ -41,11 +41,40 @@ class GameTermNormalizer {
             .filter { it.term.length in MIN_TERM_CHARS..MAX_TERM_CHARS }
             .filterNot { it.term in STOP_TERMS }
 
-        if (terms.any { cleanQuestion.contains(it.term) }) {
+        OBSERVED_ENTITY_REWRITES.firstOrNull { rewrite ->
+            cleanQuestion.contains(rewrite.rawSpan) &&
+                rows.any { it.entityId == rewrite.entityId }
+        }?.let { rewrite ->
+            val normalized = cleanQuestion.replaceFirst(rewrite.rawSpan, rewrite.term)
+            val duplicateCollapsed = normalized.collapseDuplicatePrefixFor(rewrite.term)
+            val duplicateApplied = duplicateCollapsed != normalized
+            val tailCompleted = duplicateCollapsed.completeTruncatedQuestionTail()
+            val tailApplied = tailCompleted != duplicateCollapsed
             return GameTermNormalizationResult(
                 rawQuestion = rawQuestion,
-                normalizedQuestion = cleanQuestion,
-                applied = false,
+                normalizedQuestion = tailCompleted,
+                applied = tailCompleted != cleanQuestion,
+                reason = "observed_asr_rewrite".withCleanupReasons(
+                    duplicateApplied = duplicateApplied,
+                    tailApplied = tailApplied,
+                ),
+                matchedTerm = rewrite.term,
+                matchedEntityId = rewrite.entityId,
+            )
+        }
+
+        terms.firstOrNull { term ->
+            term.entityType == ITEM_ENTITY_TYPE &&
+                cleanQuestion == term.term &&
+                term.term in OBSERVED_BARE_USAGE_ITEM_TERMS
+        }?.let { term ->
+            return GameTermNormalizationResult(
+                rawQuestion = rawQuestion,
+                normalizedQuestion = "${term.term}有什么用",
+                applied = true,
+                reason = "bare_item_usage",
+                matchedTerm = term.term,
+                matchedEntityId = term.entityId,
             )
         }
 
@@ -62,33 +91,44 @@ class GameTermNormalizer {
                 }
             }
         }.sortedWith(compareByDescending<GameTermNormalizationCandidate> { it.score }.thenBy { it.term })
+        val rewriteCandidates = candidates.filter { it.rawSpan != it.term }
 
-        val top = candidates.firstOrNull()
-        if (top == null || top.score < MIN_AUTO_APPLY_SCORE) {
-            return GameTermNormalizationResult(
+        if (terms.any { cleanQuestion.contains(it.term) } && rewriteCandidates.isEmpty()) {
+            return cleanQuestion.withTailCompletion(
                 rawQuestion = rawQuestion,
-                normalizedQuestion = cleanQuestion,
-                applied = false,
+            )
+        }
+
+        val rankedCandidates = rewriteCandidates.takeIf { it.isNotEmpty() } ?: candidates
+        val top = rankedCandidates.firstOrNull()
+        if (top == null || top.score < MIN_AUTO_APPLY_SCORE) {
+            return cleanQuestion.withTailCompletion(
+                rawQuestion = rawQuestion,
                 candidates = candidates.take(MAX_DIAGNOSTIC_CANDIDATES),
             )
         }
 
-        val second = candidates.drop(1).firstOrNull()
+        val second = rankedCandidates.drop(1).firstOrNull()
         if (second != null && top.score - second.score < MIN_SCORE_GAP) {
-            return GameTermNormalizationResult(
+            return cleanQuestion.withTailCompletion(
                 rawQuestion = rawQuestion,
-                normalizedQuestion = cleanQuestion,
-                applied = false,
                 candidates = candidates.take(MAX_DIAGNOSTIC_CANDIDATES),
             )
         }
 
         val normalized = cleanQuestion.replaceFirst(top.rawSpan, top.term)
+        val duplicateCollapsed = normalized.collapseDuplicatePrefixFor(top.term)
+        val duplicateApplied = duplicateCollapsed != normalized
+        val tailCompleted = duplicateCollapsed.completeTruncatedQuestionTail()
+        val tailApplied = tailCompleted != duplicateCollapsed
         return GameTermNormalizationResult(
             rawQuestion = rawQuestion,
-            normalizedQuestion = normalized,
-            applied = normalized != cleanQuestion,
-            reason = top.reason,
+            normalizedQuestion = tailCompleted,
+            applied = tailCompleted != cleanQuestion,
+            reason = top.reason.withCleanupReasons(
+                duplicateApplied = duplicateApplied,
+                tailApplied = tailApplied,
+            ),
             matchedTerm = top.term,
             matchedEntityId = top.entityId,
             candidates = listOf(top),
@@ -118,9 +158,9 @@ class GameTermNormalizer {
 
     private fun KnowledgeChunkDomain.toTerms(): List<Term> =
         buildList {
-            canonicalName.extractCjkTerms().forEach { add(Term(it, entityId)) }
-            aliases.flatMap { it.extractCjkTerms() }.forEach { add(Term(it, entityId)) }
-            entityId.substringAfterLast('.').extractCjkTerms().forEach { add(Term(it, entityId)) }
+            canonicalName.extractCjkTerms().forEach { add(Term(it, entityId, entityType)) }
+            aliases.flatMap { it.extractCjkTerms() }.forEach { add(Term(it, entityId, entityType)) }
+            entityId.substringAfterLast('.').extractCjkTerms().forEach { add(Term(it, entityId, entityType)) }
         }
 
     private fun String.extractCjkTerms(): List<String> =
@@ -142,6 +182,45 @@ class GameTermNormalizer {
         return parts.joinToString(separator = " ")
     }
 
+    private fun String.withTailCompletion(
+        rawQuestion: String,
+        candidates: List<GameTermNormalizationCandidate> = emptyList(),
+    ): GameTermNormalizationResult {
+        val normalized = completeTruncatedQuestionTail()
+        val applied = normalized != this
+        return GameTermNormalizationResult(
+            rawQuestion = rawQuestion,
+            normalizedQuestion = normalized,
+            applied = applied,
+            reason = "truncated_suffix".takeIf { applied },
+            candidates = candidates,
+        )
+    }
+
+    private fun String.completeTruncatedQuestionTail(): String =
+        TRUNCATED_SUFFIXES.entries.fold(this) { current, (truncated, full) ->
+            if (current.endsWith(truncated) && !current.endsWith(full)) {
+                current.removeSuffix(truncated) + full
+            } else {
+                current
+            }
+        }
+
+    private fun String.collapseDuplicatePrefixFor(term: String): String {
+        val first = term.firstOrNull() ?: return this
+        return replaceFirst("$first$term", term)
+    }
+
+    private fun String.withCleanupReasons(
+        duplicateApplied: Boolean,
+        tailApplied: Boolean,
+    ): String =
+        buildList {
+            add(this@withCleanupReasons)
+            if (duplicateApplied) add("duplicate_prefix")
+            if (tailApplied) add("truncated_suffix")
+        }.joinToString("+")
+
     private fun editDistance(a: String, b: String): Int {
         if (a == b) return 0
         if (a.isEmpty()) return b.length
@@ -162,8 +241,9 @@ class GameTermNormalizer {
         return previous[b.length]
     }
 
-    private data class Term(val term: String, val entityId: String)
+    private data class Term(val term: String, val entityId: String, val entityType: String)
     private data class ScoredMatch(val score: Double, val reason: String)
+    private data class ObservedEntityRewrite(val rawSpan: String, val term: String, val entityId: String)
 
     private companion object {
         const val EXACT_SCORE = 1.00
@@ -175,8 +255,20 @@ class GameTermNormalizer {
         const val MAX_TERM_CHARS = 8
         const val MIN_EDIT_DISTANCE_TERM_CHARS = 3
         const val MAX_DIAGNOSTIC_CANDIDATES = 5
+        const val ITEM_ENTITY_TYPE = "item"
 
         val STOP_TERMS = setOf("是谁", "在哪", "在哪里", "怎么用", "有什么用", "怎么办", "怎么打", "怎么练")
+        val OBSERVED_ENTITY_REWRITES = listOf(
+            ObservedEntityRewrite("气合之欲", "气合之玉", "item.vigor-ball"),
+            ObservedEntityRewrite("米斯里鲁因", "米斯里鲁银", "item.mithril"),
+        )
+        val OBSERVED_BARE_USAGE_ITEM_TERMS = setOf("米斯里鲁")
+        val TRUNCATED_SUFFIXES = mapOf(
+            "隐藏地" to "隐藏地点",
+            "怎么有" to "怎么用",
+            "怎么又" to "怎么用",
+            "怎么也有" to "怎么用",
+        )
 
         val CJK_PINYIN = mapOf(
             '修' to "xiu",
@@ -193,8 +285,12 @@ class GameTermNormalizer {
             '和' to "he",
             '之' to "zhi",
             '玉' to "yu",
+            '欲' to "yu",
+            '金' to "jing",
             '精' to "jing",
+            '陵' to "ling",
             '灵' to "ling",
+            '村' to "cun",
             '森' to "sen",
             '林' to "lin",
             '米' to "mi",
@@ -203,6 +299,7 @@ class GameTermNormalizer {
             '鲁' to "lu",
             '路' to "lu",
             '银' to "yin",
+            '因' to "yin",
         )
     }
 }

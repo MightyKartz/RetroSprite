@@ -173,6 +173,7 @@ class UiModelMappersTest {
             answerConfidence = "high",
             spoilerLevelUsed = "light",
             nextActions = listOf("查看来源", "这不对"),
+            suggestedQuestions = listOf("气合之玉在哪里？"),
             llmStatusOverride = "used",
             llmProvider = "deepseek",
             llmModel = "deepseek-v4-pro",
@@ -196,6 +197,7 @@ class UiModelMappersTest {
         assertEquals("high", ui.answerConfidence)
         assertEquals("light", ui.spoilerLevelUsed)
         assertEquals(listOf("查看来源", "这不对"), ui.nextActions)
+        assertEquals(listOf("气合之玉在哪里？"), ui.suggestedQuestions)
         assertEquals("deepseek", ui.llmProvider)
         assertEquals("deepseek-v4-pro", ui.llmModel)
         assertEquals(256, ui.llmMaxTokens)
@@ -210,6 +212,7 @@ class UiModelMappersTest {
         assertTrue(ui.fullResponseJson.contains(""""question_source":"app""""))
         assertTrue(ui.fullResponseJson.contains(""""answer_type":"mechanic""""))
         assertTrue(ui.fullResponseJson.contains(""""answer_confidence":"high""""))
+        assertTrue(ui.fullResponseJson.contains(""""suggested_questions":["气合之玉在哪里？"]"""))
     }
 
     @Test

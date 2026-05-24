@@ -1,0 +1,32 @@
+profile_id: gkp-lite
+coverage_tier: lite
+minimums:
+  knowledge_rows_min: 20
+  knowledge_rows_max: 60
+  golden_rows_min: 20
+  golden_rows_max: 40
+  source_rows_min: 5
+  localized_aliases_min: 40
+  source_backed_localized_aliases_min: 25
+  localized_goldens_min: 20
+  pure_localized_goldens_min: 12
+  core_gameplay_goldens_min: 4
+  no_evidence_goldens_min: 3
+required_lanes:
+  - identity
+  - core_gameplay
+  - beginner_direction
+  - mechanics
+  - key_terms
+  - common_stuck_points
+  - spoiler_gates
+  - sources
+  - goldens
+placeholder_marker: "__REPLACE_WITH_REVIEWED_GKP_DATA__"
+source_policy:
+  require_source_refs: true
+  forbid_copied_walkthrough_prose: true
+  forbid_rom_or_script_dump: true
+runtime_policy:
+  llm_required_for_required_goldens: false
+  no_evidence_must_not_call_llm_for_facts: true

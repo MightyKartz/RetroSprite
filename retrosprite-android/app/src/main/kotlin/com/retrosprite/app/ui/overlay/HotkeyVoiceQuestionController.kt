@@ -1,6 +1,7 @@
 package com.retrosprite.app.ui.overlay
 
 import com.retrosprite.app.endpoint.RequestLogger
+import com.retrosprite.app.endpoint.RequestLogEntry
 import com.retrosprite.app.endpoint.ResponseGenerator
 import com.retrosprite.app.endpoint.RetroArchHotkeyEvent
 import com.retrosprite.app.endpoint.RetroArchHotkeyListener
@@ -54,7 +55,7 @@ class HotkeyVoiceQuestionController(
             runVoiceQuestionAfterOverlayStarted(event)
         } catch (cancelled: CancellationException) {
             voiceInput.cancelListening()
-            coordinator.finishVoiceSession()
+            coordinator.finishVoiceSession(reason = "cancelled")
             throw cancelled
         } catch (error: Throwable) {
             voiceInput.cancelListening()
@@ -63,7 +64,7 @@ class HotkeyVoiceQuestionController(
                 message = error.message ?: "语音问答失败",
                 answerText = "语音问答失败，请再按一次热键。",
             )
-            finishVoiceSessionAfter(RECOVERY_LINGER_MS)
+            finishVoiceSessionAfter(RECOVERY_LINGER_MS, reason = "error_recovery")
         }
     }
 
@@ -79,6 +80,14 @@ class HotkeyVoiceQuestionController(
                             amplitude = state.amplitude,
                             message = state.statusMessage ?: "正在收音",
                             transcript = state.transcript,
+                            asrArchitecture = state.asrArchitecture,
+                            asrDecodingMethod = state.asrDecodingMethod,
+                            asrModelingUnit = state.asrModelingUnit,
+                            asrNativeHotwordsEnabled = state.asrNativeHotwordsEnabled,
+                            asrNativeHotwordsReason = state.asrNativeHotwordsReason,
+                            asrHotwordCount = state.asrHotwordCount,
+                            asrHotwordMode = state.asrHotwordMode,
+                            asrHotwordPreview = state.asrHotwordPreview,
                         )
                     }
                 }
@@ -98,7 +107,7 @@ class HotkeyVoiceQuestionController(
         }
         val question = voiceState?.transcript?.trim().orEmpty()
         val requestLabel = recognitionContext.label
-        if (question.isBlank()) {
+        if (!question.hasEnoughVoiceQuestionSignal()) {
             voiceInput.cancelListening()
             val errorMessage = voiceState?.errorMessage
             coordinator.renderVoiceState(
@@ -114,7 +123,10 @@ class HotkeyVoiceQuestionController(
                     "语音识别失败，请再试一次。"
                 },
             )
-            finishVoiceSessionAfter(RECOVERY_LINGER_MS)
+            finishVoiceSessionAfter(
+                RECOVERY_LINGER_MS,
+                reason = if (errorMessage == null) "muted_recovery" else "asr_error_recovery",
+            )
             return
         }
 
@@ -156,7 +168,7 @@ class HotkeyVoiceQuestionController(
                 transcript = question,
                 answerText = "回答失败，请稍后重试。",
             )
-            finishVoiceSessionAfter(RECOVERY_LINGER_MS)
+            finishVoiceSessionAfter(RECOVERY_LINGER_MS, reason = "generator_error_recovery")
             return
         }
         val durationMillis = System.currentTimeMillis() - startedAt
@@ -187,6 +199,8 @@ class HotkeyVoiceQuestionController(
             normalizedQuestionMatchedEntityId = diagnostics.normalizedQuestionMatchedEntityId,
         )
         val overlayTranscript = entry.rawQuestion ?: question
+        val overlayNormalizedTranscript = entry.normalizedQuestion
+            ?.takeIf { it != overlayTranscript }
         if (entry.errorMessage == null) {
             val responsePhase = when (entry.pipelineStage) {
                 "no_evidence", "gkp_disabled" -> HotkeyVoiceOverlayPhase.NoEvidence
@@ -200,32 +214,36 @@ class HotkeyVoiceQuestionController(
                     "正在朗读答案"
                 },
                 transcript = overlayTranscript,
+                normalizedTranscript = overlayNormalizedTranscript,
+                transcriptMatchedTerm = entry.normalizedQuestionMatchedTerm,
                 answerText = if (responsePhase == HotkeyVoiceOverlayPhase.NoEvidence) {
                     (entry.answerDetail ?: entry.responseText).toOverlayAnswerText(
                         maxChars = OVERLAY_NO_EVIDENCE_MAX_CHARS,
                         preserveLineBreaks = true,
                     )
                 } else {
-                    (entry.answerShort ?: entry.responseText).toOverlayAnswerText()
+                    entry.toOverlayAnswerTextWithSuggestions()
                 },
                 sourceIds = entry.sourceIds,
             )
             speakIfPossible(response)
-            finishVoiceSessionAfter(ANSWER_LINGER_MS)
+            finishVoiceSessionAfter(ANSWER_LINGER_MS, reason = "answer_completed")
         } else {
             coordinator.renderVoiceState(
                 phase = HotkeyVoiceOverlayPhase.Error,
                 message = entry.errorMessage,
                 transcript = overlayTranscript,
+                normalizedTranscript = overlayNormalizedTranscript,
+                transcriptMatchedTerm = entry.normalizedQuestionMatchedTerm,
                 answerText = "回答失败，请稍后重试。",
             )
-            finishVoiceSessionAfter(RECOVERY_LINGER_MS)
+            finishVoiceSessionAfter(RECOVERY_LINGER_MS, reason = "answer_error_recovery")
         }
     }
 
-    private suspend fun finishVoiceSessionAfter(delayMillis: Long) {
+    private suspend fun finishVoiceSessionAfter(delayMillis: Long, reason: String) {
         delay(delayMillis)
-        coordinator.finishVoiceSession()
+        coordinator.finishVoiceSession(reason = reason)
     }
 
     private suspend fun speakIfPossible(response: RetroArchResponse) {
@@ -270,6 +288,11 @@ class HotkeyVoiceQuestionController(
 private const val SOURCE_PREFIX = "来源："
 private const val OVERLAY_ANSWER_MAX_CHARS = 96
 private const val OVERLAY_NO_EVIDENCE_MAX_CHARS = 180
+private const val OVERLAY_MAX_SUGGESTED_QUESTIONS = 3
+private const val MIN_VOICE_QUESTION_CHARS = 2
+
+private fun String.hasEnoughVoiceQuestionSignal(): Boolean =
+    count { !it.isWhitespace() && !it.isISOControl() } >= MIN_VOICE_QUESTION_CHARS
 
 private fun ResponseDiagnostics.withInferredNormalization(rawQuestion: String): ResponseDiagnostics {
     val cleanRaw = rawQuestion.trim()
@@ -293,4 +316,28 @@ private fun String.toOverlayAnswerText(
         .trim()
     if (answer.length <= maxChars) return answer
     return answer.take(maxChars).trimEnd() + "..."
+}
+
+private fun RequestLogEntry.toOverlayAnswerTextWithSuggestions(): String {
+    val suggestions = suggestedQuestions
+        .map { it.trim() }
+        .filter { it.isNotEmpty() }
+        .distinct()
+        .take(OVERLAY_MAX_SUGGESTED_QUESTIONS)
+    val answer = (answerShort ?: responseText).toOverlayAnswerText(
+        maxChars = if (suggestions.isEmpty()) {
+            OVERLAY_ANSWER_MAX_CHARS
+        } else {
+            Int.MAX_VALUE
+        }
+    )
+    if (suggestions.isEmpty()) return answer
+    return buildString {
+        append(answer)
+        append("\n\n你还可以问：")
+        suggestions.forEach { question ->
+            append("\n· ")
+            append(question)
+        }
+    }
 }

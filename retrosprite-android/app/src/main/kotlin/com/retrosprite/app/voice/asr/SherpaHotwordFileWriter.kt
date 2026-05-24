@@ -44,9 +44,10 @@ class SherpaHotwordFileWriter(
         }
         val terms = profile.normalizedEntries
             .asSequence()
+            .filter { it.term.isCjkHotword() }
+            .filter { it.term.length <= MAX_STREAM_HOTWORD_CHARS }
+            .filter { it.source != AsrHotwordSource.TemplatePattern || it.term in PREFERRED_DIAGNOSTIC_TERMS }
             .map { it.term }
-            .filter { it.isCjkHotword() }
-            .filter { it.length <= MAX_STREAM_HOTWORD_CHARS }
             .toList()
 
         val preferred = PREFERRED_DIAGNOSTIC_TERMS.filter { it in terms }
@@ -61,7 +62,7 @@ class SherpaHotwordFileWriter(
     private companion object {
         val CJK_UNIFIED_IDEOGRAPHS = 0x4E00..0x9FFF
         val PREFERRED_DIAGNOSTIC_TERMS = listOf("修伊", "吉布", "皮特", "气合之玉", "精灵森林", "米斯里鲁银")
-        const val MAX_STREAM_HOTWORDS = 32
+        const val MAX_STREAM_HOTWORDS = 12
         const val MAX_STREAM_HOTWORD_CHARS = 8
     }
 }

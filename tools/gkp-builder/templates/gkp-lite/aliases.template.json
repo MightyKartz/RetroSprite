@@ -1,0 +1,10 @@
+{
+  "language": "{{language}}",
+  "aliases": [
+    {
+      "term": "__REPLACE_WITH_REVIEWED_GKP_DATA__",
+      "entity_id": "note.identity",
+      "weight": 1.0
+    }
+  ]
+}

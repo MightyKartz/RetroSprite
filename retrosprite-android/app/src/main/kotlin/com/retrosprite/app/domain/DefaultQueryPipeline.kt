@@ -70,7 +70,7 @@ class DefaultQueryPipeline(
 
         // 3. build session context
         val controllerState = state?.let { ControllerState(it) } ?: ControllerState.EMPTY
-        val context = SessionContext(
+        val baseContext = SessionContext(
             gameIdentity = identity,
             playerQuestion = question,
             screenshotBase64 = screenshot,
@@ -83,14 +83,19 @@ class DefaultQueryPipeline(
         )
 
         // 4. retrieval
-        val results = retrieval.retrieve(
-            RetrievalQuery(
-                gameId = identity.gameId,
-                normalizedQuery = normalized,
-                language = language,
-                progressGate = null,
-                spoilerLevel = spoilerLevel,
-            )
+        val retrievalQuery = RetrievalQuery(
+            gameId = identity.gameId,
+            normalizedQuery = normalized,
+            language = language,
+            progressGate = null,
+            spoilerLevel = spoilerLevel,
+        )
+        val results = retrieval.retrieve(retrievalQuery)
+        val context = baseContext.copy(
+            suggestedQuestions = retrieval.suggestQuestions(
+                query = retrievalQuery,
+                results = results,
+            ),
         )
 
         // 5. policy

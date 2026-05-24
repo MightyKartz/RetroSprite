@@ -17,17 +17,17 @@ class GkpV0PreflightValidatorTest {
     private val validator = GkpV0PreflightValidator()
 
     @Test
-    fun `valid relay station pack passes external preflight`() {
-        val report = validator.validate(readPack("sample-relay-station"))
+    fun `valid golden sun pack passes external preflight`() {
+        val report = validator.validate(readPack("golden-sun-gba-zh"))
 
         assertTrue(report.issues.joinToString("\n") { it.toString() }, report.ok)
-        assertEquals("sample.relay-station", report.packId)
-        assertEquals("Relay Station", report.gameTitle)
-        assertEquals("0.1.0", report.packVersion)
+        assertEquals("community.golden-sun-gba-zh", report.packId)
+        assertEquals("Golden Sun / 黄金太阳", report.gameTitle)
+        assertEquals("0.1.1", report.packVersion)
         assertEquals("gkp.v0", report.schemaVersion)
-        assertEquals(14, report.knowledgeRows)
-        assertEquals(4, report.sourceCount)
-        assertEquals(12, report.goldenRows)
+        assertEquals(42, report.knowledgeRows)
+        assertEquals(6, report.sourceCount)
+        assertEquals(34, report.goldenRows)
         assertEquals("已声明", report.licenseStatus)
         assertEquals(GkpSignatureStatus.Unsigned.id, report.signatureStatus)
         assertTrue(report.contentDigest.orEmpty().matches(Regex("[a-f0-9]{64}")))
@@ -36,7 +36,7 @@ class GkpV0PreflightValidatorTest {
 
     @Test
     fun `missing license blocks external preflight`() {
-        val input = readPack("sample-relay-station")
+        val input = readPack("golden-sun-gba-zh")
         val report = validator.validate(
             input.copy(
                 files = input.files - "sources/licenses.md",
@@ -50,10 +50,10 @@ class GkpV0PreflightValidatorTest {
 
     @Test
     fun `rom and executable-like files are rejected even when undeclared`() {
-        val input = readPack("sample-relay-station")
+        val input = readPack("golden-sun-gba-zh")
         val report = validator.validate(
             input.copy(
-                allPaths = input.allPaths + setOf("roms/relay_station.sfc", "tools/build.sh"),
+                allPaths = input.allPaths + setOf("roms/golden_sun.gba", "tools/build.sh"),
             )
         )
 
@@ -68,10 +68,10 @@ class GkpV0PreflightValidatorTest {
 
     @Test
     fun `unknown source refs fail preflight`() {
-        val input = readPack("sample-relay-station")
+        val input = readPack("golden-sun-gba-zh")
         val files = input.files.toMutableMap()
         files["knowledge/items.jsonl"] = files.getValue("knowledge/items.jsonl")
-            .replace("sample.relay.items", "missing.source")
+            .replace("gs.official_manual", "missing.source")
 
         val report = validator.validate(input.copy(files = files))
 

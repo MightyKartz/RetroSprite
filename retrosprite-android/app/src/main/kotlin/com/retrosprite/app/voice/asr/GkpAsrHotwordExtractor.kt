@@ -83,15 +83,16 @@ class GkpAsrHotwordExtractor {
         const val CANONICAL_ENTITY_SCORE = 3.0f
         const val CANONICAL_GENERIC_SCORE = 2.0f
         const val GENERIC_ALIAS_SCORE = 1.8f
-        const val TEMPLATE_PATTERN_SCORE = 1.6f
+        const val TEMPLATE_PATTERN_SCORE = 4.8f
 
         private const val MAX_TERM_LENGTH = 24
         private val CJK_RANGE = 0x4E00..0x9FFF
-        private val ENTITY_TYPES = setOf("npc", "item", "location")
+        private val ENTITY_TYPES = setOf("npc", "item", "location", "boss", "enemy")
         private val QUESTION_PATTERNS = Regex("\\\"question_patterns\\\"\\s*:\\s*\\[(.*?)\\]")
         private val QUOTED_STRING = Regex("\\\"([^\\\"]+)\\\"")
         private val QUESTION_SUFFIXES = listOf(
             "怎么用",
+            "有什么用",
             "是谁",
             "是什么",
             "在哪里",

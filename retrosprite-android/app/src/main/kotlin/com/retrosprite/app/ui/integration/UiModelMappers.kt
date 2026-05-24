@@ -92,6 +92,7 @@ internal fun RequestLogEntry.toUi(): UiRequestLogItem = UiRequestLogItem(
     answerConfidence = answerConfidence,
     spoilerLevelUsed = spoilerLevelUsed,
     nextActions = nextActions,
+    suggestedQuestions = suggestedQuestions,
     llmProvider = llmProvider,
     llmModel = llmModel,
     llmMaxTokens = llmMaxTokens,
@@ -136,6 +137,7 @@ private fun buildFullResponseJson(entry: RequestLogEntry): String {
     // would otherwise break a textual preview dialog.
     val sourcesJson = entry.sourceIds.joinToString(",") { "\"${escapeJson(it)}\"" }
     val nextActionsJson = entry.nextActions.joinToString(",") { "\"${escapeJson(it)}\"" }
+    val suggestedQuestionsJson = entry.suggestedQuestions.joinToString(",") { "\"${escapeJson(it)}\"" }
     val metadata = listOf(
         "\"output_mode\":\"${escapeJson(entry.outputMode)}\"",
         "\"debug\":${entry.isDebugRequest}",
@@ -152,6 +154,7 @@ private fun buildFullResponseJson(entry: RequestLogEntry): String {
         "\"answer_confidence\":${entry.answerConfidence.jsonStringOrNull()}",
         "\"spoiler_level_used\":${entry.spoilerLevelUsed.jsonStringOrNull()}",
         "\"next_actions\":[$nextActionsJson]",
+        "\"suggested_questions\":[$suggestedQuestionsJson]",
         "\"pipeline_stage\":\"${escapeJson(entry.pipelineStage)}\"",
         "\"llm_status\":\"${escapeJson(entry.llmStatus)}\"",
         "\"llm_provider\":${entry.llmProvider.jsonStringOrNull()}",

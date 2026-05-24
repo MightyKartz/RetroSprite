@@ -44,7 +44,12 @@ class EvidenceAnswerPolicy(
 
         if (admissible.isEmpty()) {
             return if (allEvidence.isEmpty()) {
-                direct(noEvidenceTextFor(context), answerType = noEvidenceAnswerTypeFor(context))
+                val suggestions = noEvidenceSuggestionsFor(context)
+                direct(
+                    noEvidenceTextFor(context, suggestions),
+                    answerType = noEvidenceAnswerTypeFor(context),
+                    suggestedQuestions = suggestions,
+                )
             } else {
                 direct(SPOILER_DOWNGRADE_TEXT, answerType = context.questionIntent)
             }
@@ -58,7 +63,7 @@ class EvidenceAnswerPolicy(
             .distinctBy { it.sourceId to it.snippet }
 
         val best = evidence.first()
-        val answerType = context.questionIntent
+        val answerType = bestPair.first.answerType ?: context.questionIntent
         val confidence = confidenceFor(bestPair.first.confidence, best)
         if (shouldComposeWithLlm(evidence, best, context)) {
             return AnswerDecision.ComposeWithLlm(
@@ -68,6 +73,7 @@ class EvidenceAnswerPolicy(
                 answerType = answerType,
                 confidence = confidence,
                 nextActions = nextActionsFor(answerType, hasSources = true),
+                suggestedQuestions = context.suggestedQuestions,
             )
         }
         if (shouldSummarizeLocally(evidence, best)) {
@@ -77,6 +83,7 @@ class EvidenceAnswerPolicy(
                 answerType = answerType,
                 confidence = confidence,
                 nextActions = nextActionsFor(answerType, hasSources = true),
+                suggestedQuestions = context.suggestedQuestions,
             )
         }
 
@@ -87,12 +94,14 @@ class EvidenceAnswerPolicy(
             answerType = answerType,
             confidence = confidence,
             nextActions = nextActionsFor(answerType, hasSources = true),
+            suggestedQuestions = context.suggestedQuestions,
         )
     }
 
     private fun direct(
         text: String,
         answerType: AnswerType = AnswerType.UnknownOrOutOfScope,
+        suggestedQuestions: List<String> = emptyList(),
     ): AnswerDecision.DirectAnswer =
         AnswerDecision.DirectAnswer(
             text = text,
@@ -101,9 +110,10 @@ class EvidenceAnswerPolicy(
             answerType = answerType,
             confidence = AnswerConfidence.Low,
             nextActions = listOf(AnswerNextAction.MoreSpecific, AnswerNextAction.MarkIncorrect),
+            suggestedQuestions = suggestedQuestions,
         )
 
-    private fun noEvidenceTextFor(context: SessionContext): String =
+    private fun noEvidenceTextFor(context: SessionContext, suggestions: List<String>): String =
         when {
             context.questionIntent == AnswerType.RouteHint &&
                 context.naturalQuestionFrame.needsProgressContext ->
@@ -114,7 +124,12 @@ class EvidenceAnswerPolicy(
                 TEAM_BUILD_NEEDS_PROGRESS_TEXT
 
             else -> NO_EVIDENCE_TEXT
-        }.withSuggestedQuestions(QuestionSuggestionEngine.suggest(context))
+        }.withSuggestedQuestions(suggestions)
+
+    private fun noEvidenceSuggestionsFor(context: SessionContext): List<String> =
+        context.suggestedQuestions.ifEmpty {
+            QuestionSuggestionEngine.suggest(context)
+        }
 
     private fun noEvidenceAnswerTypeFor(context: SessionContext): AnswerType =
         when (context.questionIntent) {

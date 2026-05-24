@@ -1,0 +1,57 @@
+{
+  "default_gate": "start",
+  "gates": [
+    {
+      "gate_id": "start",
+      "label": "Game start",
+      "order": 0
+    },
+    {
+      "gate_id": "early_game",
+      "label": "Early game",
+      "order": 1
+    },
+    {
+      "gate_id": "mid_game",
+      "label": "Mid game",
+      "order": 2
+    },
+    {
+      "gate_id": "late_game",
+      "label": "Late game",
+      "order": 3
+    },
+    {
+      "gate_id": "optional",
+      "label": "Optional content",
+      "order": 4
+    },
+    {
+      "gate_id": "postgame_or_spoiler",
+      "label": "Postgame or heavy spoiler",
+      "order": 5
+    }
+  ],
+  "edges": [
+    {
+      "from": "start",
+      "to": "early_game"
+    },
+    {
+      "from": "early_game",
+      "to": "mid_game"
+    },
+    {
+      "from": "mid_game",
+      "to": "late_game"
+    },
+    {
+      "from": "late_game",
+      "to": "optional"
+    },
+    {
+      "from": "optional",
+      "to": "postgame_or_spoiler"
+    }
+  ]
+}

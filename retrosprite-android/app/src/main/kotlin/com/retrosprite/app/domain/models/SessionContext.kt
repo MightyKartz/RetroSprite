@@ -24,4 +24,5 @@ data class SessionContext(
     val recentTurns: List<QaTurn> = emptyList(),
     val questionIntent: AnswerType = AnswerType.UnknownOrOutOfScope,
     val naturalQuestionFrame: NaturalQuestionFrame = NaturalQuestionFrame(),
+    val suggestedQuestions: List<String> = emptyList(),
 )

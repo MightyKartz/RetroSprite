@@ -19,6 +19,7 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlin.math.max
 
 /**
  * Local-first GKP retriever for Phase 1.
@@ -63,6 +64,54 @@ class LocalKnowledgeRetrievalPipeline(
     override suspend fun normalizeQuestion(raw: String, language: String): String =
         raw.normalizeNaturalQuestion()
 
+    override suspend fun suggestQuestions(
+        query: RetrievalQuery,
+        results: List<RetrievalResult>,
+    ): List<String> {
+        val gameId = query.gameId?.trim().orEmpty()
+        val normalizedQuery = query.normalizedQuery.trim()
+        if (gameId.isEmpty() || normalizedQuery.isEmpty()) return emptyList()
+
+        val rows = knowledgeRepository.listByGame(gameId)
+        val resultEntityIds = results.map { it.entityId }.toSet()
+        val queryIntent = QuestionIntentClassifier.classify(normalizedQuery)
+        val allCandidates = rows.flatMapIndexed { rowIndex, row ->
+            row.questionSuggestionCandidates(
+                query = query,
+                queryIntent = queryIntent,
+                sourceOrder = rowIndex * SUGGESTION_SOURCE_ORDER_ROW_STRIDE,
+            )
+        }
+        val scopedCandidates = if (resultEntityIds.isNotEmpty()) {
+            allCandidates.filter { it.entityId in resultEntityIds }.ifEmpty { allCandidates }
+        } else {
+            allCandidates
+        }
+
+        return scopedCandidates
+            .asSequence()
+            .map { candidate ->
+                ScoredQuestionSuggestion(
+                    question = candidate.question,
+                    normalizedQuestion = normalizeSync(candidate.question),
+                    semanticKey = candidate.semanticKey(),
+                    score = candidate.scoreFor(normalizedQuery, queryIntent, resultEntityIds),
+                    sourceOrder = candidate.sourceOrder,
+                )
+            }
+            .filter { it.normalizedQuestion.isNotBlank() }
+            .filterNot { it.normalizedQuestion.isNearDuplicateOf(normalizedQuery) }
+            .sortedWith(
+                compareByDescending<ScoredQuestionSuggestion> { it.score }
+                    .thenBy { it.sourceOrder }
+            )
+            .distinctBy { it.semanticKey }
+            .distinctBy { it.normalizedQuestion }
+            .map { it.question.toSuggestedQuestionText() }
+            .take(MAX_SUGGESTED_QUESTIONS)
+            .toList()
+    }
+
     private fun nameMappingMatches(
         rows: List<KnowledgeChunkDomain>,
         normalizedQuery: String,
@@ -77,6 +126,7 @@ class LocalKnowledgeRetrievalPipeline(
                 sourceId = row.sourceRefs.firstOrNull(),
                 spoilerOverride = SpoilerLevel.LIGHT,
                 progressGateOverride = null,
+                answerType = AnswerType.NameMapping,
             )
         }
     }
@@ -93,7 +143,16 @@ class LocalKnowledgeRetrievalPipeline(
                     .getOrNull()
                     ?: return@mapNotNull null
                 val intent = template.templateStringOrNull("intent")
-                if (intent != null && intent != queryIntent.wireName) return@mapNotNull null
+                val matchedTerm = row.matchingTerm(normalizedQuery)
+                if (!templateIntentCompatible(
+                        intent = intent,
+                        queryIntent = queryIntent,
+                        normalizedQuery = normalizedQuery,
+                        matchedTerm = matchedTerm,
+                    )
+                ) {
+                    return@mapNotNull null
+                }
                 val selectedAnswer = TemplateAnswerSelector.select(template, query.spoilerLevel)
                     ?: return@mapNotNull null
                 val patterns = template.templateArrayStrings("question_patterns")
@@ -104,13 +163,18 @@ class LocalKnowledgeRetrievalPipeline(
                 ) {
                     return@mapNotNull null
                 }
-                val matched = patterns.any { pattern ->
+                val patternMatched = patterns.any { pattern ->
                     val normalizedPattern = normalizeSync(pattern)
                     normalizedPattern.isNotEmpty() && (
-                        normalizedQuery.contains(normalizedPattern) ||
-                            normalizedPattern.contains(normalizedQuery)
+                        normalizedQuery == normalizedPattern ||
+                            normalizedQuery.contains(normalizedPattern)
                         )
-                } || (intent != null && row.matchingTerm(normalizedQuery) != null)
+                }
+                val entityIntentFallback = intent != null &&
+                    matchedTerm != null &&
+                    queryIntent == AnswerType.UnknownOrOutOfScope &&
+                    entityAnchoredIntentCompatible(normalizedQuery, intent)
+                val matched = patternMatched || entityIntentFallback
                 if (!matched) return@mapNotNull null
                 row.toResult(
                     snippet = selectedAnswer.text,
@@ -118,6 +182,7 @@ class LocalKnowledgeRetrievalPipeline(
                     sourceId = template.templateArrayStrings("source_refs").firstOrNull(),
                     spoilerOverride = selectedSpoiler,
                     progressGateOverride = null,
+                    answerType = intent.toAnswerTypeOrNull(),
                 )
             }
         }
@@ -145,6 +210,7 @@ class LocalKnowledgeRetrievalPipeline(
                 sourceId = match.document.sourceRefs.firstOrNull(),
                 spoilerOverride = match.document.spoilerLevel,
                 progressGateOverride = null,
+                answerType = match.document.intent.toAnswerTypeOrNull(),
             )
         )
     }
@@ -155,14 +221,7 @@ class LocalKnowledgeRetrievalPipeline(
         queryIntent: AnswerType,
     ): List<RetrievalResult> =
         rows.mapNotNull { row ->
-            val terms = buildList {
-                add(row.canonicalName)
-                addAll(row.aliases)
-                add(row.entityId.substringAfterLast('.'))
-            }.map(::normalizeSync)
-                .filter { it.isNotEmpty() }
-
-            val bestTerm = terms.firstOrNull { term ->
+            val bestTerm = row.entityTerms().firstOrNull { term ->
                 normalizedQuery.contains(term) || term.contains(normalizedQuery)
             } ?: return@mapNotNull null
 
@@ -203,6 +262,7 @@ class LocalKnowledgeRetrievalPipeline(
         sourceId: String? = null,
         spoilerOverride: SpoilerLevel? = null,
         progressGateOverride: String? = progressGate,
+        answerType: AnswerType? = null,
     ): RetrievalResult {
         val evidenceSpoiler = spoilerOverride ?: spoilerLevel.toDomainSpoiler()
         return RetrievalResult(
@@ -219,6 +279,7 @@ class LocalKnowledgeRetrievalPipeline(
             ),
             confidence = (confidence.baseConfidence() * 0.60 + matchScore.coerceIn(0.0, 1.0) * 0.40)
                 .coerceIn(0.0, 1.0),
+            answerType = answerType,
         )
     }
 
@@ -270,6 +331,12 @@ class LocalKnowledgeRetrievalPipeline(
     }
 
     private fun KnowledgeChunkDomain.matchingTerm(normalizedQuery: String): String? =
+        entityTerms()
+            .firstOrNull { term ->
+                normalizedQuery.contains(term) || term.contains(normalizedQuery)
+            }
+
+    private fun KnowledgeChunkDomain.entityTerms(): List<String> =
         buildList {
             add(canonicalName)
             addAll(aliases)
@@ -277,9 +344,8 @@ class LocalKnowledgeRetrievalPipeline(
         }
             .map(::normalizeSync)
             .filter { it.isNotEmpty() }
-            .firstOrNull { term ->
-                normalizedQuery.contains(term) || term.contains(normalizedQuery)
-            }
+            .distinct()
+            .sortedWith(compareByDescending<String> { it.length }.thenBy { it })
 
     private fun KnowledgeChunkDomain.nameMappingAnswer(
         request: NameMappingRequest,
@@ -324,6 +390,130 @@ class LocalKnowledgeRetrievalPipeline(
 
             else -> null
         }
+    }
+
+    private fun templateIntentCompatible(
+        intent: String?,
+        queryIntent: AnswerType,
+        normalizedQuery: String,
+        matchedTerm: String?,
+    ): Boolean {
+        if (intent == null) return true
+        if (intent == queryIntent.wireName) return true
+        return matchedTerm != null &&
+            queryIntent == AnswerType.UnknownOrOutOfScope &&
+            entityAnchoredIntentCompatible(normalizedQuery, intent)
+    }
+
+    private fun entityAnchoredIntentCompatible(normalizedQuery: String, intent: String): Boolean =
+        when (intent) {
+            AnswerType.Usage.wireName ->
+                normalizedQuery.containsAny("怎么", "咋", "用", "用途", "有什么", "给谁", "干嘛")
+
+            AnswerType.Location.wireName ->
+                normalizedQuery.containsAny("在哪", "哪里", "位置", "怎么拿", "哪拿")
+
+            AnswerType.NameMapping.wireName ->
+                normalizedQuery.containsAny("是谁", "中文", "英文", "原名", "叫什么", "叫啥")
+
+            else -> false
+        }
+
+    private fun KnowledgeChunkDomain.questionSuggestionCandidates(
+        query: RetrievalQuery,
+        queryIntent: AnswerType,
+        sourceOrder: Int,
+    ): List<QuestionSuggestionCandidate> =
+        answerTemplates.flatMapIndexed { templateIndex, rawTemplate ->
+            val template = runCatching { JSON.parseToJsonElement(rawTemplate).jsonObject }
+                .getOrNull()
+                ?: return@flatMapIndexed emptyList()
+            val selectedAnswer = TemplateAnswerSelector.select(template, query.spoilerLevel)
+                ?: return@flatMapIndexed emptyList()
+            if (!gkpSpoilerAllowed(selectedAnswer.spoilerLevel, query.spoilerLevel)) {
+                return@flatMapIndexed emptyList()
+            }
+            val selectedSpoiler = selectedAnswer.spoilerLevel.toDomainSpoiler()
+            if (!progressGateAllowed(progressGate, query.progressGate) &&
+                selectedSpoiler != SpoilerLevel.LIGHT
+            ) {
+                return@flatMapIndexed emptyList()
+            }
+            val intent = template.templateStringOrNull("intent")
+            val patterns = template.templateArrayStrings("question_patterns")
+            patterns.mapIndexed { patternIndex, pattern ->
+                QuestionSuggestionCandidate(
+                    question = pattern,
+                    entityId = entityId,
+                    intent = intent,
+                    entityMatched = matchingTerm(query.normalizedQuery) != null,
+                    intentMatched = intent == queryIntent.wireName,
+                    sourceOrder = sourceOrder + templateIndex * SUGGESTION_SOURCE_ORDER_TEMPLATE_STRIDE +
+                        patternIndex,
+                )
+            }
+        }
+
+    private fun QuestionSuggestionCandidate.scoreFor(
+        normalizedQuery: String,
+        queryIntent: AnswerType,
+        resultEntityIds: Set<String>,
+    ): Double {
+        val normalizedQuestion = normalizeSync(question)
+        val sameEntityBoost = if (entityId in resultEntityIds) SAME_ENTITY_SUGGESTION_BOOST else 0.0
+        val entityBoost = if (entityMatched) ENTITY_SUGGESTION_BOOST else 0.0
+        val intentBoost = if (intentMatched || intent == queryIntent.wireName) {
+            INTENT_SUGGESTION_BOOST
+        } else {
+            0.0
+        }
+        return (phraseSimilarity(normalizedQuery, normalizedQuestion) +
+            sameEntityBoost +
+            entityBoost +
+            intentBoost)
+            .coerceIn(0.0, 1.0)
+    }
+
+    private fun QuestionSuggestionCandidate.semanticKey(): String =
+        "$entityId:${question.suggestionCueBucket()}:${intent.orEmpty()}"
+
+    private fun String.suggestionCueBucket(): String {
+        val normalized = normalizeSync(this)
+        return when {
+            normalized.containsAny("在哪", "哪里", "位置", "怎么拿", "哪拿") -> "location"
+            normalized.containsAny("给谁", "谁适合", "适合谁", "培养谁", "谁值得", "谁强") -> "target"
+            normalized.containsAny("有什么用", "怎么用", "用途", "干嘛", "是什么") -> "usage"
+            normalized.containsAny("怎么打", "打不过", "站位", "打法") -> "strategy"
+            normalized.containsAny("怎么玩", "主要玩什么", "核心玩法", "介绍") -> "overview"
+            else -> normalized
+        }
+    }
+
+    private fun String.isNearDuplicateOf(other: String): Boolean {
+        if (this == other) return true
+        if (length >= 4 && other.contains(this)) return true
+        if (other.length >= 4 && contains(other)) return true
+        return phraseSimilarity(this, other) >= NEAR_DUPLICATE_QUESTION_SIMILARITY
+    }
+
+    private fun phraseSimilarity(left: String, right: String): Double =
+        max(dice(left.ngrams(2), right.ngrams(2)), dice(left.ngrams(3), right.ngrams(3)))
+
+    private fun String.ngrams(size: Int): Set<String> {
+        val compact = replace(" ", "")
+        if (compact.length < size) return if (compact.isBlank()) emptySet() else setOf(compact)
+        return compact.windowed(size).toSet()
+    }
+
+    private fun dice(left: Set<String>, right: Set<String>): Double {
+        if (left.isEmpty() || right.isEmpty()) return 0.0
+        return (2.0 * left.intersect(right).size) / (left.size + right.size)
+    }
+
+    private fun String.toSuggestedQuestionText(): String {
+        val clean = trim()
+        if (clean.isBlank()) return clean
+        return if (clean.endsWith("？") || clean.endsWith("?")) clean else "$clean？"
     }
 
     private fun KnowledgeChunkDomain.allowedFor(query: RetrievalQuery): Boolean =
@@ -406,6 +596,11 @@ class LocalKnowledgeRetrievalPipeline(
             .lowercase()
             .normalizeNaturalQuestion()
 
+    private fun String?.toAnswerTypeOrNull(): AnswerType? {
+        if (this.isNullOrBlank()) return null
+        return AnswerType.values().firstOrNull { it.wireName == this }
+    }
+
     private enum class NameMappingRequest {
         English,
         Chinese,
@@ -414,6 +609,23 @@ class LocalKnowledgeRetrievalPipeline(
     private data class TemplateAnswer(
         val text: String,
         val spoilerLevel: String,
+    )
+
+    private data class QuestionSuggestionCandidate(
+        val question: String,
+        val entityId: String,
+        val intent: String?,
+        val entityMatched: Boolean,
+        val intentMatched: Boolean,
+        val sourceOrder: Int,
+    )
+
+    private data class ScoredQuestionSuggestion(
+        val question: String,
+        val normalizedQuestion: String,
+        val semanticKey: String,
+        val score: Double,
+        val sourceOrder: Int,
     )
 
     private companion object {
@@ -445,6 +657,13 @@ class LocalKnowledgeRetrievalPipeline(
         const val INTENT_STRONG_BOOST = 0.25
         const val INTENT_MEDIUM_BOOST = 0.16
         const val BROAD_TERM_PENALTY = 0.10
+        const val MAX_SUGGESTED_QUESTIONS = 3
+        const val SAME_ENTITY_SUGGESTION_BOOST = 0.35
+        const val ENTITY_SUGGESTION_BOOST = 0.20
+        const val INTENT_SUGGESTION_BOOST = 0.12
+        const val NEAR_DUPLICATE_QUESTION_SIMILARITY = 0.92
+        const val SUGGESTION_SOURCE_ORDER_ROW_STRIDE = 1000
+        const val SUGGESTION_SOURCE_ORDER_TEMPLATE_STRIDE = 100
         val BROAD_NATURAL_TERMS = setOf(
             "怎么玩",
             "游戏",

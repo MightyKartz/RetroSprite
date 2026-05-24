@@ -1,7 +1,7 @@
 {
   "schema_version": "gkp.v0",
   "pack_id": "community.shining-force-ii-md",
-  "pack_version": "0.2.5",
+  "pack_version": "0.3.1",
   "default_language": "zh",
   "game": {
     "game_id": "shining_force_ii_md",
@@ -32,6 +32,8 @@
       "knowledge/mechanics.jsonl",
       "knowledge/items.jsonl",
       "knowledge/locations.jsonl",
+      "knowledge/bosses.jsonl",
+      "knowledge/enemies.jsonl",
       "knowledge/quests.jsonl",
       "knowledge/entities.jsonl",
       "knowledge/production.jsonl",

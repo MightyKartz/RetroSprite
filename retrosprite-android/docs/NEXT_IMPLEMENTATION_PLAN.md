@@ -1,8 +1,8 @@
 # RetroSprite 下一阶段实施计划
 
 > 生成日期：2026-05-19
-> 最近更新：2026-05-21
-> 依据：代码现状、`docs/DELIVERY_REPORT.md`、Android AVD 实测、RetroArch v1.22.2 源码/官方 APK 行为、DeepSeek 官方 API 文档。
+> 最近更新：2026-05-24
+> 依据：代码现状、`docs/DELIVERY_REPORT.md`、Android AVD 实测、RetroArch v1.22.2 源码/官方 APK 行为、DeepSeek 官方 API 文档，以及 `docs/GKP_LITE_OPTIONAL_LLM_DIRECTION.md`。
 
 ## 0. 当前真实状态
 
@@ -60,6 +60,7 @@ RetroSprite Android 已经具备可运行的 Phase 0/Phase 1 脚手架：
 - 2026-05-21 TTS 方向复盘结论：当前 ASR 模型本身不能直接做 TTS；ASR 和 TTS 是两套模型/管线。当前 `AndroidSpeechOutputProvider` 仍走 Android `TextToSpeech`，但 `SpeechOutputProvider` 接口已经允许后续替换为本地神经 TTS。短期可用 sherpa-onnx TTS Engine APK 作为系统 TTS 引擎来验证离线效果；中期若要产品内置，需要新增 `SherpaOnnxTtsSpeechOutputProvider`、打包对应 TTS 模型/native/API，并用 `AudioTrack` 或等价播放器输出 PCM。
 - 2026-05-21 GKP 内容复盘结论：zero-LLM 体验的上限主要由 GKP 决定。复盘时 Shining Force II GKP 已能回答“这是什么游戏”“战斗怎么玩”“什么时候转职”等问题，但对“这个游戏主要是玩什么？乐趣在哪里？”这类概览/动机型问题覆盖不足；后续真实游戏 GKP 必须加入 `核心玩法/乐趣/适合谁/怎么玩才有意思` 这类玩家自然问法，并配套 golden Q&A。
 - M11.1-M11.3 已按上述结论落地第一轮：Shining Force II `0.2.1` 新增 `note.core-gameplay-loop`，覆盖“主要玩什么 / 乐趣在哪里 / 好玩在哪 / 核心玩法 / 适合什么玩家”等自然问法；`qa_goldens.jsonl` 增加 4 条概览型 golden，真实游戏 GKP 生产模板也新增 Core Gameplay And Fun Hooks lane。
+- 2026-05-24 后续方向复盘结论：不要把每个游戏的首个支持版本做成完整攻略级 GKP。后续应转向 **GKP Lite + 玩家可选 BYOK LLM 增强层**：GKP Lite 负责可信游戏锚点、别名、核心玩法、常见机制、低剧透门和来源；LLM 由玩家自主启用和选择 provider/model，只做 query rewrite、跨语言映射、证据综合、翻译和表达润色。无 LLM 时 App 仍必须离线可用；无 GKP/无 evidence 时不允许 LLM 裸答具体攻略事实。
 
 这意味着：**RetroArch Android 官方 APK 触发路径已经打通，Phase 0A 可以收口；Phase 1 的主要风险转移到 GKP 检索、低剧透策略和真实问答交互。**
 
@@ -76,6 +77,7 @@ RetroSprite Android 已经具备可运行的 Phase 0/Phase 1 脚手架：
 | RAG/语音/GitHub 项目调研 | 评估是否必须接 LLM、是否可本地 ASR/TTS | RAG/Self-RAG/CRAG 与高星 RAG 项目都支持“检索优先、LLM 受控生成”；Whisper/sherpa-onnx/Rhasspy/Home Assistant 类项目证明本地 ASR/离线语音链路可独立成立；sherpa-onnx 提供独立 TTS engine/Android 模块，但当前项目依赖的 AAR 暂未暴露 TTS wrapper |
 | `superpowers:test-driven-development` skill | 先锁定 Hotkey Wake Voice Overlay 行为再接 Android WindowManager | 新增 endpoint event 单测和 overlay coordinator 单测，确认真实 RetroArch 请求触发、debug 不触发、有权限才显示、可自动隐藏 |
 | `superpowers:writing-plans` / `superpowers:executing-plans` skills | 将 Hotkey Wake Voice Overlay 拆成可验证小步 | 已新增 `docs/superpowers/plans/2026-05-20-hotkey-wake-voice-overlay.md`；M10.0 先完成 hotkey event + overlay cue 骨架 |
+| GKP Lite / LLM 方向讨论 | 收束后续产品路线 | 新增 `docs/GKP_LITE_OPTIONAL_LLM_DIRECTION.md`；后续以轻量可信锚点 + 可选 evidence-gated LLM 为主线 |
 
 ## 2. 决策
 
@@ -114,6 +116,15 @@ RetroSprite Android 已经具备可运行的 Phase 0/Phase 1 脚手架：
 
 12. **GKP 要覆盖玩家自然意图，而不只是攻略事实。**
     对真实游戏包，必须补齐“游戏身份、主要玩什么、核心循环、乐趣在哪里、适合谁、怎么玩才有意思、第一小时目标、低剧透探索习惯”等概览型问题。例：玩家问“这个游戏主要是玩什么？乐趣在哪里？”时，Shining Force II GKP 应能 zero-LLM 回答“剧情推进 + 网格回合战斗 + 队伍培养 + 职业/站位/隐藏探索”的短答案，并带 `sf2.official_overview` / `sf2.project_mechanics` 等来源。
+
+13. **首个支持版本改为 GKP Lite，而不是完整攻略包。**
+    GKP Lite 是一个可验证的可信游戏锚点：身份、平台/区域、RetroArch label、别名、核心玩法、第一小时方向、常见机制、关键术语、少量高频卡点、剧透门、来源和 golden。它不承诺完整路线、全隐藏清单、全 Boss 数据或全角色成长表。深度包可以在 Lite 之上继续扩展，但不作为“支持一个游戏”的前置条件。
+
+14. **保留玩家自选 LLM 设置，LLM 是增强层而不是事实层。**
+    Settings 中的 BYOK/OpenAI-compatible/DeepSeek/custom provider、model、base URL、API key、timeout、max token 和自检能力继续保留。LLM 开启后可以做口语问题理解、ASR 转写清理、跨语言 term mapping、多证据综合、翻译和表达润色；关闭时本地 GKP Lite 仍要可用。无 GKP、无 evidence、GKP 禁用、证据冲突或剧透超限时仍不能让 LLM 直接编攻略事实。
+
+15. **多语言支持走语言层，不复制完整 GKP。**
+    后续英文玩家支持应拆成：答案语言设置、英文/多语言 ASR 模型、英文 aliases/glossary/goldens、运行时 row/template language selection，以及可选 LLM 翻译/综合。`game_id`、`entity_id`、`source_id` 和剧透门应尽量语言中立；不要为了英文玩家给每个游戏重写一份完整英文攻略包。
 
 ## 3. 里程碑
 
@@ -210,6 +221,89 @@ RetroSprite Android 已经具备可运行的 Phase 0/Phase 1 脚手架：
 - Shining Force II 至少 4 个概览/乐趣/新手动机问题可在无 LLM key 时稳定回答。
 - 回答仍引用本地来源，不把 LLM 当事实源。
 - TTS 路线明确分为“系统 TTS engine 替换”和“App 内置 provider”，不把 ASR 模型误用为 TTS。
+
+### M12 - GKP Lite Contract
+
+目标：把“支持一个游戏”的最低标准从完整 GKP 收敛为轻量、可信、可测试的 GKP Lite。
+
+任务：
+
+| ID | 任务 | 产物 | 验证 |
+| --- | --- | --- | --- |
+| M12.1 | 定义 GKP Lite 覆盖层级 | `docs/GKP_LITE_OPTIONAL_LLM_DIRECTION.md`、`docs/REAL_GAME_GKP_EXPANSION_TEMPLATE.md` | 文档明确 Lite/expanded/deep 的差异 |
+| M12.2 | 建立标准化 GKP Lite scaffold | `tools/gkp-builder/templates/gkp-lite/` | 生成 manifest、knowledge、aliases、spoiler_graph、sources、goldens、changelog 的统一骨架 |
+| M12.3 | 定义机器可读 profile | `profile.yaml` / schema | 明确 required lanes、minimum goldens、source policy、coverage tier、LLM-disabled goldens |
+| M12.4 | 增加 scaffold 命令 | `gkp-builder new --profile lite ...` 或等价脚本 | 新游戏可从模板生成，不再手工复制旧 pack |
+| M12.5 | 增加 coverage lint / preflight 提示 | GKP preflight warning/error | 缺少核心玩法/身份/source/no-evidence/spoiler golden 时按规则 warning 或 error |
+| M12.6 | Packs UI 显示 coverage tier | Packs card / detail | 用户知道当前包是 Lite、expanded 还是 deep |
+
+退出条件：
+
+- 一个真实游戏可凭 reviewed Lite pack 标记为初步支持。
+- 新游戏 GKP Lite 可通过统一模板一键生成初始文件。
+- 文档明确 Lite 能回答什么、不能回答什么。
+- scaffold 生成的 TODO 占位在 lint 前不能误通过。
+- no-evidence 和低剧透策略不因降低 GKP 完整度而变弱。
+
+### M13 - Optional LLM Intelligence Layer
+
+目标：让玩家启用 LLM 后获得明显更自然的理解、综合和语言桥能力，但不破坏 evidence gate。
+
+任务：
+
+| ID | 任务 | 产物 | 验证 |
+| --- | --- | --- | --- |
+| M13.1 | Settings 明确 LLM assist 开关和解释 | Settings copy / UI state | 玩家可区分“本地可用”和“LLM 增强” |
+| M13.2 | 启用 evidence-backed 多证据综合 | `EvidenceAnswerPolicy` / `AnswerComposer` | 多 evidence 场景 LLM used，source ids 保留 |
+| M13.3 | LLM query rewrite / term mapping | pre-retrieval assist layer | ASR 噪声和跨语言问题能映射到 canonical term |
+| M13.4 | no-evidence 不调用 LLM 裸答测试 | policy/composer tests | 无 evidence 的具体攻略问题 `llmTrace=skipped` |
+| M13.5 | 诊断 evidence gate 决策 | Diagnostics / request log | 可看到 LLM 为什么 used/skipped/failed |
+
+退出条件：
+
+- LLM 关闭时全部本地 golden 仍通过。
+- LLM 开启时复杂问题的表达/综合更好，但事实仍来自 evidence。
+- LLM 失败时回退到本地答案或明确错误，不阻塞主体验。
+
+### M14 - Answer Language And Multilingual Support
+
+目标：支持英文玩家和跨语言提问，而不是为每个游戏复制完整英文 GKP。
+
+任务：
+
+| ID | 任务 | 产物 | 验证 |
+| --- | --- | --- | --- |
+| M14.1 | 增加回答语言设置 | DataStore + Settings + runtime wiring | 与 UI language 分离 |
+| M14.2 | 支持多语言 row/template 选择 | resolver/repository/retrieval changes | 同 `game_id` 可按 answer language 选择 surface |
+| M14.3 | 英文 no-evidence/clarification/source 文案 | AnswerComposer / AnswerPolicy | 英文问题不会收到中文 fallback |
+| M14.4 | 英文或多语言 ASR 模型包方案 | ASR model manager plan / spike | ASR 是语言包，不是每游戏语音包 |
+| M14.5 | Shining Force II 双语 glossary/goldens | GKP Lite localized surfaces | 英文问题可命中同一 canonical entity |
+
+退出条件：
+
+- 英文文字问题能命中同一游戏知识锚点。
+- 英文回答可在有 evidence 时生成或本地模板返回。
+- 中英文 GKP surface 不互相覆盖。
+
+### M15 - Generic Mode And Failure Inbox
+
+目标：让没有 GKP 的游戏也有诚实的下一步帮助，同时把失败问题转化为 GKP Lite 生产输入。
+
+任务：
+
+| ID | 任务 | 产物 | 验证 |
+| --- | --- | --- | --- |
+| M15.1 | 可选 Generic Mode | AnswerPolicy / UI copy | 明确标记不是当前游戏可靠攻略 |
+| M15.2 | `generic_ungrounded` 诊断阶段 | request log / Diagnostics | generic 回答不会伪装成 evidence |
+| M15.3 | 本地 unanswered question inbox | Room / Diagnostics or Packs entry | 按 label、intent、language 聚合失败问题 |
+| M15.4 | Builder 任务导出 | GKP Lite production queue | 高频 no-evidence 问题能进入内容生产 |
+| M15.5 | 指标看板 | diagnostics counters | local hit rate、no-evidence rate、LLM evidence-backed rate 可观察 |
+
+退出条件：
+
+- 未支持游戏给出诚实帮助，不编具体攻略事实。
+- 失败问题可以直接指导下一个 Lite pack 的覆盖优先级。
+- 支持范围扩张不再依赖先手写完整攻略包。
 
 ## 4. 活动任务板
 

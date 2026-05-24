@@ -91,6 +91,51 @@ class RepositoryGameResolverTest {
         assertEquals(GameIdentity.SOURCE_GKP_DISABLED, identity.source)
     }
 
+    @Test
+    fun `resolves bundled gkp retroarch platform aliases and rom-style titles`() = runTest {
+        val resolver = RepositoryGameResolver(
+            FakeGameRepository(
+                listOf(
+                    game("chrono_trigger_snes", "Chrono Trigger / 时空之轮", "snes"),
+                    game("final_fantasy_vi_snes", "Final Fantasy VI / 最终幻想 VI", "snes"),
+                    game("golden_sun_gba", "Golden Sun / 黄金太阳", "gba"),
+                    game("langrisser_ii_md", "Langrisser II / 梦幻模拟战 II", "md"),
+                    game("phantasy_star_iv_md", "Phantasy Star IV / 梦幻之星 IV", "md"),
+                    game(
+                        "shining_force_ii_md",
+                        "Shining Force II / 光明力量2",
+                        "md",
+                        retroarchLabels = listOf(
+                            "Sega - Mega Drive - Genesis__光明力量2",
+                            "md__光明與黑暗續戰篇Ⅱ 古代的封印",
+                        ),
+                    ),
+                )
+            )
+        )
+
+        val cases = listOf(
+            "sfc__Chrono Trigger (USA)" to "chrono_trigger_snes",
+            "super_nintendo__Final Fantasy VI (USA)" to "final_fantasy_vi_snes",
+            "snes__最终幻想VI" to "final_fantasy_vi_snes",
+            "game_boy_advance__黄金太阳-开启的封印" to "golden_sun_gba",
+            "gba__Golden Sun (USA)" to "golden_sun_gba",
+            "md__Langrisser II (Japan)" to "langrisser_ii_md",
+            "mega_drive__梦幻模拟战2" to "langrisser_ii_md",
+            "genesis__Phantasy_Star_IV" to "phantasy_star_iv_md",
+            "md__梦幻之星IV 千年纪的终结" to "phantasy_star_iv_md",
+            "Sega - Mega Drive - Genesis__光明力量2" to "shining_force_ii_md",
+            "md__光明與黑暗續戰篇Ⅱ 古代的封印" to "shining_force_ii_md",
+        )
+
+        cases.forEach { (label, expectedGameId) ->
+            val identity = resolver.resolve(label)
+
+            assertEquals("label=<$label>", expectedGameId, identity.gameId)
+            assertEquals("label=<$label>", "gkp_index", identity.source)
+        }
+    }
+
     private class FakeGameRepository(
         private val games: List<GameDomain>,
     ) : GameRepository {
@@ -112,4 +157,20 @@ class RepositoryGameResolverTest {
         override suspend fun upsert(game: GameDomain) = Unit
         override suspend fun delete(gameId: String) = Unit
     }
+
+    private fun game(
+        gameId: String,
+        title: String,
+        platform: String,
+        retroarchSystemIds: List<String> = emptyList(),
+        retroarchLabels: List<String> = emptyList(),
+    ): GameDomain = sample2048.copy(
+        gameId = gameId,
+        title = title,
+        platform = platform,
+        retroarchSystemIds = retroarchSystemIds,
+        retroarchLabels = retroarchLabels,
+        packId = "community.$gameId",
+        trustLevel = "community",
+    )
 }

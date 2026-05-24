@@ -54,6 +54,7 @@ data class ResponseDiagnostics(
     val answerConfidence: String? = null,
     val spoilerLevelUsed: String? = null,
     val nextActions: List<String> = emptyList(),
+    val suggestedQuestions: List<String> = emptyList(),
     val llmStatus: String? = null,
     val llmProvider: String? = null,
     val llmModel: String? = null,
@@ -98,6 +99,7 @@ data class DebugLatestRequestResponse(
     val answer_confidence: String? = null,
     val spoiler_level_used: String? = null,
     val next_actions: List<String> = emptyList(),
+    val suggested_questions: List<String> = emptyList(),
     val pipeline_stage: String? = null,
     val llm_status: String? = null,
     val source_ids: List<String> = emptyList(),
@@ -115,5 +117,45 @@ data class DebugLatestRequestResponse(
 ) {
     companion object {
         fun empty(): DebugLatestRequestResponse = DebugLatestRequestResponse(has_entry = false)
+    }
+}
+
+/** Loopback-only snapshot returned by `/debug/hotkey-voice-overlay`. */
+@Serializable
+data class DebugHotkeyVoiceOverlayResponse(
+    val lifecycle_phase: String,
+    val is_active: Boolean,
+    val is_visible: Boolean,
+    val label: String? = null,
+    val output_mode: String? = null,
+    val image_bytes: Int? = null,
+    val paused: Boolean? = null,
+    val render_phase: String? = null,
+    val message: String? = null,
+    val transcript: String? = null,
+    val normalized_transcript: String? = null,
+    val transcript_matched_term: String? = null,
+    val answer_visible: Boolean = false,
+    val source_ids: List<String> = emptyList(),
+    val asr_architecture: String? = null,
+    val asr_decoding_method: String? = null,
+    val asr_modeling_unit: String? = null,
+    val asr_native_hotwords_enabled: Boolean? = null,
+    val asr_native_hotwords_reason: String? = null,
+    val asr_hotword_count: Int? = null,
+    val asr_hotword_mode: String? = null,
+    val asr_hotword_preview: String? = null,
+    val started_at: Long? = null,
+    val updated_at: Long? = null,
+    val finished_at: Long? = null,
+    val finish_reason: String? = null,
+) {
+    companion object {
+        fun idle(): DebugHotkeyVoiceOverlayResponse =
+            DebugHotkeyVoiceOverlayResponse(
+                lifecycle_phase = "idle",
+                is_active = false,
+                is_visible = false,
+            )
     }
 }

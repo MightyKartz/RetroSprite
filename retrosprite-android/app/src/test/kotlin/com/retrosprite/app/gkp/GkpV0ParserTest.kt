@@ -16,64 +16,65 @@ class GkpV0ParserTest {
     private val parser = GkpV0Parser(nowMillis = { 1234L })
 
     @Test
-    fun `parses bundled sample 2048 pack into domain rows`() {
-        val parsed = parsePack("sample-2048")
+    fun `parses bundled shining force ii pack into domain rows`() {
+        val parsed = parsePack("shining-force-ii-md")
 
-        assertEquals("2048", parsed.game.gameId)
-        assertEquals("sample.2048", parsed.game.packId)
-        assertEquals("2048", parsed.game.title)
-        assertEquals("libretro", parsed.game.platform)
+        assertEquals("shining_force_ii_md", parsed.game.gameId)
+        assertEquals("community.shining-force-ii-md", parsed.game.packId)
+        assertEquals("Shining Force II / 光明力量2", parsed.game.title)
+        assertEquals("md", parsed.game.platform)
         assertEquals(listOf("zh", "en"), parsed.game.languages)
-        assertEquals("0.1.1", parsed.game.packVersion)
+        assertEquals(listOf("md", "genesis", "megadrive", "mega_drive"), parsed.game.retroarchSystemIds)
+        assertTrue(parsed.game.retroarchLabels.contains("mega_drive__光明力量2"))
+        assertEquals("0.3.1", parsed.game.packVersion)
         assertEquals("gkp.v0", parsed.game.schemaVersion)
-        assertEquals("sample", parsed.game.trustLevel)
+        assertEquals("community", parsed.game.trustLevel)
         assertEquals(GkpPackProvenance.Unknown.id, parsed.game.provenance)
         assertEquals(GkpSignatureStatus.Unsigned.id, parsed.game.signatureStatus)
         assertEquals(1234L, parsed.game.installedAt)
 
-        assertEquals(14, parsed.knowledge.size)
-        val merge = parsed.knowledge.first { it.entityId == "mechanic.tile-merge" }
-        assertEquals("mechanic", merge.entityType)
-        assertTrue(merge.aliases.contains("合并"))
-        assertEquals("none", merge.spoilerLevel)
-        assertEquals(listOf("sample.2048.rules"), merge.sourceRefs)
-        assertFalse(merge.answerTemplates.isEmpty())
+        assertEquals(160, parsed.knowledge.size)
+        val promotion = parsed.knowledge.first { it.entityId == "mechanic.promotion-level" }
+        assertEquals("mechanic", promotion.entityType)
+        assertTrue(promotion.aliases.contains("转职"))
+        assertEquals("none", promotion.spoilerLevel)
+        assertEquals(listOf("sf2.promotion"), promotion.sourceRefs)
+        assertFalse(promotion.answerTemplates.isEmpty())
 
-        val snake = parsed.knowledge.first { it.entityId == "strategy.snake-order" }
-        assertEquals("stable_corner", snake.progressGate)
-        assertEquals("medium", snake.spoilerLevel)
-
-        val undoRestart = parsed.knowledge.first { it.entityId == "faq.undo-restart" }
-        assertEquals("faq", undoRestart.entityType)
-        assertTrue(undoRestart.aliases.contains("撤销"))
-        assertTrue(undoRestart.aliases.contains("重开"))
+        val core = parsed.knowledge.first { it.entityId == "note.core-gameplay-loop" }
+        assertEquals("note", core.entityType)
+        assertTrue(core.aliases.contains("核心玩法"))
+        assertEquals("start", core.progressGate)
     }
 
     @Test
-    fun `parses bundled relay station pack into domain rows`() {
-        val parsed = parsePack("sample-relay-station")
+    fun `parses bundled golden sun lite pack into domain rows`() {
+        val parsed = parsePack("golden-sun-gba-zh")
 
-        assertEquals("relay_station", parsed.game.gameId)
-        assertEquals("sample.relay-station", parsed.game.packId)
-        assertEquals("Relay Station", parsed.game.title)
-        assertEquals("sample", parsed.game.platform)
-        assertEquals(listOf("zh", "en"), parsed.game.languages)
-        assertEquals("0.1.0", parsed.game.packVersion)
+        assertEquals("golden_sun_gba", parsed.game.gameId)
+        assertEquals("community.golden-sun-gba-zh", parsed.game.packId)
+        assertEquals("Golden Sun / 黄金太阳", parsed.game.title)
+        assertEquals("gba", parsed.game.platform)
+        assertEquals(listOf("zh"), parsed.game.languages)
+        assertEquals(listOf("gba", "game_boy_advance"), parsed.game.retroarchSystemIds)
+        assertTrue(parsed.game.retroarchLabels.contains("gba__黄金太阳"))
+        assertEquals("0.1.1", parsed.game.packVersion)
         assertEquals("gkp.v0", parsed.game.schemaVersion)
-        assertEquals("sample", parsed.game.trustLevel)
+        assertEquals("community", parsed.game.trustLevel)
         assertEquals(1234L, parsed.game.installedAt)
 
-        assertEquals(14, parsed.knowledge.size)
-        val fuse = parsed.knowledge.first { it.entityId == "item.blue-fuse" }
-        assertEquals("item", fuse.entityType)
-        assertTrue(fuse.aliases.contains("蓝色保险丝"))
-        assertEquals("start", fuse.progressGate)
-        assertEquals(listOf("sample.relay.items"), fuse.sourceRefs)
-        assertFalse(fuse.answerTemplates.isEmpty())
+        assertEquals(42, parsed.knowledge.size)
+        val psynergy = parsed.knowledge.first { it.entityId == "mechanic.psynergy" }
+        assertEquals("mechanic", psynergy.entityType)
+        assertTrue(psynergy.aliases.contains("精神力"))
+        assertTrue(psynergy.aliases.contains("精神利"))
+        assertEquals("start", psynergy.progressGate)
+        assertEquals(listOf("gs.official_manual", "gs.community_wiki"), psynergy.sourceRefs)
+        assertFalse(psynergy.answerTemplates.isEmpty())
 
-        val alignment = parsed.knowledge.first { it.entityId == "quest.align-beacon" }
-        assertEquals("power_restored", alignment.progressGate)
-        assertEquals("medium", alignment.spoilerLevel)
+        val identity = parsed.knowledge.first { it.entityId == "note.identity" }
+        assertEquals("note", identity.entityType)
+        assertTrue(identity.aliases.contains("黄金太阳"))
     }
 
     @Test

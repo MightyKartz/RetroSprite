@@ -2,6 +2,7 @@ package com.retrosprite.app.endpoint
 
 import android.content.Context
 import android.util.Log
+import com.retrosprite.app.endpoint.model.DebugHotkeyVoiceOverlayResponse
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -53,6 +54,11 @@ object EndpointController {
     @Volatile
     private var hotkeyListener: RetroArchHotkeyListener = NoopRetroArchHotkeyListener
 
+    @Volatile
+    private var hotkeyVoiceOverlayDebugProvider: () -> DebugHotkeyVoiceOverlayResponse = {
+        DebugHotkeyVoiceOverlayResponse.idle()
+    }
+
     /**
      * Replace the default in-memory [RequestLogSink] with a Room-backed sink (or any
      * other adapter). Must be called BEFORE [start] / [bindToService] so the next
@@ -78,6 +84,12 @@ object EndpointController {
 
     fun setHotkeyListener(listener: RetroArchHotkeyListener) {
         hotkeyListener = listener
+    }
+
+    fun setHotkeyVoiceOverlayDebugProvider(
+        provider: () -> DebugHotkeyVoiceOverlayResponse,
+    ) {
+        hotkeyVoiceOverlayDebugProvider = provider
     }
 
     /**
@@ -115,6 +127,7 @@ object EndpointController {
                 responseGenerator = responseGenerator,
                 requestLogger = loggerInstance,
                 hotkeyListener = hotkeyListener,
+                hotkeyVoiceOverlayDebugProvider = hotkeyVoiceOverlayDebugProvider,
             ).also { it.start() }
             server = instance
             _status.value = EndpointStatus.Running(port)

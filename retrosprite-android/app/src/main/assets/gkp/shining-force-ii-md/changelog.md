@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.3.1 - 2026-05-24
+
+- Added the ASR/player wording alias “气合玉” for Vigor Ball / 气合之玉 so questions like “气合玉给谁用” stay entity-anchored after stricter template retrieval.
+
+## 0.3.0 - 2026-05-24
+
+- Expanded the Shining Force II pilot into a broader localized-term GKP slice: 30 NPC rows, 45 item rows, 35 location rows, 13 boss rows, and 20 enemy rows.
+- Added boss/enemy knowledge files plus short original low-spoiler tactical notes for names such as 克拉肯, 塔罗斯, 棱镜花, 红男爵, 泽昂, 混沌法师, and 恶魔大师.
+- Expanded `aliases.json` to 288 ASR/retrieval entries, including Chinese patch/common names, alternate Chinese spellings, and short player-facing terms for characters, items, places, bosses, and enemies.
+- Raised golden coverage to 125 rows, all Chinese-language questions, with additional localized-name, item, location, boss/enemy, and ASR-style cases.
+- Added a coverage guard test so future changes keep the real-game pilot above the agreed localized-term minimums.
+
 ## 0.2.5 - 2026-05-23
 
 - Added 意志之路/汉化版 name aliases for early and mid-game character questions, including 修伊, 佳佳, 卡森, 吉布, 皮特, 玛琪露达, 盖鲁哈特, and 鲁德.

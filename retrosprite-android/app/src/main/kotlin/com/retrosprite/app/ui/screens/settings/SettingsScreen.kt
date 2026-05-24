@@ -430,11 +430,24 @@ private fun MicrophonePermissionSection(
                     modifier = Modifier.testTag("settings_microphone_test_status"),
                 )
             }
-            if (voiceInputState.asrBiasingProfileId != null) {
+            val hotwordStatus = when {
+                voiceInputState.asrNativeHotwordsEnabled ->
+                    "ASR 原生热词已进入解码：${voiceInputState.asrHotwordCount} 个，${voiceInputState.asrDecodingMethod}"
+                voiceInputState.asrBiasingProfileId != null ->
+                    "ASR 热词资料已生成，但原生热词未启用：${voiceInputState.asrNativeHotwordsReason ?: "当前模型不支持"}"
+                voiceInputState.asrArchitecture != null ->
+                    "ASR 模型：${voiceInputState.asrArchitecture}，等待游戏热词资料"
+                else -> null
+            }
+            if (hotwordStatus != null) {
                 Text(
-                    text = "ASR 游戏名词热词已启用：${voiceInputState.asrHotwordCount} 个",
+                    text = hotwordStatus,
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.secondary,
+                    color = if (voiceInputState.asrNativeHotwordsEnabled) {
+                        MaterialTheme.colorScheme.secondary
+                    } else {
+                        MaterialTheme.colorScheme.outline
+                    },
                     modifier = Modifier.testTag("settings_asr_hotwords_status"),
                 )
             }

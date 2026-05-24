@@ -157,6 +157,225 @@ class QueryPipelineResponseGeneratorTest {
     }
 
     @Test
+    fun `normalizes observed location ASR homophone and clipped suffix`() = runTest {
+        val games = FakeGameRepository()
+        val knowledge = FakeKnowledgeRepository()
+        var capturedQuestion: String? = null
+        val generator = QueryPipelineResponseGenerator(
+            pipeline = object : QueryPipeline {
+                override suspend fun answer(
+                    label: String,
+                    romHash: String?,
+                    question: String?,
+                    screenshot: String?,
+                    state: Map<String, Int>?,
+                    spoilerLevel: SpoilerLevel,
+                    language: String,
+                ): String {
+                    capturedQuestion = question
+                    return "answered: $question"
+                }
+            },
+            gameResolver = RepositoryGameResolver(games),
+            knowledgeRepository = knowledge,
+        )
+
+        val response = generator.generate(
+            request = RetroArchRequest(
+                image = "",
+                label = "mega_drive__光明力量2",
+                question = "金陵村是不是隐藏地",
+                state = RetroArchState(paused = 1),
+            ),
+            outputMode = "hotkey_voice:text",
+        )
+
+        assertEquals("精灵村是不是隐藏地点", capturedQuestion)
+        assertEquals("answered: 精灵村是不是隐藏地点", response.text)
+        assertEquals("精灵村是不是隐藏地点", response.diagnostics.question)
+        assertEquals("金陵村是不是隐藏地", response.diagnostics.rawQuestion)
+        assertEquals("精灵村是不是隐藏地点", response.diagnostics.normalizedQuestion)
+        assertEquals("homophone+truncated_suffix", response.diagnostics.questionNormalizationReason)
+        assertEquals("精灵村", response.diagnostics.normalizedQuestionMatchedTerm)
+        assertEquals("location.elven-town", response.diagnostics.normalizedQuestionMatchedEntityId)
+    }
+
+    @Test
+    fun `normalizes observed item ASR homophones before forwarding to pipeline`() = runTest {
+        val games = FakeGameRepository()
+        val knowledge = FakeKnowledgeRepository()
+        var capturedQuestion: String? = null
+        val generator = QueryPipelineResponseGenerator(
+            pipeline = object : QueryPipeline {
+                override suspend fun answer(
+                    label: String,
+                    romHash: String?,
+                    question: String?,
+                    screenshot: String?,
+                    state: Map<String, Int>?,
+                    spoilerLevel: SpoilerLevel,
+                    language: String,
+                ): String {
+                    capturedQuestion = question
+                    return "answered: $question"
+                }
+            },
+            gameResolver = RepositoryGameResolver(games),
+            knowledgeRepository = knowledge,
+        )
+
+        val response = generator.generate(
+            request = RetroArchRequest(
+                image = "",
+                label = "mega_drive__光明力量2",
+                question = "气和之欲怎么有",
+                state = RetroArchState(paused = 1),
+            ),
+            outputMode = "hotkey_voice:text",
+        )
+
+        assertEquals("气合之玉怎么用", capturedQuestion)
+        assertEquals("answered: 气合之玉怎么用", response.text)
+        assertEquals("气和之欲怎么有", response.diagnostics.rawQuestion)
+        assertEquals("气合之玉怎么用", response.diagnostics.normalizedQuestion)
+        assertEquals("homophone+truncated_suffix", response.diagnostics.questionNormalizationReason)
+        assertEquals("气合之玉", response.diagnostics.normalizedQuestionMatchedTerm)
+        assertEquals("item.vigor-ball", response.diagnostics.normalizedQuestionMatchedEntityId)
+    }
+
+    @Test
+    fun `normalizes observed duplicate item ASR before forwarding to pipeline`() = runTest {
+        val games = FakeGameRepository()
+        val knowledge = FakeKnowledgeRepository()
+        var capturedQuestion: String? = null
+        val generator = QueryPipelineResponseGenerator(
+            pipeline = object : QueryPipeline {
+                override suspend fun answer(
+                    label: String,
+                    romHash: String?,
+                    question: String?,
+                    screenshot: String?,
+                    state: Map<String, Int>?,
+                    spoilerLevel: SpoilerLevel,
+                    language: String,
+                ): String {
+                    capturedQuestion = question
+                    return "answered: $question"
+                }
+            },
+            gameResolver = RepositoryGameResolver(games),
+            knowledgeRepository = knowledge,
+        )
+
+        val response = generator.generate(
+            request = RetroArchRequest(
+                image = "",
+                label = "mega_drive__光明力量2",
+                question = "气气合之欲怎么又",
+                state = RetroArchState(paused = 1),
+            ),
+            outputMode = "hotkey_voice:text",
+        )
+
+        assertEquals("气合之玉怎么用", capturedQuestion)
+        assertEquals("answered: 气合之玉怎么用", response.text)
+        assertEquals("气气合之欲怎么又", response.diagnostics.rawQuestion)
+        assertEquals("气合之玉怎么用", response.diagnostics.normalizedQuestion)
+        assertEquals(
+            "observed_asr_rewrite+duplicate_prefix+truncated_suffix",
+            response.diagnostics.questionNormalizationReason,
+        )
+        assertEquals("气合之玉", response.diagnostics.normalizedQuestionMatchedTerm)
+        assertEquals("item.vigor-ball", response.diagnostics.normalizedQuestionMatchedEntityId)
+    }
+
+    @Test
+    fun `normalizes observed bare item ASR before forwarding to pipeline`() = runTest {
+        val games = FakeGameRepository()
+        val knowledge = FakeKnowledgeRepository()
+        var capturedQuestion: String? = null
+        val generator = QueryPipelineResponseGenerator(
+            pipeline = object : QueryPipeline {
+                override suspend fun answer(
+                    label: String,
+                    romHash: String?,
+                    question: String?,
+                    screenshot: String?,
+                    state: Map<String, Int>?,
+                    spoilerLevel: SpoilerLevel,
+                    language: String,
+                ): String {
+                    capturedQuestion = question
+                    return "answered: $question"
+                }
+            },
+            gameResolver = RepositoryGameResolver(games),
+            knowledgeRepository = knowledge,
+        )
+
+        val response = generator.generate(
+            request = RetroArchRequest(
+                image = "",
+                label = "mega_drive__光明力量2",
+                question = "米斯里鲁",
+                state = RetroArchState(paused = 1),
+            ),
+            outputMode = "hotkey_voice:text",
+        )
+
+        assertEquals("米斯里鲁有什么用", capturedQuestion)
+        assertEquals("answered: 米斯里鲁有什么用", response.text)
+        assertEquals("米斯里鲁", response.diagnostics.rawQuestion)
+        assertEquals("米斯里鲁有什么用", response.diagnostics.normalizedQuestion)
+        assertEquals("bare_item_usage", response.diagnostics.questionNormalizationReason)
+        assertEquals("米斯里鲁", response.diagnostics.normalizedQuestionMatchedTerm)
+        assertEquals("item.mithril", response.diagnostics.normalizedQuestionMatchedEntityId)
+    }
+
+    @Test
+    fun `normalizes observed mithril homophone despite shorter exact alias`() = runTest {
+        val games = FakeGameRepository()
+        val knowledge = FakeKnowledgeRepository()
+        var capturedQuestion: String? = null
+        val generator = QueryPipelineResponseGenerator(
+            pipeline = object : QueryPipeline {
+                override suspend fun answer(
+                    label: String,
+                    romHash: String?,
+                    question: String?,
+                    screenshot: String?,
+                    state: Map<String, Int>?,
+                    spoilerLevel: SpoilerLevel,
+                    language: String,
+                ): String {
+                    capturedQuestion = question
+                    return "answered: $question"
+                }
+            },
+            gameResolver = RepositoryGameResolver(games),
+            knowledgeRepository = knowledge,
+        )
+
+        val response = generator.generate(
+            request = RetroArchRequest(
+                image = "",
+                label = "mega_drive__光明力量2",
+                question = "米斯里鲁因有什么用",
+                state = RetroArchState(paused = 1),
+            ),
+            outputMode = "hotkey_voice:text",
+        )
+
+        assertEquals("米斯里鲁银有什么用", capturedQuestion)
+        assertEquals("answered: 米斯里鲁银有什么用", response.text)
+        assertEquals("米斯里鲁因有什么用", response.diagnostics.rawQuestion)
+        assertEquals("米斯里鲁银有什么用", response.diagnostics.normalizedQuestion)
+        assertEquals("observed_asr_rewrite", response.diagnostics.questionNormalizationReason)
+        assertEquals("米斯里鲁银", response.diagnostics.normalizedQuestionMatchedTerm)
+        assertEquals("item.mithril", response.diagnostics.normalizedQuestionMatchedEntityId)
+    }
+
+    @Test
     fun `uses configured default spoiler level when request has no override`() = runTest {
         var capturedSpoilerLevel: SpoilerLevel? = null
         val generator = QueryPipelineResponseGenerator(
@@ -260,6 +479,7 @@ class QueryPipelineResponseGeneratorTest {
                         answerType = AnswerType.Mechanic,
                         spoilerLevelUsed = SpoilerLevel.LIGHT,
                         nextActions = listOf(AnswerNextAction.ViewSources, AnswerNextAction.MarkIncorrect),
+                        suggestedQuestions = listOf("气合之玉在哪里？", "谁适合转 Master Monk？"),
                     ),
                 )
             }
@@ -285,6 +505,10 @@ class QueryPipelineResponseGeneratorTest {
         assertEquals("high", response.diagnostics.answerConfidence)
         assertEquals("light", response.diagnostics.spoilerLevelUsed)
         assertEquals(listOf("查看来源", "这不对"), response.diagnostics.nextActions)
+        assertEquals(
+            listOf("气合之玉在哪里？", "谁适合转 Master Monk？"),
+            response.diagnostics.suggestedQuestions,
+        )
     }
 
     @Test
@@ -392,7 +616,52 @@ class QueryPipelineResponseGeneratorTest {
                     sourceRefs = listOf("test.source"),
                     confidence = "verified",
                     answerTemplates = emptyList(),
-                )
+                ),
+                KnowledgeChunkDomain(
+                    id = 1L,
+                    gameId = gameId,
+                    entityId = "location.elven-town",
+                    entityType = "location",
+                    canonicalName = "Elven Town / 精灵森林",
+                    aliases = listOf("精灵森林", "精灵村"),
+                    descriptionShort = "desc",
+                    descriptionLong = null,
+                    progressGate = "elven_town",
+                    spoilerLevel = "medium",
+                    sourceRefs = listOf("sf2.secrets"),
+                    confidence = "verified",
+                    answerTemplates = emptyList(),
+                ),
+                KnowledgeChunkDomain(
+                    id = 2L,
+                    gameId = gameId,
+                    entityId = "item.vigor-ball",
+                    entityType = "item",
+                    canonicalName = "Vigor Ball / 气合之玉",
+                    aliases = listOf("气合之玉"),
+                    descriptionShort = "desc",
+                    descriptionLong = null,
+                    progressGate = "elven_town",
+                    spoilerLevel = "medium",
+                    sourceRefs = listOf("sf2.promotion"),
+                    confidence = "verified",
+                    answerTemplates = emptyList(),
+                ),
+                KnowledgeChunkDomain(
+                    id = 3L,
+                    gameId = gameId,
+                    entityId = "item.mithril",
+                    entityType = "item",
+                    canonicalName = "Mithril / 秘银",
+                    aliases = listOf("秘银", "米斯里鲁", "米斯里鲁银"),
+                    descriptionShort = "desc",
+                    descriptionLong = null,
+                    progressGate = "new_granseal",
+                    spoilerLevel = "medium",
+                    sourceRefs = listOf("sf2.items"),
+                    confidence = "verified",
+                    answerTemplates = emptyList(),
+                ),
             )
 
         override suspend fun searchFts(gameId: String, query: String, limit: Int) = emptyList<KnowledgeChunkDomain>()

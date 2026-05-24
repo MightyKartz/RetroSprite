@@ -12,6 +12,7 @@ import com.retrosprite.app.domain.models.SpoilerLevel
 import com.retrosprite.app.domain.intent.NaturalQuestionFrameParser
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -61,6 +62,47 @@ class EvidenceAnswerPolicyTest {
         val answer = decision as AnswerDecision.DirectAnswer
         assertTrue(answer.text.contains("医疗草怎么用？"))
         assertTrue(answer.text.contains("Mithril 有什么用？"))
+    }
+
+    @Test
+    fun `no evidence prefers retrieval suggested questions over fixed generic suggestions`() = runTest {
+        val decision = policy.decide(
+            results = emptyList(),
+            context = ctx(
+                question = "气合之欲怎么又",
+                questionIntent = AnswerType.UnknownOrOutOfScope,
+                suggestedQuestions = listOf("气合之玉怎么用？", "气合之玉给谁？"),
+            ),
+        )
+
+        val answer = decision as AnswerDecision.DirectAnswer
+        assertTrue(answer.text.contains("气合之玉怎么用？"))
+        assertTrue(answer.text.contains("气合之玉给谁？"))
+        assertFalse(answer.text.contains("这游戏怎么玩？"))
+        assertEquals(listOf("气合之玉怎么用？", "气合之玉给谁？"), answer.suggestedQuestions)
+    }
+
+    @Test
+    fun `successful answers carry follow up suggestions`() = runTest {
+        val decision = policy.decide(
+            results = listOf(
+                result(
+                    entityId = "item.vigor-ball",
+                    snippet = "Vigor Ball 给 Priest 系角色用于转 Master Monk。",
+                    sourceId = "sf2.promotion",
+                    confidence = 0.97,
+                    score = 1.0,
+                ),
+            ),
+            context = ctx(
+                question = "气合之玉怎么用？",
+                questionIntent = AnswerType.Usage,
+                suggestedQuestions = listOf("气合之玉在哪里？", "谁适合转 Master Monk？"),
+            ),
+        )
+
+        val answer = decision as AnswerDecision.DirectAnswer
+        assertEquals(listOf("气合之玉在哪里？", "谁适合转 Master Monk？"), answer.suggestedQuestions)
     }
 
     @Test
@@ -293,6 +335,7 @@ class EvidenceAnswerPolicyTest {
         identitySource: String = "unknown",
         question: String = "怎么移动？",
         questionIntent: AnswerType = AnswerType.Strategy,
+        suggestedQuestions: List<String> = emptyList(),
     ): SessionContext = SessionContext(
         gameIdentity = if (gameId == null) {
             if (identitySource == GameIdentity.SOURCE_GKP_DISABLED) {
@@ -323,6 +366,7 @@ class EvidenceAnswerPolicyTest {
         recentTurns = emptyList(),
         questionIntent = questionIntent,
         naturalQuestionFrame = NaturalQuestionFrameParser.parse(question),
+        suggestedQuestions = suggestedQuestions,
     )
 
     private fun result(

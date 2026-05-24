@@ -20,6 +20,7 @@ sealed interface AnswerDecision {
         val answerType: AnswerType = AnswerType.UnknownOrOutOfScope,
         val confidence: AnswerConfidence = AnswerConfidence.Medium,
         val nextActions: List<AnswerNextAction> = emptyList(),
+        val suggestedQuestions: List<String> = emptyList(),
     ) : AnswerDecision
 
     /**
@@ -36,6 +37,7 @@ sealed interface AnswerDecision {
             AnswerNextAction.ViewSources,
             AnswerNextAction.MarkIncorrect,
         ),
+        val suggestedQuestions: List<String> = emptyList(),
     ) : AnswerDecision
 
     /**
@@ -51,6 +53,7 @@ sealed interface AnswerDecision {
             AnswerNextAction.ViewSources,
             AnswerNextAction.MarkIncorrect,
         ),
+        val suggestedQuestions: List<String> = emptyList(),
     ) : AnswerDecision
 
     /**

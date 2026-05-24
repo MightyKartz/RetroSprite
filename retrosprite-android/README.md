@@ -8,9 +8,17 @@
 
 **当前阶段：M10/M11 · Hotkey Voice Overlay + Zero-LLM GKP**
 
+**后续方向：GKP Lite + Optional BYOK LLM。**每个游戏的首个支持版本不再要求完整攻略级 GKP，而是先做轻量、可信、可测试的 GKP Lite；外部 LLM 继续由玩家自主选择是否启用、使用什么 provider/model，只作为证据综合、跨语言映射和表达增强层。没有 LLM 时 RetroSprite 仍应离线可用；没有本地证据时不允许 LLM 裸答具体攻略事实。
+
 RetroArch AI Service → Android 本地 endpoint → 热键唤醒 RetroSprite 游戏内语音 overlay → 本地 ASR → GKP/AnswerPolicy → 短答 TTS 这条主路径已经接通并进入体验打磨。Home 页文字提问、pending hotkey 问题和 debug curl 仍保留为设置验证与开发 fallback；玩家主体验应是在 RetroArch 中按热键呼出科技感语音波形，不需要频繁回到 App 里操作。
 
-**当前真实支持游戏：1 个。**RetroSprite 目前只支持 **Shining Force II / 光明力量2**（Sega Mega Drive / Genesis）的真实游戏知识包：`community.shining-force-ii-md`。`sample-2048` 和 `sample-relay-station` 仅用于开发、演示和冒烟测试，不代表正式游戏支持范围。
+**当前真实支持游戏：仅 6 个。**RetroSprite 目前内置支持：
+**Shining Force II / 光明力量2**（`community.shining-force-ii-md`）、
+**Golden Sun / 黄金太阳**（`community.golden-sun-gba-zh`）、
+**Phantasy Star IV / 梦幻之星 IV**（`community.phantasy-star-iv-md-zh`）、
+**Langrisser II / 梦幻模拟战 II**（`community.langrisser-ii-md-zh`）、
+**Chrono Trigger / 时空之轮**（`community.chrono-trigger-snes-zh`），以及
+**Final Fantasy VI / 最终幻想 VI**（`community.final-fantasy-vi-snes-zh`）。这是当前完整正式游戏支持范围；`sample-2048` 和 `sample-relay-station` 已从 bundled assets 移除，开发和冒烟测试应使用真实游戏 GKP。
 
 ---
 
@@ -46,10 +54,10 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
 启动 App，进入 Home 屏，确认 endpoint 状态为「运行中」（默认 `http://localhost:4404`，与 RetroArch AI Service 默认地址一致）。
-Home 页也可以直接提问验证本地 GKP 问答链路；当前真实游戏支持范围是 `community.shining-force-ii-md`（Shining Force II / 光明力量2），另有 `2048__` 和 `relay_station__` 两个演示 label 用于开发测试。载入游戏并触发 RetroArch AI Service 后，提问入口会显示最近 RetroArch 上下文并自动采用对应 label，手动覆盖后也可恢复。玩家可以在 App 内输入问题并直接提交，也可以点击“准备给下次热键”，让下一条同 label、原始 `question` 为空的 RetroArch AI Service 请求消费该问题并把答案返回给 RetroArch；被消费的问题会持久化到 request log，并显示在 `/debug/latest-request`、Diagnostics 详情和 Home 最近上下文。已知样例 label 会显示快捷问题草稿，点选只填入问题框，提交或准备热键仍会经过本地 GKP、低剧透策略和 LLM gate。最近上下文行动条可一键使用当前 label，并复制可在开发机运行的 `/debug/ask` curl。最近 App 内问答会显示在 Home 的本机会话托盘中，点选记录可恢复对应 label、问题和回答；也可生成“更明确 / 直接答案 / 换个问法”追问草稿，草稿只填入输入框；选择“直接答案”会显示剧透级别提升提示，并把本次提交或 pending hotkey 的策略级别提升到直接答案。未选择追问升级时，Settings 中的默认剧透级别会进入本地检索和 AnswerPolicy。回答遇到无 evidence、GKP 禁用、LLM 失败或请求错误时，Home 会给出下一步恢复动作，并可直接跳转到 Packs、Settings 或 Diagnostics。
+Home 页也可以直接提问验证本地 GKP 问答链路；当前开发测试应使用真实游戏 label，例如 `md__Shining Force II`、`mega_drive__光明力量2` 或 `gba__黄金太阳`。载入游戏并触发 RetroArch AI Service 后，提问入口会显示最近 RetroArch 上下文并自动采用对应 label，手动覆盖后也可恢复。玩家可以在 App 内输入问题并直接提交，也可以点击“准备给下次热键”，让下一条同 label、原始 `question` 为空的 RetroArch AI Service 请求消费该问题并把答案返回给 RetroArch；被消费的问题会持久化到 request log，并显示在 `/debug/latest-request`、Diagnostics 详情和 Home 最近上下文。已知真实游戏 label 会显示快捷问题草稿，点选只填入问题框，提交或准备热键仍会经过本地 GKP、低剧透策略和 LLM gate。最近上下文行动条可一键使用当前 label，并复制可在开发机运行的 `/debug/ask` curl。最近 App 内问答会显示在 Home 的本机会话托盘中，点选记录可恢复对应 label、问题和回答；也可生成“更明确 / 直接答案 / 换个问法”追问草稿，草稿只填入输入框；选择“直接答案”会显示剧透级别提升提示，并把本次提交或 pending hotkey 的策略级别提升到直接答案。未选择追问升级时，Settings 中的默认剧透级别会进入本地检索和 AnswerPolicy。回答遇到无 evidence、GKP 禁用、LLM 失败或请求错误时，Home 会给出下一步恢复动作，并可直接跳转到 Packs、Settings 或 Diagnostics。
 真实 LLM/DeepSeek 调用会在 Home 和 Diagnostics 中显示耗时、provider/model、max token、timeout、LLM latency 和 token 用量，方便定位慢响应或配置失败；Settings 的 LLM 配置区可调整 timeout 与 max token，并可发起一次不写入玩家日志的配置自检。
 回答结果可在 Home 标记「有帮助 / 这不对」；反馈只写入本机 Room `request_logs`，Diagnostics 会把反馈和来源、pipeline stage、LLM 状态放在同一条记录里。
-Packs 页会显示当前已导入的内置 GKP、版本、schema、知识行数、来源数、信任/许可摘要、来源类型、签名状态和启用状态，以及最近一次启动导入状态；也可以对外部 GKP 文件夹做预检，检查 manifest / JSONL / schema / license / signature 和危险文件类型。预检通过后才会显示安装/覆盖计划，明确 `game_id`、版本、知识行数变化、来源类型和内容摘要，用户确认后才写入本机 Room 数据。已安装包支持禁用/启用和删除前确认；禁用会保留知识行但不参与游戏解析、检索或 LLM 综合，Home 会显示“GKP 已禁用”，Diagnostics 会标记 `GKP_DISABLED`。删除确认卡会显示目标 `pack_id`、`game_id`、版本和知识行数。内置样例包删除后下次启动仍可能被自动恢复，但禁用状态会被保留，外部同 `game_id` 包不会被 bundled importer 覆盖。
+Packs 页会显示当前已导入的内置 GKP、版本、schema、知识行数、来源数、信任/许可摘要、来源类型、签名状态和启用状态，以及最近一次启动导入状态；也可以对外部 GKP 文件夹做预检，检查 manifest / JSONL / schema / license / signature 和危险文件类型。预检通过后才会显示安装/覆盖计划，明确 `game_id`、版本、知识行数变化、来源类型和内容摘要，用户确认后才写入本机 Room 数据。已安装包支持禁用/启用和删除前确认；禁用会保留知识行但不参与游戏解析、检索或 LLM 综合，Home 会显示“GKP 已禁用”，Diagnostics 会标记 `GKP_DISABLED`。删除确认卡会显示目标 `pack_id`、`game_id`、版本和知识行数。内置真实包删除后下次启动仍可能被自动恢复，但禁用状态会被保留，外部同 `game_id` 包不会被 bundled importer 覆盖。
 
 ### 3. 配置 RetroArch
 
@@ -63,7 +71,7 @@ Packs 页会显示当前已导入的内置 GKP、版本、schema、知识行数�
 adb forward tcp:4404 tcp:4404
 
 # AVD/真机一条命令 smoke：自动检查/安装 Debug APK、启动 App、
-# 跑 endpoint smoke、2048 / Relay Station GKP debug 问答和 latest-request 回读
+# 跑 endpoint smoke、真实 GKP debug 问答和 latest-request 回读
 ./scripts/android_avd_smoke.sh
 ```
 
@@ -76,11 +84,13 @@ adb forward tcp:4404 tcp:4404
 | [docs/RETROARCH_SETUP.md](./docs/RETROARCH_SETUP.md) | RetroArch AI Service 完整配置步骤 + 故障排查 |
 | [docs/PHASE0_VERIFICATION.md](./docs/PHASE0_VERIFICATION.md) | Phase 0 验收清单（自动化 + 手动） |
 | [docs/PROTOCOL_REFERENCE.md](./docs/PROTOCOL_REFERENCE.md) | RetroArch AI Service 请求 / 响应字段速查 |
-| [docs/GKP_V0_SCHEMA.md](./docs/GKP_V0_SCHEMA.md) | GKP v0 schema、sample pack 结构与 lint 规则 |
+| [docs/GKP_V0_SCHEMA.md](./docs/GKP_V0_SCHEMA.md) | GKP v0 schema、pack 结构与 lint 规则 |
+| [docs/GKP_LITE_OPTIONAL_LLM_DIRECTION.md](./docs/GKP_LITE_OPTIONAL_LLM_DIRECTION.md) | GKP Lite + 玩家可选 LLM 的后续产品与架构方向 |
+| [docs/REAL_GAME_GKP_EXPANSION_TEMPLATE.md](./docs/REAL_GAME_GKP_EXPANSION_TEMPLATE.md) | 真实游戏 GKP Lite 生产模板、覆盖层级与验收标准 |
 | [docs/NEXT_IMPLEMENTATION_PLAN.md](./docs/NEXT_IMPLEMENTATION_PLAN.md) | 下一阶段实施计划、任务板与验证门槛 |
 | [docs/RETROARCH_ANDROID_AI_SERVICE_FINDINGS.md](./docs/RETROARCH_ANDROID_AI_SERVICE_FINDINGS.md) | RetroArch Android 官方 APK 首次联调记录 |
 | [scripts/test_endpoint.sh](./scripts/test_endpoint.sh) | 一键 curl 冒烟脚本 |
-| [scripts/android_avd_smoke.sh](./scripts/android_avd_smoke.sh) | AVD/真机上的 RetroSprite endpoint 冒烟脚本，覆盖两个内置样例 GKP |
+| [scripts/android_avd_smoke.sh](./scripts/android_avd_smoke.sh) | AVD/真机上的 RetroSprite endpoint 冒烟脚本，覆盖真实内置 GKP |
 | [scripts/sample_payload.json](./scripts/sample_payload.json) | 标准请求体样本 |
 | [../RetroSprite_Development_Plan.md](../RetroSprite_Development_Plan.md) | 项目整体规划 |
 | [../.qoder/skills/retrosprite-dev/SKILL.md](../.qoder/skills/retrosprite-dev/SKILL.md) | 项目开发约束与方向 |

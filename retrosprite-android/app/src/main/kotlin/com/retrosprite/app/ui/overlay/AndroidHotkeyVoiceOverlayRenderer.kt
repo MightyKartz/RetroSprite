@@ -188,6 +188,15 @@ private class HotkeyVoiceWaveView(context: Context) : View(context) {
         typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
         letterSpacing = 0f
     }
+    private val transcriptPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.argb(238, 235, 248, 246)
+        textSize = context.sp(11)
+        typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
+        letterSpacing = 0f
+    }
+    private val transcriptBackgroundPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.argb(142, 2, 6, 13)
+    }
     private val scanlinePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.argb(12, 255, 255, 255)
         strokeWidth = 1f
@@ -275,6 +284,7 @@ private class HotkeyVoiceWaveView(context: Context) : View(context) {
         val amplitude = renderState?.amplitude?.coerceIn(0f, 1f) ?: 0f
         val animatorsEnabled = ValueAnimator.areAnimatorsEnabled()
         drawReferenceWaveform(canvas, phase, now, amplitude, animatorsEnabled, w, h)
+        drawTranscriptCaption(canvas, w)
 
         if (isAttachedToWindow && animatorsEnabled) {
             val redrawDelay = if (phase == HotkeyVoiceOverlayPhase.Listening) {
@@ -326,6 +336,40 @@ private class HotkeyVoiceWaveView(context: Context) : View(context) {
                 micPaint,
             )
         }
+    }
+
+    private fun drawTranscriptCaption(canvas: Canvas, w: Float) {
+        val text = renderState?.transcriptHudText() ?: return
+        val left = context.dp(28f)
+        val right = w - context.dp(24f)
+        val textWidth = (right - left).toInt().coerceAtLeast(1)
+        val top = context.dp(44f)
+        val height = context.dp(21f)
+        val backgroundInsetX = context.dp(7f)
+        roundedRect.set(
+            left - backgroundInsetX,
+            top - context.dp(2f),
+            right + context.dp(5f),
+            top + height,
+        )
+        canvas.drawRoundRect(
+            roundedRect,
+            context.dp(10f),
+            context.dp(10f),
+            transcriptBackgroundPaint,
+        )
+
+        val layout = StaticLayout.Builder
+            .obtain(text, 0, text.length, transcriptPaint, textWidth)
+            .setAlignment(Layout.Alignment.ALIGN_NORMAL)
+            .setEllipsize(TextUtils.TruncateAt.END)
+            .setIncludePad(false)
+            .setMaxLines(1)
+            .build()
+        canvas.save()
+        canvas.translate(left, top + context.dp(3f))
+        layout.draw(canvas)
+        canvas.restore()
     }
 
     private fun drawReferenceWaveform(
@@ -822,6 +866,33 @@ private fun Context.pxToDp(value: Int): Int =
 private fun Context.sp(value: Int): Float =
     value * resources.displayMetrics.density * resources.configuration.fontScale
 
+internal fun HotkeyVoiceOverlayRenderState.transcriptHudText(
+    maxChars: Int = TRANSCRIPT_HUD_MAX_CHARS,
+): String? {
+    val heard = transcript?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+    val normalized = normalizedTranscript?.trim()?.takeIf { it.isNotEmpty() }
+    val matched = transcriptMatchedTerm?.trim()?.takeIf { it.isNotEmpty() }
+    val suffix = when {
+        normalized != null && normalized != heard && matched != null -> " · 按「$matched」检索"
+        normalized != null && normalized != heard -> " · 按「$normalized」检索"
+        else -> ""
+    }
+    return "听到：${heard.compactForHud(maxChars)}$suffix"
+        .takeWithEllipsis(maxChars = maxChars + TRANSCRIPT_HUD_EXTRA_CHARS)
+}
+
+private fun String.compactForHud(maxChars: Int): String =
+    trim()
+        .replace(Regex("\\s+"), " ")
+        .takeWithEllipsis(maxChars = maxChars)
+
+private fun String.takeWithEllipsis(maxChars: Int): String {
+    val safeMax = maxChars.coerceAtLeast(1)
+    if (codePointCount(0, length) <= safeMax) return this
+    val end = offsetByCodePoints(0, safeMax)
+    return substring(0, end).trimEnd() + "..."
+}
+
 internal enum class HotkeyVoiceWindowAnchor {
     TopStart,
     TopEnd,
@@ -925,7 +996,8 @@ internal fun HotkeyVoiceOverlayPhase.answerCardSpec(
                 cardWidthDp = cardWidthDp,
                 textStartDp = ANSWER_TEXT_START_DP,
                 textEndDp = ANSWER_TEXT_END_DP,
-            ).coerceIn(NO_EVIDENCE_MIN_LINES, NO_EVIDENCE_MAX_LINES)
+            ).withFollowUpBreathingRoom(answerText)
+                .coerceIn(NO_EVIDENCE_MIN_LINES, NO_EVIDENCE_MAX_LINES)
             HotkeyVoiceAnswerCardSpec(
                 heightDp = ((NO_EVIDENCE_VERTICAL_CHROME_DP + maxLines * ANSWER_LINE_HEIGHT_DP) * safeFontScale)
                     .toInt()
@@ -938,15 +1010,19 @@ internal fun HotkeyVoiceOverlayPhase.answerCardSpec(
 
         HotkeyVoiceOverlayPhase.Speaking,
         HotkeyVoiceOverlayPhase.Thinking -> {
+            val hasFollowUps = answerText.hasSuggestedQuestionBlock()
+            val maxLineLimit = if (hasFollowUps) ANSWER_FOLLOW_UP_MAX_LINES else ANSWER_MAX_LINES
+            val maxHeightLimit = if (hasFollowUps) ANSWER_FOLLOW_UP_MAX_HEIGHT_DP else ANSWER_MAX_HEIGHT_DP
             val maxLines = answerText.estimatedAnswerLineCount(
                 cardWidthDp = cardWidthDp,
                 textStartDp = ANSWER_TEXT_START_DP,
                 textEndDp = ANSWER_TEXT_END_DP,
-            ).coerceIn(ANSWER_MIN_LINES, ANSWER_MAX_LINES)
+            ).withFollowUpBreathingRoom(answerText)
+                .coerceIn(ANSWER_MIN_LINES, maxLineLimit)
             HotkeyVoiceAnswerCardSpec(
                 heightDp = ((ANSWER_VERTICAL_CHROME_DP + maxLines * ANSWER_LINE_HEIGHT_DP) * safeFontScale)
                     .toInt()
-                    .coerceIn(ANSWER_MIN_HEIGHT_DP, ANSWER_MAX_HEIGHT_DP),
+                    .coerceIn(ANSWER_MIN_HEIGHT_DP, maxHeightLimit),
                 maxLines = maxLines,
                 bottomMarginDp = ANSWER_BOTTOM_MARGIN_DP,
                 textStartDp = ANSWER_TEXT_START_DP,
@@ -1002,6 +1078,14 @@ private fun String?.estimatedAnswerLineCount(
         .coerceAtLeast(1)
 }
 
+private fun Int.withFollowUpBreathingRoom(answerText: String?): Int =
+    if (answerText.hasSuggestedQuestionBlock()) this + 1 else this
+
+private fun String?.hasSuggestedQuestionBlock(): Boolean {
+    val text = this ?: return false
+    return text.contains("你可以这样问：") || text.contains("你还可以问：")
+}
+
 internal fun HotkeyVoiceAnswerCardSpec.estimatedCjkCapacity(
     cardWidthDp: Int,
     fontSizeSp: Int,
@@ -1025,17 +1109,21 @@ private const val ANSWER_TEXT_END_DP = 20
 private const val ANSWER_FONT_SIZE_SP = 18
 private const val ANSWER_LINE_HEIGHT_DP = 24
 private const val ANSWER_MIN_LINES = 3
-private const val ANSWER_MAX_LINES = 6
+private const val ANSWER_MAX_LINES = 8
+private const val ANSWER_FOLLOW_UP_MAX_LINES = 10
 private const val ANSWER_VERTICAL_CHROME_DP = 42
 private const val ANSWER_MIN_HEIGHT_DP = 112
-private const val ANSWER_MAX_HEIGHT_DP = 220
+private const val ANSWER_MAX_HEIGHT_DP = 280
+private const val ANSWER_FOLLOW_UP_MAX_HEIGHT_DP = 340
 private const val NO_EVIDENCE_MIN_LINES = 3
-private const val NO_EVIDENCE_MAX_LINES = 7
+private const val NO_EVIDENCE_MAX_LINES = 8
 private const val NO_EVIDENCE_VERTICAL_CHROME_DP = 42
 private const val NO_EVIDENCE_MIN_HEIGHT_DP = 112
-private const val NO_EVIDENCE_MAX_HEIGHT_DP = 230
+private const val NO_EVIDENCE_MAX_HEIGHT_DP = 260
 private const val MIN_ESTIMATED_CHARS_PER_LINE = 8
 private const val TYPEWRITER_CHARS_PER_SECOND = 24L
+private const val TRANSCRIPT_HUD_MAX_CHARS = 20
+private const val TRANSCRIPT_HUD_EXTRA_CHARS = 18
 
 private fun withAlpha(color: Int, alpha: Int): Int =
     Color.argb(

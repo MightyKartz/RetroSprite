@@ -8,6 +8,7 @@ import com.retrosprite.app.data.repository.KnowledgeRepository
 import com.retrosprite.app.data.resolver.RepositoryGameResolver
 import com.retrosprite.app.data.retrieval.LocalKnowledgeRetrievalPipeline
 import com.retrosprite.app.domain.models.AnswerConfidence
+import com.retrosprite.app.domain.models.AnswerResult
 import com.retrosprite.app.domain.models.AnswerType
 import com.retrosprite.app.domain.models.LlmRequest
 import com.retrosprite.app.domain.models.LlmResponse
@@ -23,6 +24,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.nio.file.Files
@@ -166,6 +168,63 @@ class SampleShiningForceIIQuestionPipelineTest {
 
         assertTrue("answer=<$text>", text.contains("10 HP"))
         assertTrue("answer=<$text>", text.contains("来源：sf2.items"))
+        assertEquals(0, llm.callCount)
+    }
+
+    @Test
+    fun `shining force ii noisy vigor ball usage question hits bundled template`() = runTest {
+        val fixture = loadSamplePack()
+        val llm = CountingLlmAdapter()
+        val pipeline = newPipeline(fixture, llm)
+
+        val result = pipeline.answerDetailed(
+            label = "mega_drive__光明力量2",
+            question = "气合之玉怎么又",
+            spoilerLevel = SpoilerLevel.LIGHT,
+        )
+
+        assertTrue("answer=<${result.text}>", result.answerResult.answerDetail.contains("气合之玉"))
+        assertTrue("answer=<${result.text}>", result.text.contains("气合之玉"))
+        assertTrue("answer=<${result.text}>", result.text.contains("来源：sf2.promotion"))
+        assertEquals(AnswerType.Usage, result.answerResult.answerType)
+        assertEquals(0, llm.callCount)
+    }
+
+    @Test
+    fun `shining force ii chinese usage answers and suggestions prefer localized names`() = runTest {
+        val fixture = loadSamplePack()
+        val llm = CountingLlmAdapter()
+        val pipeline = newPipeline(fixture, llm)
+
+        val vigor = pipeline.answerDetailed(
+            label = "mega_drive__光明力量2",
+            question = "气合之玉怎么用？",
+            spoilerLevel = SpoilerLevel.LIGHT,
+        ).answerResult
+        val mithril = pipeline.answerDetailed(
+            label = "mega_drive__光明力量2",
+            question = "米斯里鲁银有什么用？",
+            spoilerLevel = SpoilerLevel.LIGHT,
+        ).answerResult
+
+        assertVisibleChineseOnly(
+            answer = vigor,
+            requiredTerms = listOf("气合之玉", "僧侣", "武僧"),
+            forbiddenTerms = listOf("Vigor Ball", "Priest", "Master Monk"),
+        )
+        assertFalse(
+            "answer=<${vigor.answerDetail}>",
+            vigor.answerDetail.contains("气合之玉（活力球/气合之玉）"),
+        )
+        assertVisibleChineseOnly(
+            answer = mithril,
+            requiredTerms = listOf("米斯里鲁银", "矮人工匠"),
+            forbiddenTerms = listOf("Mithril", "Dwarven Blacksmith"),
+        )
+        assertFalse(
+            "answer=<${mithril.answerDetail}>",
+            mithril.answerDetail.contains("米斯里鲁银（米斯里鲁银）"),
+        )
         assertEquals(0, llm.callCount)
     }
 
@@ -350,14 +409,19 @@ class SampleShiningForceIIQuestionPipelineTest {
         val llm = CountingLlmAdapter()
         val pipeline = newPipeline(fixture, llm)
 
-        val text = pipeline.answer(
+        val result = pipeline.answerDetailed(
             label = "mega_drive__光明力量2",
             question = "莎拉英文是谁？",
             spoilerLevel = SpoilerLevel.LIGHT,
         )
+        val text = result.text
 
         assertTrue("answer=<$text>", text.contains("莎拉对应英文名是 Sarah"))
         assertTrue("answer=<$text>", text.contains("来源：sf2.manual_translation"))
+        assertFalse(
+            "suggestions=<${result.answerResult.suggestedQuestions}>",
+            result.answerResult.suggestedQuestions.any { question -> question.contains("Sarah") },
+        )
         assertEquals(0, llm.callCount)
     }
 
@@ -368,14 +432,15 @@ class SampleShiningForceIIQuestionPipelineTest {
         val pipeline = newPipeline(fixture, llm)
 
         val cases = listOf(
-            TranslationAliasCase("修伊怎么用？", "Chester", "sf2.manual_translation"),
-            TranslationAliasCase("佳佳值得练吗？", "Jaha", "sf2.manual_translation"),
-            TranslationAliasCase("卡森怎么用？", "Kazin", "sf2.manual_translation"),
-            TranslationAliasCase("吉布是谁？", "Slade", "sf2.characters"),
-            TranslationAliasCase("皮特是谁？", "Peter", "sf2.characters"),
-            TranslationAliasCase("气合之玉怎么用？", "Vigor Ball", "sf2.promotion"),
-            TranslationAliasCase("米斯里鲁银有什么用？", "Mithril", "sf2.items"),
-            TranslationAliasCase("精灵森林是什么？", "Elven Town", "sf2.secrets"),
+            TranslationAliasCase("修伊怎么用？", "修伊", "sf2.manual_translation"),
+            TranslationAliasCase("佳佳值得练吗？", "佳佳", "sf2.manual_translation"),
+            TranslationAliasCase("卡森怎么用？", "卡森", "sf2.manual_translation"),
+            TranslationAliasCase("吉布是谁？", "吉布", "sf2.characters"),
+            TranslationAliasCase("皮特是谁？", "皮特", "sf2.characters"),
+            TranslationAliasCase("气合之玉怎么用？", "气合之玉", "sf2.promotion"),
+            TranslationAliasCase("米斯里鲁银有什么用？", "米斯里鲁银", "sf2.items"),
+            TranslationAliasCase("精灵森林是什么？", "精灵森林", "sf2.secrets"),
+            TranslationAliasCase("精灵村是不是隐藏地点？", "精灵", "sf2.secrets"),
         )
 
         cases.forEach { case ->
@@ -434,7 +499,7 @@ class SampleShiningForceIIQuestionPipelineTest {
         assertEquals("修伊是谁", response.diagnostics.normalizedQuestion)
         assertEquals("homophone", response.diagnostics.questionNormalizationReason)
         assertEquals("修伊", response.diagnostics.normalizedQuestionMatchedTerm)
-        assertTrue("answer=<$text>", text.contains("Chester"))
+        assertTrue("answer=<$text>", text.contains("修伊"))
         assertTrue("answer=<$text>", text.contains("来源：sf2.manual_translation"))
         assertEquals("skipped", response.diagnostics.llmStatus)
         assertEquals(0, llm.callCount)
@@ -494,7 +559,54 @@ class SampleShiningForceIIQuestionPipelineTest {
         )
 
         assertTrue("answer=<${result.text}>", result.text.contains("通用原则"))
+        assertTrue("answer=<${result.text}>", result.text.contains("先不列全角色"))
+        assertTrue("answer=<${result.text}>", result.text.contains("莎拉"))
+        assertTrue("answer=<${result.text}>", result.text.contains("修伊"))
         assertTrue("answer=<${result.text}>", result.text.contains("到哪一章"))
+        assertTrue("answer=<${result.text}>", result.text.contains("来源：sf2.project_mechanics"))
+        assertTrue("answerShort=<${result.answerResult.answerShort}>", result.answerResult.answerShort.contains("卡森"))
+        assertFalse("answerShort=<${result.answerResult.answerShort}>", result.answerResult.answerShort.contains("..."))
+        assertEquals(AnswerType.TeamBuild, result.answerResult.answerType)
+        assertEquals("skipped", result.llmTrace.status)
+        assertEquals(0, llm.callCount)
+    }
+
+    @Test
+    fun `shining force ii early team question gives concrete early names without full roster spoilers`() = runTest {
+        val fixture = loadSamplePack()
+        val llm = CountingLlmAdapter()
+        val pipeline = newPipeline(fixture, llm)
+
+        val result = pipeline.answerDetailed(
+            label = "mega_drive__光明力量2",
+            question = "开局哪些角色值得练？",
+            spoilerLevel = SpoilerLevel.LIGHT,
+        )
+
+        listOf("博伊", "莎拉", "修伊", "佳佳", "卡森").forEach { name ->
+            assertTrue("answer=<${result.text}> missing=<$name>", result.text.contains(name))
+        }
+        assertTrue("answer=<${result.text}>", result.text.contains("不展开后期"))
+        assertTrue("answer=<${result.text}>", result.text.contains("来源：sf2.project_mechanics"))
+        assertEquals(AnswerType.TeamBuild, result.answerResult.answerType)
+        assertEquals("skipped", result.llmTrace.status)
+        assertEquals(0, llm.callCount)
+    }
+
+    @Test
+    fun `shining force ii direct roster question warns before spoiling later characters`() = runTest {
+        val fixture = loadSamplePack()
+        val llm = CountingLlmAdapter()
+        val pipeline = newPipeline(fixture, llm)
+
+        val result = pipeline.answerDetailed(
+            label = "mega_drive__光明力量2",
+            question = "直接告诉我强力角色名单",
+            spoilerLevel = SpoilerLevel.LIGHT,
+        )
+
+        assertTrue("answer=<${result.text}>", result.text.contains("会涉及后期加入角色"))
+        assertTrue("answer=<${result.text}>", result.text.contains("确认要高剧透名单"))
         assertTrue("answer=<${result.text}>", result.text.contains("来源：sf2.project_mechanics"))
         assertEquals(AnswerType.TeamBuild, result.answerResult.answerType)
         assertEquals("skipped", result.llmTrace.status)
@@ -680,6 +792,7 @@ class SampleShiningForceIIQuestionPipelineTest {
         listOf(
             "那些角色适合培养",
             "那这些角色适合培养",
+            "现在哪先角色适合培养",
             "那些人物适合培养",
             "哪些人物适合培养",
             "那些队员适合培养",
@@ -733,6 +846,24 @@ class SampleShiningForceIIQuestionPipelineTest {
         val expectedPhrase: String,
         val expectedSource: String,
     )
+
+    private fun assertVisibleChineseOnly(
+        answer: AnswerResult,
+        requiredTerms: List<String>,
+        forbiddenTerms: List<String>,
+    ) {
+        val visibleText = buildString {
+            appendLine(answer.answerShort)
+            appendLine(answer.answerDetail)
+            answer.suggestedQuestions.forEach(::appendLine)
+        }
+        requiredTerms.forEach { term ->
+            assertTrue("visible=<$visibleText> missing=<$term>", visibleText.contains(term))
+        }
+        forbiddenTerms.forEach { term ->
+            assertFalse("visible=<$visibleText> forbidden=<$term>", visibleText.contains(term))
+        }
+    }
 
     private class FakeGameRepository(
         private val games: List<GameDomain>,

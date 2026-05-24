@@ -63,6 +63,8 @@ class GkpV0Parser(
             languages = gameObject.array("languages").map { it.jsonPrimitive.content },
             romCrc32 = romIdentity?.stringOrNull("crc32"),
             romSha1 = romIdentity?.stringOrNull("sha1"),
+            retroarchSystemIds = gameObject.arrayOrEmpty("retroarch_system_ids").map { it.jsonPrimitive.content },
+            retroarchLabels = gameObject.arrayOrEmpty("retroarch_labels").map { it.jsonPrimitive.content },
             packVersion = manifest.string("pack_version"),
             schemaVersion = schemaVersion,
             trustLevel = manifest.string("trust_level"),

@@ -28,30 +28,30 @@ class ExternalGkpInstallerTest {
     @Test
     fun `creates overwrite plan from passing preflight`() = runTest {
         val games = FakeGameRepository(
-            existing = listOf(existingRelay(packVersion = "0.0.1")),
+            existing = listOf(existingGoldenSun(packVersion = "0.0.1")),
         )
         val knowledge = FakeKnowledgeRepository(
             initial = listOf(
-                knowledge("relay_station", "old.one"),
-                knowledge("relay_station", "old.two"),
+                knowledge("golden_sun_gba", "old.one"),
+                knowledge("golden_sun_gba", "old.two"),
             )
         )
         val installer = ExternalGkpInstaller(
             gameRepository = games,
             knowledgeRepository = knowledge,
         )
-        val report = validator.validate(readPack("sample-relay-station"))
+        val report = validator.validate(readPack("golden-sun-gba-zh"))
 
         val plan = installer.createPlan(report)
 
         assertEquals(GkpExternalInstallMode.ReplaceExisting, plan.mode)
-        assertEquals("sample.relay-station", plan.packId)
-        assertEquals("relay_station", plan.gameId)
+        assertEquals("community.golden-sun-gba-zh", plan.packId)
+        assertEquals("golden_sun_gba", plan.gameId)
         assertEquals("0.0.1", plan.currentPackVersion)
-        assertEquals("0.1.0", plan.newPackVersion)
+        assertEquals("0.1.1", plan.newPackVersion)
         assertEquals(2, plan.currentKnowledgeRows)
-        assertEquals(14, plan.newKnowledgeRows)
-        assertEquals(12, plan.knowledgeDelta)
+        assertEquals(42, plan.newKnowledgeRows)
+        assertEquals(40, plan.knowledgeDelta)
         assertEquals(GkpPackProvenance.External.id, plan.provenance)
         assertEquals(GkpSignatureStatus.Unsigned.id, plan.signatureStatus)
         assertTrue(plan.contentDigest.orEmpty().matches(Regex("[a-f0-9]{64}")))
@@ -60,8 +60,8 @@ class ExternalGkpInstallerTest {
     @Test
     fun `install revalidates input and replaces game knowledge rows`() = runTest {
         var transactionCalls = 0
-        val games = FakeGameRepository(existing = listOf(existingRelay(packVersion = "0.0.1")))
-        val knowledge = FakeKnowledgeRepository(initial = listOf(knowledge("relay_station", "old.one")))
+        val games = FakeGameRepository(existing = listOf(existingGoldenSun(packVersion = "0.0.1")))
+        val knowledge = FakeKnowledgeRepository(initial = listOf(knowledge("golden_sun_gba", "old.one")))
         val installer = ExternalGkpInstaller(
             gameRepository = games,
             knowledgeRepository = knowledge,
@@ -73,25 +73,25 @@ class ExternalGkpInstallerTest {
             },
         )
 
-        val result = installer.install(readPack("sample-relay-station"))
+        val result = installer.install(readPack("golden-sun-gba-zh"))
 
         assertEquals(1, transactionCalls)
         assertEquals(GkpExternalInstallMode.ReplaceExisting, result.plan.mode)
-        assertEquals(14, result.installedKnowledgeRows)
+        assertEquals(42, result.installedKnowledgeRows)
         assertEquals(1234L, result.installedAtMillis)
-        assertEquals("0.1.0", games.rows.getValue("relay_station").packVersion)
-        assertEquals("sample.relay-station", games.rows.getValue("relay_station").packId)
-        assertEquals(GkpPackProvenance.External.id, games.rows.getValue("relay_station").provenance)
-        assertEquals(GkpSignatureStatus.Unsigned.id, games.rows.getValue("relay_station").signatureStatus)
-        assertTrue(games.rows.getValue("relay_station").contentDigest.orEmpty().matches(Regex("[a-f0-9]{64}")))
-        assertEquals(999L, games.rows.getValue("relay_station").installedAt)
-        assertEquals(14, knowledge.rows.count { it.gameId == "relay_station" })
+        assertEquals("0.1.1", games.rows.getValue("golden_sun_gba").packVersion)
+        assertEquals("community.golden-sun-gba-zh", games.rows.getValue("golden_sun_gba").packId)
+        assertEquals(GkpPackProvenance.External.id, games.rows.getValue("golden_sun_gba").provenance)
+        assertEquals(GkpSignatureStatus.Unsigned.id, games.rows.getValue("golden_sun_gba").signatureStatus)
+        assertTrue(games.rows.getValue("golden_sun_gba").contentDigest.orEmpty().matches(Regex("[a-f0-9]{64}")))
+        assertEquals(999L, games.rows.getValue("golden_sun_gba").installedAt)
+        assertEquals(42, knowledge.rows.count { it.gameId == "golden_sun_gba" })
         assertTrue(knowledge.rows.none { it.entityId == "old.one" })
     }
 
     @Test
     fun `install rejects input when preflight fails`() = runTest {
-        val input = readPack("sample-relay-station")
+        val input = readPack("golden-sun-gba-zh")
         val badInput = input.copy(
             files = input.files - "sources/licenses.md",
             allPaths = input.allPaths - "sources/licenses.md",
@@ -161,17 +161,18 @@ class ExternalGkpInstallerTest {
         }
     }
 
-    private fun existingRelay(packVersion: String): GameDomain = GameDomain(
-        gameId = "relay_station",
-        title = "Relay Station",
-        platform = "sample",
+    private fun existingGoldenSun(packVersion: String): GameDomain = GameDomain(
+        gameId = "golden_sun_gba",
+        packId = "community.golden-sun-gba-zh",
+        title = "Golden Sun / 黄金太阳",
+        platform = "gba",
         region = null,
-        languages = listOf("zh", "en"),
+        languages = listOf("zh"),
         romCrc32 = null,
         romSha1 = null,
         packVersion = packVersion,
         schemaVersion = "gkp.v0",
-        trustLevel = "sample",
+        trustLevel = "community",
         installedAt = 1L,
     )
 

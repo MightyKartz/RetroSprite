@@ -25,14 +25,17 @@ class GkpV0FixtureLintTest {
     }
 
     @Test
-    fun `bundled sample fixtures pass gkp v0 lint`() {
+    fun `bundled gkp fixtures pass gkp v0 lint`() {
         val gkpRoot = moduleRoot()
             .resolve("src/main/assets/gkp")
             .normalize()
         val packs = mapOf(
-            "sample-2048" to 16,
-            "sample-relay-station" to 12,
             "shining-force-ii-md" to 34,
+            "golden-sun-gba-zh" to 20,
+            "phantasy-star-iv-md-zh" to 20,
+            "langrisser-ii-md-zh" to 20,
+            "chrono-trigger-snes-zh" to 20,
+            "final-fantasy-vi-snes-zh" to 20,
         )
         packs.forEach { (packName, minGoldenRows) ->
             lintPack(gkpRoot.resolve(packName).normalize(), minGoldenRows)
@@ -40,7 +43,7 @@ class GkpV0FixtureLintTest {
     }
 
     private fun lintPack(packDir: Path, minGoldenRows: Int) {
-        assertTrue("sample pack missing: $packDir", Files.isDirectory(packDir))
+        assertTrue("GKP pack missing: $packDir", Files.isDirectory(packDir))
 
         val manifest = readObject(packDir.resolve("manifest.json"))
         assertEquals("gkp.v0", manifest.string("schema_version"))

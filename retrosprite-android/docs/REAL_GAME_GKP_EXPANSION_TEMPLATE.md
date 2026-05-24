@@ -1,16 +1,16 @@
-# Real-Game GKP Expansion Template
+# Real-Game GKP Lite Expansion Template
 
 > Scope: a repeatable production template for expanding a real game's Game
 > Knowledge Pack (GKP) without changing `gkp.v0`.
 >
 > Use this when turning one real game into a broader RetroSprite assistant:
-> story-safe context, characters, items, mechanics, routes, hidden content,
-> techniques, and production facts, all with source-backed, low-spoiler answers.
+> start with a lightweight, source-backed, low-spoiler GKP Lite baseline, then
+> expand only where player questions prove the need.
 
 ## 1. Product Goal
 
-Build a real-game GKP slice that lets a player press the RetroArch hotkey, ask a
-short voice question, and get a short answer that is:
+Build a real-game GKP Lite slice that lets a player press the RetroArch hotkey,
+ask a short voice question, and get a short answer that is:
 
 - specific to the current game, platform, region, and language;
 - grounded in local GKP evidence;
@@ -18,8 +18,10 @@ short voice question, and get a short answer that is:
 - useful in 1 to 3 spoken sentences;
 - traceable through `source_refs` and golden Q&A tests.
 
-This template optimizes for one game becoming deeply reliable before expanding
-to many games.
+This template optimizes for first support that is small, reliable, and honest.
+A Lite pack does not need to be a complete guide. It must be enough to anchor
+identity, language, core play, common early questions, and spoiler-safe
+retrieval. Deep coverage can be added later as separate expansion slices.
 
 ## 2. Non-Goals
 
@@ -31,8 +33,118 @@ to many games.
 - No full walkthrough transcript as the first expansion slice.
 - No advanced vision/OCR dependency for this slice; questions should work from
   game label plus player voice/text question.
+- No requirement that every supported game starts with a complete item list,
+  full route, all bosses, all character builds, or all secrets.
 
-## 3. Expansion Slice Definition
+## 3. GKP Lite Definition
+
+GKP Lite is the minimum useful support package for a game. It should contain:
+
+| Lane | Required Baseline |
+| --- | --- |
+| Identity | title, platform/core, region/version note, observed RetroArch labels |
+| Aliases | localized names, English names, abbreviations, ASR-prone forms |
+| Core loop | what the player mainly does, why it is fun, who it suits |
+| Beginner direction | first-hour goals and low-spoiler route hints |
+| Core mechanics | basic combat/movement/progression/resource rules |
+| Key terms | localized glossary for items, characters, systems, and name mapping |
+| Common stuck points | a small set of high-frequency early questions |
+| Spoiler gates | coarse progress gates and light/clear/direct answer boundaries |
+| Sources | source ids, reliability labels, and no copied guide prose |
+| Goldens | natural questions, ASR variants, no-evidence, and spoiler regressions |
+
+Suggested coverage tiers:
+
+| Tier | Meaning | Typical Size |
+| --- | --- | --- |
+| `lite` | first supported package, focused on common safe questions | 20 to 60 rows, 20 to 40 goldens |
+| `expanded` | broader characters/items/routes for active users | 60 to 150 rows, 40 to 100 goldens |
+| `deep` | mature pack with many progress gates and detailed optional content | 150+ rows, 100+ goldens |
+
+Mark first support as `lite` unless the pack has already passed expanded/deep
+review. Do not imply that a Lite pack is a complete walkthrough.
+
+## 4. Standardized Template And Scaffold
+
+GKP Lite should be generated from a standard scaffold instead of copied from an
+existing game folder. The scaffold is the contract that lets human authors,
+RAG-assisted tools, and LLM-assisted drafting produce the same pack shape.
+
+Recommended builder template location:
+
+```text
+tools/gkp-builder/templates/gkp-lite/
+├─ profile.yaml
+├─ manifest.template.json
+├─ aliases.template.json
+├─ spoiler_graph.template.json
+├─ qa_goldens.template.jsonl
+├─ changelog.template.md
+├─ sources/
+│  ├─ citations.template.jsonl
+│  └─ licenses.template.md
+└─ knowledge/
+   ├─ production.template.jsonl
+   ├─ mechanics.template.jsonl
+   ├─ strategies.template.jsonl
+   ├─ entities.template.jsonl
+   ├─ items.template.jsonl
+   └─ locations.template.jsonl
+```
+
+The template should be parameterized by:
+
+| Variable | Example | Use |
+| --- | --- | --- |
+| `game_slug` | `chrono-trigger-snes` | pack folder/id suffix |
+| `game_id` | `chrono_trigger_snes` | stable runtime identity |
+| `display_title` | `Chrono Trigger` | manifest and user-facing rows |
+| `platform` | `snes` | resolver and pack metadata |
+| `region` | `us` / `jp` / null | version-specific behavior |
+| `language` | `zh` / `en` | localized surface |
+| `coverage_tier` | `lite` | user/developer expectation |
+| `retroarch_labels` | observed labels | resolver matching |
+
+The generated pack should start with TODO placeholders for every required Lite
+lane. Placeholders must fail coverage lint until the author replaces them with
+reviewed source-backed rows.
+
+Expected CLI shape:
+
+```bash
+gkp-builder new \
+  --profile lite \
+  --game "Chrono Trigger" \
+  --platform snes \
+  --language zh \
+  --out workspaces/chrono-trigger-snes-zh
+
+gkp-builder lint workspaces/chrono-trigger-snes-zh/out/community.chrono-trigger-snes-zh
+gkp-builder test-goldens workspaces/chrono-trigger-snes-zh/out/community.chrono-trigger-snes-zh
+```
+
+Minimum scaffolded files must include:
+
+- identity/production starter row;
+- core gameplay/fun hook starter row;
+- beginner direction starter row;
+- key-term/name-mapping starter rows;
+- source inventory placeholders;
+- coarse spoiler graph;
+- at least one no-evidence golden;
+- at least one spoiler-downgrade golden;
+- at least four core gameplay/fun hook golden templates;
+- changelog section with `Coverage tier: lite`.
+
+Validation should run in three layers:
+
+| Layer | Checks |
+| --- | --- |
+| Shape lint | required files, JSON/JSONL, id format, manifest paths |
+| Coverage lint | required lanes, source refs, aliases, goldens, coverage tier |
+| Runtime goldens | Android parser/retrieval/AnswerPolicy, including LLM-disabled mode |
+
+## 5. Expansion Slice Definition
 
 Use one "slice" per content expansion. A slice is small enough to review and
 test, but broad enough to feel useful in play.
@@ -44,8 +156,9 @@ slice_id: real-game-core-001
 target_game: <game title>
 target_platform: <platform/core family>
 languages: zh first, optional en aliases
-knowledge_rows: 35 to 60
-golden_questions: 25 to 40
+coverage_tier: lite
+knowledge_rows: 20 to 60
+golden_questions: 20 to 40
 default_spoiler: light
 llm_expected_rate: 0% for required natural-question goldens; optional only for
 multi-evidence synthesis outside the core checklist
@@ -54,7 +167,7 @@ multi-evidence synthesis outside the core checklist
 For an existing pack, bump `pack_version` by one patch or minor version. For a
 new real-game pack, start at `0.1.0`.
 
-## 4. Required Files
+## 6. Required Files
 
 The slice must update or create these files:
 
@@ -83,7 +196,7 @@ Only include knowledge files that contain rows. `GkpV0Parser` currently accepts
 knowledge paths listed in `manifest.json`; do not add files to the folder unless
 they are listed in `contents.knowledge`.
 
-## 5. Source Policy
+## 7. Source Policy
 
 Every factual row must cite at least one stable source id.
 
@@ -125,7 +238,7 @@ current RetroArch session. The note must be original.
 }
 ```
 
-## 6. Spoiler Policy
+## 8. Spoiler Policy
 
 Map every row to both `progress_gate` and `spoiler_level`.
 
@@ -163,7 +276,7 @@ Progress gates should be game-specific but coarse. A first slice usually needs
 If a fact is useful but progress-dependent, keep the short answer vague at
 `light` and put explicit directions in a separate `medium` row.
 
-## 7. Coverage Lanes
+## 9. Coverage Lanes
 
 Each real-game slice should cover these lanes. Do not fill every possible fact;
 prioritize questions a player would ask mid-session by voice.
@@ -616,7 +729,7 @@ Golden questions:
 - "怎么打得稳？"
 - "这个技巧有什么风险？"
 
-## 8. Alias And ASR Robustness
+## 10. Alias, Language, And ASR Robustness
 
 Voice questions fail when ASR outputs a near miss. Add aliases for:
 
@@ -626,6 +739,12 @@ Voice questions fail when ASR outputs a near miss. Add aliases for:
 - localized item/character names;
 - common spoken forms;
 - homophones or ASR-prone variants observed during tests.
+
+Do not create a complete duplicate GKP just to support another player language.
+Prefer stable language-neutral `game_id` / `entity_id` / `source_id` values plus
+localized aliases, templates, and goldens. English support should add English
+question surfaces, English names, and an answer-language path, not a second
+full walkthrough written from scratch.
 
 `aliases.json` example:
 
@@ -645,7 +764,32 @@ Voice questions fail when ASR outputs a near miss. Add aliases for:
 For every real-device ASR miss, add one golden question if the intended entity
 is important to the player experience.
 
-## 9. Golden Q&A Matrix
+## 11. LLM Usage In A GKP Lite Slice
+
+GKP Lite must be useful with LLM disabled. Required goldens should pass through
+local retrieval, direct templates, or deterministic local summary.
+
+If the player enables LLM, it may improve:
+
+- noisy ASR query rewrite;
+- cross-language term mapping;
+- multi-evidence synthesis;
+- answer translation;
+- low-spoiler phrasing;
+- clarification questions.
+
+It must not:
+
+- invent game-specific facts without GKP evidence;
+- bypass spoiler gates;
+- answer exact routes, hidden item locations, boss weaknesses, endings, or
+  missables from model memory;
+- hide that a response is generic when the current game has no GKP.
+
+Each slice should include at least one no-evidence golden that proves the LLM
+path does not bare-answer an unsupported game-specific fact.
+
+## 12. Golden Q&A Matrix
 
 Each slice must include a balanced set of golden questions. The target is not
 just parser validity; it is product truth.
@@ -711,7 +855,7 @@ Spoiler downgrade row template:
 }
 ```
 
-## 10. Manifest Expansion Checklist
+## 13. Manifest Expansion Checklist
 
 When expanding an existing pack:
 
@@ -765,52 +909,65 @@ Manifest fragment:
 }
 ```
 
-## 11. Production Workflow
+## 14. Production Workflow
 
 Use this order for each expansion slice:
 
 1. Confirm RetroArch label on device.
-2. Create or update source inventory.
-3. Draft progress gates.
-4. Add identity/production rows.
-5. Add core gameplay / fun hook rows.
-6. Add mechanics rows.
-7. Add early route rows.
-8. Add character rows.
-9. Add item/equipment rows.
-10. Add hidden/optional overview rows.
+2. Run the GKP Lite scaffold generator.
+3. Create or update source inventory.
+4. Draft progress gates.
+5. Replace identity/production placeholders.
+6. Replace core gameplay / fun hook placeholders.
+7. Add beginner-safe mechanics and early route rows.
+8. Add key glossary/name-mapping rows.
+9. Add only the most common character/item rows needed for first support.
+10. Add hidden/optional overview rows before exact hidden details.
 11. Add explicit medium/heavy rows only after safe overview rows exist.
-12. Add aliases, including ASR variants.
-13. Add golden Q&A rows.
-14. Run pack lint and targeted retrieval tests.
-15. Run `/debug/ask` for top questions.
-16. Run one real hotkey voice smoke on device.
-17. Update `changelog.md` with coverage, known gaps, and test result.
+12. Add aliases, including ASR and English variants.
+13. Add golden Q&A rows, including no-evidence and spoiler regressions.
+14. Run shape lint and coverage lint.
+15. Run targeted retrieval/golden tests.
+16. Run `/debug/ask` for top questions.
+17. Run one real hotkey voice smoke on device.
+18. Update `changelog.md` with coverage tier, known gaps, and test result.
 
 Do not expand rows faster than tests. A small slice with reliable answers is
-better than a wide slice that guesses.
+better than a wide slice that guesses. For first support, stop once the pack is
+a reliable Lite package; do not force a deep guide before shipping the learning
+loop.
 
-## 12. Acceptance Criteria
+## 15. Acceptance Criteria
 
 A real-game expansion slice is ready when:
 
+- the pack was created from the GKP Lite scaffold or explicitly audited against
+  the same template profile;
+- the intended `coverage_tier` is documented as `lite`, `expanded`, or `deep`;
+- shape lint and coverage lint pass;
 - pack preflight/lint passes;
 - all knowledge rows have valid `source_refs`;
 - every `progress_gate` exists in `spoiler_graph.json`;
 - every row has at least 2 useful aliases, or a reason it is intentionally exact;
-- at least 25 golden questions pass;
+- at least 20 Lite golden questions pass;
 - at least 4 core gameplay / fun hook goldens pass without LLM;
 - all spoiler downgrade goldens pass under default `LIGHT`;
 - at least 3 no-evidence goldens return uncertainty instead of guesses;
+- LLM-disabled mode remains useful for the top supported questions;
+- LLM-enabled mode, when tested, uses evidence for game-specific answers and
+  preserves source ids;
 - `/debug/ask` passes for the top 10 voice-like questions;
 - one real-device hotkey voice loop reaches `hotkey_voice:text`;
 - Diagnostics shows expected `source_ids`, `pipeline_stage`, and `llm_status`;
 - `changelog.md` records coverage and known gaps.
 
-## 13. Review Checklist
+## 16. Review Checklist
 
 Before merging a slice, review these questions:
 
+- Did this pack come from the current GKP Lite template profile?
+- Are any scaffold TODO placeholders still present?
+- Is this a Lite, expanded, or deep pack, and is that clear to users/developers?
 - Does every answer stay within 1 to 3 sentences when spoken?
 - Would a first-time player feel helped, not spoiled?
 - Are explicit locations separated from safe item-use explanations?
@@ -820,8 +977,10 @@ Before merging a slice, review these questions:
 - Can a player ask with natural voice wording and still hit the right entity?
 - Does no-evidence behavior protect trust?
 - Would the same row apply to another region/version? If not, is that captured?
+- If LLM is enabled, does it compose from evidence rather than become a hidden
+  fact source?
 
-## 14. Example First Slice For Shining Force II
+## 17. Example First Slice For Shining Force II
 
 The current `shining-force-ii-md` pack already covers identity, early direction,
 basic battle, revive, promotion, special promotion items, and a few characters.
@@ -846,6 +1005,7 @@ Suggested slice id:
 slice_id: sf2-core-002
 pack_folder: app/src/main/assets/gkp/shining-force-ii-md
 pack_version: 0.2.1
+coverage_tier: lite
 primary_goal: make hotkey voice questions about core appeal, characters, items,
   mechanics, hidden content, and production facts feel useful while preserving
   low-spoiler defaults.
@@ -871,11 +1031,12 @@ Suggested top voice questions:
 - "这个游戏有没有多结局？"
 - "我问的这个会剧透吗？"
 
-## 15. Changelog Entry Template
+## 18. Changelog Entry Template
 
 ```markdown
 ## <pack_version> - <YYYY-MM-DD>
 
+- Coverage tier: <lite | expanded | deep>
 - Added <count> knowledge rows across production, mechanics, characters, items,
   locations, hidden content, and strategy.
 - Added <count> golden Q&A rows, including <count> spoiler downgrade cases and

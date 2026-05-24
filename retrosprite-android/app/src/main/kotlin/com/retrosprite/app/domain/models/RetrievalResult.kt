@@ -11,4 +11,6 @@ data class RetrievalResult(
     val evidence: List<Evidence>,
     /** Aggregate confidence in `[0.0, 1.0]`. */
     val confidence: Double,
+    /** Optional answer type inferred from a matched GKP template. */
+    val answerType: AnswerType? = null,
 )

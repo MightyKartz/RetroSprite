@@ -7,7 +7,7 @@
 # This intentionally verifies the RetroSprite side of the integration:
 #   adb device online -> app package present or installed
 #   -> endpoint activity/service starts -> adb forward -> /health
-#   -> simulated RetroArch POST -> sample GKP debug questions
+#   -> simulated RetroArch POST -> real GKP debug questions
 #   -> /debug/latest-request summary.
 #
 # It does NOT claim to verify that official RetroArch Android triggered the
@@ -22,8 +22,8 @@
 #   BUILD=1 INSTALL=1 ./scripts/android_avd_smoke.sh
 #   WAIT_ATTEMPTS=30 ./scripts/android_avd_smoke.sh
 #   RUN_DEBUG_ASK=0 ./scripts/android_avd_smoke.sh
-#   RUN_RELAY_DEBUG_ASK=0 ./scripts/android_avd_smoke.sh
-#   RELAY_DEBUG_QUESTION="蓝色保险丝在哪？" ./scripts/android_avd_smoke.sh
+#   RUN_SECOND_DEBUG_ASK=0 ./scripts/android_avd_smoke.sh
+#   SECOND_DEBUG_QUESTION="精神力是什么？" ./scripts/android_avd_smoke.sh
 # -----------------------------------------------------------------------------
 set -u
 
@@ -39,18 +39,18 @@ BUILD="${BUILD:-0}"
 APK_PATH="${APK_PATH:-${ROOT_DIR}/app/build/outputs/apk/debug/app-debug.apk}"
 WAIT_ATTEMPTS="${WAIT_ATTEMPTS:-20}"
 RUN_DEBUG_ASK="${RUN_DEBUG_ASK:-1}"
-RUN_RELAY_DEBUG_ASK="${RUN_RELAY_DEBUG_ASK:-1}"
+RUN_SECOND_DEBUG_ASK="${RUN_SECOND_DEBUG_ASK:-${RUN_RELAY_DEBUG_ASK:-1}}"
 DEBUG_ATTEMPTS="${DEBUG_ATTEMPTS:-10}"
-DEBUG_LABEL="${DEBUG_LABEL:-2048__}"
-DEBUG_QUESTION="${DEBUG_QUESTION:-两个 2 怎么合并？}"
-DEBUG_EXPECT_SOURCE="${DEBUG_EXPECT_SOURCE:-sample.2048.rules}"
+DEBUG_LABEL="${DEBUG_LABEL:-md__Shining Force II}"
+DEBUG_QUESTION="${DEBUG_QUESTION:-什么时候转职？}"
+DEBUG_EXPECT_SOURCE="${DEBUG_EXPECT_SOURCE:-sf2.promotion}"
 DEBUG_EXPECT_STAGE="${DEBUG_EXPECT_STAGE:-evidence}"
 DEBUG_EXPECT_LLM_STATUS="${DEBUG_EXPECT_LLM_STATUS:-skipped}"
-RELAY_DEBUG_LABEL="${RELAY_DEBUG_LABEL:-relay_station__}"
-RELAY_DEBUG_QUESTION="${RELAY_DEBUG_QUESTION:-蓝色保险丝在哪？}"
-RELAY_DEBUG_EXPECT_SOURCE="${RELAY_DEBUG_EXPECT_SOURCE:-sample.relay.items}"
-RELAY_DEBUG_EXPECT_STAGE="${RELAY_DEBUG_EXPECT_STAGE:-evidence}"
-RELAY_DEBUG_EXPECT_LLM_STATUS="${RELAY_DEBUG_EXPECT_LLM_STATUS:-skipped}"
+SECOND_DEBUG_LABEL="${SECOND_DEBUG_LABEL:-gba__黄金太阳}"
+SECOND_DEBUG_QUESTION="${SECOND_DEBUG_QUESTION:-精神力是什么？}"
+SECOND_DEBUG_EXPECT_SOURCE="${SECOND_DEBUG_EXPECT_SOURCE:-gs.official_manual}"
+SECOND_DEBUG_EXPECT_STAGE="${SECOND_DEBUG_EXPECT_STAGE:-evidence}"
+SECOND_DEBUG_EXPECT_LLM_STATUS="${SECOND_DEBUG_EXPECT_LLM_STATUS:-skipped}"
 
 fail() {
   printf "FAIL %s\n" "$1" >&2
@@ -206,29 +206,29 @@ JSON
   fi
 }
 
-info "[7/7] sample GKP debug questions and latest-request checks"
+info "[7/7] real GKP debug questions and latest-request checks"
 if [ "$RUN_DEBUG_ASK" != "1" ]; then
   info "  skipped because RUN_DEBUG_ASK=${RUN_DEBUG_ASK}"
   info "OK android_avd_smoke completed"
   exit 0
 fi
 
-run_debug_case "sample-2048" \
+run_debug_case "shining-force-ii-md" \
   "$DEBUG_LABEL" \
   "$DEBUG_QUESTION" \
   "$DEBUG_EXPECT_SOURCE" \
   "$DEBUG_EXPECT_STAGE" \
   "$DEBUG_EXPECT_LLM_STATUS"
 
-if [ "$RUN_RELAY_DEBUG_ASK" = "1" ]; then
-  run_debug_case "sample-relay-station" \
-    "$RELAY_DEBUG_LABEL" \
-    "$RELAY_DEBUG_QUESTION" \
-    "$RELAY_DEBUG_EXPECT_SOURCE" \
-    "$RELAY_DEBUG_EXPECT_STAGE" \
-    "$RELAY_DEBUG_EXPECT_LLM_STATUS"
+if [ "$RUN_SECOND_DEBUG_ASK" = "1" ]; then
+  run_debug_case "golden-sun-gba-zh" \
+    "$SECOND_DEBUG_LABEL" \
+    "$SECOND_DEBUG_QUESTION" \
+    "$SECOND_DEBUG_EXPECT_SOURCE" \
+    "$SECOND_DEBUG_EXPECT_STAGE" \
+    "$SECOND_DEBUG_EXPECT_LLM_STATUS"
 else
-  info "  sample-relay-station skipped because RUN_RELAY_DEBUG_ASK=${RUN_RELAY_DEBUG_ASK}"
+  info "  second GKP debug case skipped because RUN_SECOND_DEBUG_ASK=${RUN_SECOND_DEBUG_ASK}"
 fi
 
 info "OK android_avd_smoke completed"

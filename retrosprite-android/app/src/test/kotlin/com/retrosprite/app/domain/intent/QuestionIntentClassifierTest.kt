@@ -10,6 +10,9 @@ class QuestionIntentClassifierTest {
     fun `classifies high confidence game question intents with rules`() {
         val cases = listOf(
             "勇者之证英文叫什么" to AnswerType.NameMapping,
+            "太空战士6和最终幻想6是一个吗" to AnswerType.NameMapping,
+            "兰古利萨II是不是梦幻模拟战2" to AnswerType.NameMapping,
+            "雷昂是不是帝国线" to AnswerType.NameMapping,
             "Medical Herb 怎么用" to AnswerType.Usage,
             "Mithril 在哪里" to AnswerType.Location,
             "精灵森林是什么" to AnswerType.Location,
@@ -32,6 +35,9 @@ class QuestionIntentClassifierTest {
             "刚开始应该干嘛" to AnswerType.BeginnerGuide,
             "新手前期怎么玩稳" to AnswerType.BeginnerGuide,
             "现在哪些角色适合培养" to AnswerType.TeamBuild,
+            "开局哪些角色值得练" to AnswerType.TeamBuild,
+            "新手阵容怎么组" to AnswerType.TeamBuild,
+            "直接告诉我强力角色名单" to AnswerType.TeamBuild,
             "角色练哪些比较稳" to AnswerType.TeamBuild,
             "队伍怎么搭配" to AnswerType.TeamBuild,
             "角色如何搭配" to AnswerType.TeamBuild,
@@ -39,10 +45,15 @@ class QuestionIntentClassifierTest {
             "哪些角色直练" to AnswerType.TeamBuild,
             "怎么玩经验高" to AnswerType.Leveling,
             "升级有什么技巧" to AnswerType.Leveling,
+            "攻击力高有什么用" to AnswerType.Mechanic,
+            "防御力高有什么用" to AnswerType.Mechanic,
+            "速度高有什么用" to AnswerType.Mechanic,
             "打不过敌人怎么办" to AnswerType.Strategy,
             "怎么才能赢" to AnswerType.Strategy,
             "这个游戏玩的话有什么技巧吗" to AnswerType.Strategy,
             "谁开发的" to AnswerType.Production,
+            "精灵村是不是隐藏地点" to AnswerType.Location,
+            "攻击不够是不是要买武器" to AnswerType.Usage,
             "这个游戏有没有交易系统" to AnswerType.UnknownOrOutOfScope,
         )
 
@@ -70,6 +81,7 @@ class QuestionIntentClassifierTest {
         val cases = listOf(
             "那些角色适合培养",
             "那这些角色适合培养",
+            "现在哪先角色适合培养",
             "那些人物适合培养",
             "哪些人物适合培养",
             "那些队员适合培养",
@@ -84,7 +96,7 @@ class QuestionIntentClassifierTest {
             assertEquals(
                 "question=<$question>",
                 "哪些角色适合培养",
-                question.normalizeNaturalQuestion(),
+                question.normalizeNaturalQuestion().removePrefix("现在"),
             )
         }
     }

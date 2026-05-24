@@ -1,6 +1,7 @@
 package com.retrosprite.app.endpoint
 
 import com.retrosprite.app.endpoint.model.RetroArchResponse
+import com.retrosprite.app.endpoint.model.DebugHotkeyVoiceOverlayResponse
 import com.retrosprite.app.endpoint.model.DebugLatestRequestResponse
 import io.ktor.client.request.get
 import io.ktor.client.request.post
@@ -291,6 +292,40 @@ class RetroArchEndpointServerTest {
     }
 
     @Test
+    fun `debug latest request includes suggested questions from diagnostics`() = testApplication {
+        val logger = RequestLogger()
+        val generator = ResponseGenerator { _, _ ->
+            RetroArchResponse.text(
+                content = "answer",
+                diagnostics = com.retrosprite.app.endpoint.model.ResponseDiagnostics(
+                    answerShort = "short",
+                    suggestedQuestions = listOf("气合之玉在哪里？", "谁适合转 Master Monk？"),
+                )
+            )
+        }
+        application { retroArchModule(generator, logger) }
+
+        client.post("/debug/ask?output=text") {
+            contentType(ContentType.Application.Json)
+            setBody("""{"label":"2048__","question":"气合之玉怎么用","state":{"paused":1}}""")
+        }
+
+        val parsed = json.decodeFromString(
+            DebugLatestRequestResponse.serializer(),
+            client.get("/debug/latest-request").bodyAsText(),
+        )
+
+        assertEquals(
+            listOf("气合之玉在哪里？", "谁适合转 Master Monk？"),
+            logger.entries.value.first().suggestedQuestions,
+        )
+        assertEquals(
+            listOf("气合之玉在哪里？", "谁适合转 Master Monk？"),
+            parsed.suggested_questions,
+        )
+    }
+
+    @Test
     fun `silent hotkey wake notifies listener but does not replace latest request`() = testApplication {
         val logger = RequestLogger()
         val events = mutableListOf<RetroArchHotkeyEvent>()
@@ -327,6 +362,57 @@ class RetroArchEndpointServerTest {
         assertTrue(!parsed.has_entry)
         assertNull(parsed.label)
         assertEquals(emptyList<String>(), parsed.source_ids)
+    }
+
+    @Test
+    fun `debug hotkey voice overlay route returns lifecycle snapshot`() = testApplication {
+        application {
+            retroArchModule(
+                responseGenerator = PlaceholderResponseGenerator(),
+                requestLogger = RequestLogger(),
+                hotkeyVoiceOverlayDebugProvider = {
+                    DebugHotkeyVoiceOverlayResponse(
+                        lifecycle_phase = "finished",
+                        is_active = false,
+                        is_visible = false,
+                        label = "mega_drive__光明力量2",
+                        render_phase = "speaking",
+                        source_ids = listOf("sf2.manual_translation"),
+                        asr_architecture = "transducer",
+                        asr_decoding_method = "modified_beam_search",
+                        asr_modeling_unit = "cjkchar",
+                        asr_native_hotwords_enabled = true,
+                        asr_hotword_count = 160,
+                        asr_hotword_mode = "Auto",
+                        started_at = 10_000L,
+                        finished_at = 12_345L,
+                        finish_reason = "answer_completed",
+                    )
+                },
+            )
+        }
+
+        val resp = client.get("/debug/hotkey-voice-overlay")
+
+        assertEquals(HttpStatusCode.OK, resp.status)
+        val parsed = json.decodeFromString(
+            DebugHotkeyVoiceOverlayResponse.serializer(),
+            resp.bodyAsText(),
+        )
+        assertEquals("finished", parsed.lifecycle_phase)
+        assertEquals(false, parsed.is_active)
+        assertEquals(false, parsed.is_visible)
+        assertEquals("mega_drive__光明力量2", parsed.label)
+        assertEquals("speaking", parsed.render_phase)
+        assertEquals(listOf("sf2.manual_translation"), parsed.source_ids)
+        assertEquals("transducer", parsed.asr_architecture)
+        assertEquals("modified_beam_search", parsed.asr_decoding_method)
+        assertEquals("cjkchar", parsed.asr_modeling_unit)
+        assertEquals(true, parsed.asr_native_hotwords_enabled)
+        assertEquals(160, parsed.asr_hotword_count)
+        assertEquals("Auto", parsed.asr_hotword_mode)
+        assertEquals(12_345L, parsed.finished_at)
+        assertEquals("answer_completed", parsed.finish_reason)
     }
 
     @Test

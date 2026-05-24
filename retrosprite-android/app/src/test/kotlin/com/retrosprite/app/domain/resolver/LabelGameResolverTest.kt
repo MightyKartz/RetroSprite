@@ -45,6 +45,15 @@ class LabelGameResolverTest {
         assertEquals("md", resolver.resolve("mega_drive__光明力量2").platform)
         assertEquals("md", resolver.resolve("megadrive__Shining Force II").platform)
         assertEquals("md", resolver.resolve("genesis__Shining Force II").platform)
+        assertEquals("md", resolver.resolve("Sega - Mega Drive - Genesis__光明力量2").platform)
+    }
+
+    @Test
+    fun `canonicalizes bundled retro platform aliases`() = runTest {
+        assertEquals("gba", resolver.resolve("game_boy_advance__黄金太阳-开启的封印").platform)
+        assertEquals("gba", resolver.resolve("Game Boy Advance__Golden Sun").platform)
+        assertEquals("snes", resolver.resolve("sfc__Chrono Trigger").platform)
+        assertEquals("snes", resolver.resolve("super_nintendo__Final Fantasy VI").platform)
     }
 
     @Test

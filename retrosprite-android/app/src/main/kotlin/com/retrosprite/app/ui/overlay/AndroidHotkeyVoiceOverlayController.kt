@@ -8,6 +8,7 @@ import com.retrosprite.app.endpoint.RequestLogger
 import com.retrosprite.app.endpoint.ResponseGenerator
 import com.retrosprite.app.endpoint.RetroArchHotkeyEvent
 import com.retrosprite.app.endpoint.RetroArchHotkeyListener
+import com.retrosprite.app.endpoint.model.DebugHotkeyVoiceOverlayResponse
 import com.retrosprite.app.ui.viewmodel.SpeechOutputProvider
 import com.retrosprite.app.ui.viewmodel.VoiceInputProvider
 import com.retrosprite.app.voice.asr.AsrBiasingProfileProvider
@@ -47,6 +48,8 @@ class AndroidHotkeyVoiceOverlayController(
     )
 
     val state = coordinator.state
+
+    fun debugSnapshot(): DebugHotkeyVoiceOverlayResponse = coordinator.debugSnapshot()
 
     private val voiceQuestionController = HotkeyVoiceQuestionController(
         coordinator = coordinator,

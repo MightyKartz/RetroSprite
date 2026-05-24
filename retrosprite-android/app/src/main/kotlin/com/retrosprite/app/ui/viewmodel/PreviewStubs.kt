@@ -72,13 +72,13 @@ object PreviewStub {
   "debug": true,
   "pipeline_stage": "evidence",
   "llm_status": "skipped",
-  "source_ids": ["sample.2048.rules"]
+  "source_ids": ["sf2.promotion"]
 }""",
                 durationMillis = 1_842,
                 ok = true,
                 isDebug = true,
                 rawOutputMode = "debug:text",
-                sourceIds = listOf("sample.2048.rules"),
+                sourceIds = listOf("sf2.promotion"),
                 pipelineStage = "evidence",
                 llmStatus = "skipped",
                 feedback = UiAnswerFeedback.Helpful,
@@ -116,16 +116,16 @@ private class FakeGkpPreflightProvider : GkpPreflightProvider {
     private val _state = MutableStateFlow(
         UiGkpPreflightState(
             result = UiGkpPreflightResult(
-                targetName = "sample-relay-station",
+                targetName = "golden-sun-gba-zh",
                 ok = true,
-                packId = "sample.relay-station",
-                gameId = "relay_station",
-                gameTitle = "Relay Station",
+                packId = "community.golden-sun-gba-zh",
+                gameId = "golden_sun_gba",
+                gameTitle = "Golden Sun / 黄金太阳",
                 packVersion = "0.1.0",
                 schemaVersion = "gkp.v0",
-                knowledgeRows = 14,
-                sourceCount = 4,
-                goldenRows = 12,
+                knowledgeRows = 41,
+                sourceCount = 6,
+                goldenRows = 33,
                 licenseStatus = "已声明",
                 signatureStatus = "未签名",
                 signatureKeyId = null,
@@ -144,15 +144,15 @@ private class FakeGkpPreflightProvider : GkpPreflightProvider {
             ),
             installPlan = UiGkpInstallPlan(
                 mode = UiGkpInstallMode.ReplaceExisting,
-                packId = "sample.relay-station",
-                gameId = "relay_station",
-                gameTitle = "Relay Station",
+                packId = "community.golden-sun-gba-zh",
+                gameId = "golden_sun_gba",
+                gameTitle = "Golden Sun / 黄金太阳",
                 currentPackVersion = "0.1.0",
                 newPackVersion = "0.1.0",
-                currentKnowledgeRows = 14,
-                newKnowledgeRows = 14,
-                sourceCount = 4,
-                goldenRows = 12,
+                currentKnowledgeRows = 41,
+                newKnowledgeRows = 41,
+                sourceCount = 6,
+                goldenRows = 33,
                 provenanceLabel = "外部",
                 signatureLabel = "未签名",
                 contentDigest = "6f2c9db1f2f6e3a046a7417c62c1ecdd0f084df4549765e822641927ad6c67dd",
@@ -177,7 +177,7 @@ private class FakeGkpPreflightProvider : GkpPreflightProvider {
         _state.value = _state.value.copy(
             installStatus = UiGkpInstallStatus(
                 phase = UiGkpInstallPhase.Installed,
-                message = "已安装 Relay Station，写入 14 条知识。",
+                message = "已安装 Golden Sun / 黄金太阳，写入 41 条知识。",
                 installedAtMillis = System.currentTimeMillis(),
             )
         )
@@ -196,50 +196,50 @@ private class FakeGkpLibraryProvider : GkpLibraryProvider {
                 totalPacks = 2,
                 importedPacks = 2,
                 failedPacks = 0,
-                message = "已导入 2 个内置知识包",
+                message = "已导入 2 个内置真实知识包",
                 updatedAtMillis = System.currentTimeMillis() - 1_500,
             ),
             packs = listOf(
                 UiGkpPackItem(
-                    packId = "sample.2048",
-                    gameId = "2048",
-                    title = "2048",
-                    platform = "libretro",
+                    packId = "community.shining-force-ii-md",
+                    gameId = "shining_force_ii_md",
+                    title = "Shining Force II / 光明力量2",
+                    platform = "md",
                     region = null,
                     languages = listOf("zh", "en"),
-                    packVersion = "0.1.1",
+                    packVersion = "0.3.0",
                     schemaVersion = "gkp.v0",
-                    trustLabel = "自写样例",
+                    trustLabel = "社区",
                     provenanceLabel = "内置",
                     signatureLabel = "未签名",
                     contentDigest = "d38f26a3fddf19bff1ac311808f0d3c4f66d2c78aa1272327601c7cf2d63e96f",
                     isEnabled = true,
                     availabilityLabel = "启用",
                     disabledAtMillis = null,
-                    knowledgeCount = 14,
-                    sourceCount = 3,
-                    licenseSummary = "自写 / 本地夹具",
+                    knowledgeCount = 160,
+                    sourceCount = 16,
+                    licenseSummary = "已声明 / 链接来源",
                     installedAtMillis = System.currentTimeMillis() - 86_000,
                 ),
                 UiGkpPackItem(
-                    packId = "sample.relay-station",
-                    gameId = "relay_station",
-                    title = "Relay Station",
-                    platform = "sample",
+                    packId = "community.golden-sun-gba-zh",
+                    gameId = "golden_sun_gba",
+                    title = "Golden Sun / 黄金太阳",
+                    platform = "gba",
                     region = null,
-                    languages = listOf("zh", "en"),
+                    languages = listOf("zh"),
                     packVersion = "0.1.0",
                     schemaVersion = "gkp.v0",
-                    trustLabel = "自写样例",
+                    trustLabel = "社区",
                     provenanceLabel = "内置",
                     signatureLabel = "未签名",
                     contentDigest = "6f2c9db1f2f6e3a046a7417c62c1ecdd0f084df4549765e822641927ad6c67dd",
                     isEnabled = true,
                     availabilityLabel = "启用",
                     disabledAtMillis = null,
-                    knowledgeCount = 14,
-                    sourceCount = 4,
-                    licenseSummary = "自写 / 本地夹具",
+                    knowledgeCount = 41,
+                    sourceCount = 6,
+                    licenseSummary = "已声明 / 链接来源",
                     installedAtMillis = System.currentTimeMillis() - 42_000,
                 ),
             ),
@@ -308,8 +308,8 @@ private class FakeGkpLibraryProvider : GkpLibraryProvider {
                         packVersion = pack.packVersion,
                         knowledgeCount = pack.knowledgeCount,
                         sourceCount = pack.sourceCount,
-                        warning = if (pack.gameId in setOf("2048", "relay_station")) {
-                            "这是内置样例包，删除后下次启动可能会自动恢复。"
+                        warning = if (pack.provenanceLabel == "内置") {
+                            "这是内置知识包，删除后下次启动可能会自动恢复。"
                         } else {
                             null
                         },
@@ -376,16 +376,16 @@ private class FakeLlmConfigTestProvider : LlmConfigTestProvider {
 private class FakePlayerQuestionProvider : PlayerQuestionProvider {
     override suspend fun ask(label: String, question: String): UiQuestionResult {
         delay(350)
-        val cleanLabel = label.trim().ifBlank { "2048__" }
+        val cleanLabel = label.trim().ifBlank { "md__Shining Force II" }
         val cleanQuestion = question.trim()
         return UiQuestionResult(
             requestLogId = "preview-question",
             label = cleanLabel,
             question = cleanQuestion,
-            answer = "把两个相同数字滑到同一方向相邻位置，它们会合成一个翻倍方块。注意每个方块一次移动最多合并一次。",
+            answer = "角色至少 20 级才能转职。第一周目可以 20 级左右转，想练更高属性再考虑晚转。",
             ok = true,
             timestampMillis = System.currentTimeMillis(),
-            sourceIds = listOf("sample.2048.rules"),
+            sourceIds = listOf("sf2.promotion"),
             pipelineStage = "evidence",
             llmStatus = "skipped",
         )
@@ -408,7 +408,7 @@ private class FakePendingQuestionProvider : PendingQuestionProvider {
         }
         _state.value = UiPendingQuestionState(
             pending = UiPendingQuestion(
-                label = label.trim().ifBlank { "2048__" },
+                label = label.trim().ifBlank { "md__Shining Force II" },
                 question = cleanQuestion,
                 spoilerLevel = spoilerLevelOverride ?: UiSpoilerLevel.Light,
                 createdAtMillis = System.currentTimeMillis(),
@@ -443,7 +443,7 @@ private class FakeVoiceInputProvider : VoiceInputProvider {
         _state.value = UiVoiceInputState(
             isAvailable = true,
             isListening = false,
-            transcript = "两个 2 怎么合并？",
+            transcript = "什么时候转职？",
             transcriptEventId = eventId,
             engineLabel = "预览语音",
             asrBiasingProfileId = context?.biasingProfile?.fingerprint,

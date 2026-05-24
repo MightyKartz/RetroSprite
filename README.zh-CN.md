@@ -12,7 +12,7 @@ RetroSprite 会优先基于本地 Game Knowledge Pack 给出低剧透、可追�
 RetroArch AI Service 热键
   -> RetroSprite 本地 endpoint
   -> 游戏内短时语音 overlay
-  -> 本地 sherpa-onnx ASR
+  -> 本地 sherpa-onnx Paraformer ASR
   -> GKP 解析 / 本地检索 / AnswerPolicy
   -> 短答案 + Android TTS 朗读
 ```
@@ -20,15 +20,33 @@ RetroArch AI Service 热键
 外部 LLM 是可选的 BYOK 证据综合器，不是默认事实来源。没有本地证据、知识包被禁用、
 证据超过当前剧透级别时，RetroSprite 不会让 LLM 裸答。
 
+后续开发方向是 **GKP Lite + 玩家可选 LLM 增强层**：每个游戏先建立轻量、
+可信、可测试的知识锚点，而不是一开始就写完整攻略包；LLM 继续由玩家自主选择
+是否启用、使用什么 provider/model，用于口语理解、跨语言映射、证据综合和表达润色。
+
 ## 当前状态
 
 RetroSprite 当前处在 M10/M11：Hotkey Voice Overlay + Zero-LLM GKP。
 
 ### 当前支持的游戏
 
-目前真实支持的游戏只有 1 个：**Shining Force II / 光明力量2**（Sega Mega
-Drive / Genesis）。内置的 `sample-2048` 和 `sample-relay-station` 是开发和
-冒烟测试用的演示知识包，不代表更广泛的正式游戏支持。
+RetroSprite 目前只内置支持 **6 个真实游戏**：
+
+- **Shining Force II / 光明力量2**（Sega Mega Drive / Genesis）—
+  `community.shining-force-ii-md`
+- **Golden Sun / 黄金太阳**（Game Boy Advance）—
+  `community.golden-sun-gba-zh`
+- **Phantasy Star IV / 梦幻之星 IV**（Sega Mega Drive / Genesis）—
+  `community.phantasy-star-iv-md-zh`
+- **Langrisser II / 梦幻模拟战 II**（Sega Mega Drive / Genesis）—
+  `community.langrisser-ii-md-zh`
+- **Chrono Trigger / 时空之轮**（Super Nintendo / Super Famicom）—
+  `community.chrono-trigger-snes-zh`
+- **Final Fantasy VI / 最终幻想 VI**（Super Nintendo / Super Famicom）—
+  `community.final-fantasy-vi-snes-zh`
+
+这是当前完整的正式游戏支持范围。此前的 `sample-2048` 和 `sample-relay-station`
+演示包已从 bundled assets 移除；冒烟测试应改用真实 GKP。
 
 已经具备：
 
@@ -39,8 +57,8 @@ Drive / Genesis）。内置的 `sample-2048` 和 `sample-relay-station` 是开�
 - 热键触发的游戏内语音 overlay：短时录音、本地 ASR、GKP 回答、日志记录和 TTS 朗读。
 - Room 本地数据库：请求日志、游戏、知识行、GKP 元数据、启用/禁用状态和迁移 schema。
 - GKP v0 解析、内置导入、外部知识包预检、安装/覆盖确认和 Packs 管理界面。
-- 内置演示包 `sample-2048`、`sample-relay-station`，以及首个真实支持游戏包
-  `community.shining-force-ii-md`。
+- 内置 6 个真实 GKP 包：`community.shining-force-ii-md` 加 5 个 Retro JRPG/SRPG
+  中文 Lite 包。
 - template / alias / entity / FTS 风格的本地检索，带剧透等级过滤和来源 ID。
 - Settings 支持 RetroArch 设置助手、endpoint 端口、overlay 授权、默认剧透级别、
   OpenAI-compatible / DeepSeek BYOK LLM 配置。
@@ -140,6 +158,8 @@ cd retrosprite-android
 常用文档：
 
 - [GKP v0 Schema](./retrosprite-android/docs/GKP_V0_SCHEMA.md)
+- [GKP Lite + 可选 LLM 方向](./retrosprite-android/docs/GKP_LITE_OPTIONAL_LLM_DIRECTION.md)
+- [真实游戏 GKP Lite 生产模板](./retrosprite-android/docs/REAL_GAME_GKP_EXPANSION_TEMPLATE.md)
 - [RetroArch AI Service 协议参考](./retrosprite-android/docs/PROTOCOL_REFERENCE.md)
 - [测试覆盖说明](./retrosprite-android/docs/TEST_COVERAGE.md)
 - [下一阶段实施计划](./retrosprite-android/docs/NEXT_IMPLEMENTATION_PLAN.md)
@@ -155,6 +175,24 @@ RetroSprite 明确避免这些捷径：
 - GKP 不包含 ROM、商业攻略书原文、可执行代码或长篇受版权保护文本。
 - 没有本地证据时，不让 LLM 裸答。
 
-## License
+## 许可证
 
-TBD.
+RetroSprite 项目自身许可证暂未确定。
+
+### 第三方开源声明
+
+RetroSprite 使用并可能随 APK 打包以下第三方开源 ASR 组件：
+
+- `sherpa-onnx`，由 k2-fsa 提供，用于本地离线语音识别。
+  来源：<https://github.com/k2-fsa/sherpa-onnx>
+  许可证：Apache License 2.0。
+- `csukuangfj/streaming-paraformer-zh` ONNX Paraformer 模型文件，用于本地中文
+  ASR。
+  来源：<https://huggingface.co/csukuangfj/streaming-paraformer-zh>
+  许可证：Apache License 2.0。
+- 该 Paraformer 模型转换自 ModelScope Paraformer ASR 模型。
+  来源：
+  <https://modelscope.cn/models/iic/speech_paraformer-large_asr_nat-zh-cn-16k-common-vocab8404-online-onnx>
+  许可证：Apache License 2.0。
+
+Apache-2.0 允许商业使用、修改和再分发，但需要保留相应许可证和归属声明。

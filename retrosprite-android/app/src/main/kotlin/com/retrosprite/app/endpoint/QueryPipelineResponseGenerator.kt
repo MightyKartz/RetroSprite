@@ -77,6 +77,7 @@ class QueryPipelineResponseGenerator(
                 answerConfidence = result.answerResult.confidence.wireName,
                 spoilerLevelUsed = result.answerResult.spoilerLevelUsed.wireName,
                 nextActions = result.answerResult.nextActions.map { it.label },
+                suggestedQuestions = result.answerResult.suggestedQuestions,
                 llmStatus = result.llmTrace.status,
                 llmProvider = result.llmTrace.providerName,
                 llmModel = result.llmTrace.modelName,

@@ -1,0 +1,39 @@
+{
+  "schema_version": "gkp.v0",
+  "pack_id": "community.langrisser-ii-md-zh",
+  "pack_version": "0.1.0",
+  "coverage_tier": "lite",
+  "default_language": "zh",
+  "game": {
+    "game_id": "langrisser_ii_md",
+    "title": "Langrisser II / 梦幻模拟战 II",
+    "platform": "md",
+    "region": null,
+    "languages": ["zh"],
+    "retroarch_system_ids": ["md", "genesis", "mega_drive"],
+    "retroarch_labels": ["md__Langrisser II", "md__梦幻模拟战II"],
+    "rom_identity": {
+      "crc32": null,
+      "sha1": null
+    }
+  },
+  "trust_level": "community",
+  "min_app_version": "0.1.0",
+  "generated_at": "2026-05-24T00:00:00Z",
+  "contents": {
+    "knowledge": [
+      "knowledge/production.jsonl",
+      "knowledge/mechanics.jsonl",
+      "knowledge/strategies.jsonl",
+      "knowledge/entities.jsonl",
+      "knowledge/items.jsonl",
+      "knowledge/locations.jsonl",
+      "knowledge/bosses.jsonl",
+      "knowledge/enemies.jsonl"
+    ],
+    "citations": "sources/citations.jsonl",
+    "aliases": "aliases.json",
+    "spoiler_graph": "spoiler_graph.json",
+    "qa_goldens": "qa_goldens.jsonl"
+  }
+}

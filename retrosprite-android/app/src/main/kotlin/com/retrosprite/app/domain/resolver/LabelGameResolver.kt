@@ -43,7 +43,7 @@ class LabelGameResolver : GameResolver {
 
         val platform = rawPlatform.ifBlank { "unknown" }
             .lowercase()
-            .toCanonicalPlatform()
+            .toCanonicalRetroPlatform()
         val title = prettifyTitle(rawTitle).ifBlank { "unknown" }
 
         return GameIdentity(
@@ -76,8 +76,30 @@ class LabelGameResolver : GameResolver {
     }
 }
 
-private fun String.toCanonicalPlatform(): String =
-    when (this) {
-        "mega_drive", "megadrive", "genesis" -> "md"
-        else -> this
+internal fun String.toCanonicalRetroPlatform(): String {
+    val key = trim()
+        .lowercase()
+        .replace(Regex("[^a-z0-9]+"), "_")
+        .trim('_')
+    return when (key) {
+        "mega_drive",
+        "megadrive",
+        "genesis",
+        "sega_mega_drive_genesis",
+        "sega_mega_drive",
+        "sega_genesis" -> "md"
+
+        "game_boy_advance",
+        "gameboy_advance",
+        "gb_advance",
+        "gba" -> "gba"
+
+        "super_nintendo",
+        "super_nintendo_entertainment_system",
+        "super_famicom",
+        "sfc",
+        "snes" -> "snes"
+
+        else -> key.ifBlank { this }
     }
+}

@@ -49,6 +49,14 @@ data class GameEntity(
     @ColumnInfo(name = "rom_sha1")
     val romSha1: String?,
 
+    /** JSON array string of RetroArch system ids that can route to this game. */
+    @ColumnInfo(name = "retroarch_system_ids", defaultValue = "'[]'")
+    val retroarchSystemIds: String,
+
+    /** JSON array string of known RetroArch labels for this game. */
+    @ColumnInfo(name = "retroarch_labels", defaultValue = "'[]'")
+    val retroarchLabels: String,
+
     @ColumnInfo(name = "pack_version")
     val packVersion: String,
 

@@ -26,6 +26,7 @@ import com.retrosprite.app.endpoint.RetroArchHotkeyListener
 import com.retrosprite.app.endpoint.RoomBackedRequestLogSink
 import com.retrosprite.app.endpoint.ResponseGenerator
 import com.retrosprite.app.endpoint.HotkeyWakeResponseGenerator
+import com.retrosprite.app.endpoint.model.DebugHotkeyVoiceOverlayResponse
 import com.retrosprite.app.llm.DynamicLlmAdapter
 import com.retrosprite.app.llm.LlmAdapter
 import com.retrosprite.app.ui.overlay.AndroidHotkeyVoiceOverlayController
@@ -119,6 +120,8 @@ object ServiceLocator {
     val responseGenerator: ResponseGenerator get() = requireGraph().responseGenerator
     val hotkeyVoiceOverlayController: RetroArchHotkeyListener
         get() = requireGraph().hotkeyVoiceOverlayController
+    val hotkeyVoiceOverlayDebugProvider: () -> DebugHotkeyVoiceOverlayResponse
+        get() = requireGraph().hotkeyVoiceOverlayController::debugSnapshot
     val requestLogSink: RoomBackedRequestLogSink get() = requireGraph().requestLogSink
     val settingsStore: SettingsStore get() = requireGraph().settingsStore
 
@@ -281,7 +284,7 @@ object ServiceLocator {
 
         val speechOutputProvider: SpeechOutputProvider = AndroidSpeechOutputProvider(appContext)
 
-        val hotkeyVoiceOverlayController: RetroArchHotkeyListener =
+        val hotkeyVoiceOverlayController: AndroidHotkeyVoiceOverlayController =
             AndroidHotkeyVoiceOverlayController(
                 context = appContext,
                 voiceInput = voiceInputProvider,

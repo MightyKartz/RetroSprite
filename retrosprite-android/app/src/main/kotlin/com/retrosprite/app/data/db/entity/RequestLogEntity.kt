@@ -86,6 +86,9 @@ data class RequestLogEntity(
     @ColumnInfo(name = "next_actions")
     val nextActions: String? = null,
 
+    @ColumnInfo(name = "suggested_questions")
+    val suggestedQuestions: String? = null,
+
     @ColumnInfo(name = "response_text")
     val responseText: String,
 

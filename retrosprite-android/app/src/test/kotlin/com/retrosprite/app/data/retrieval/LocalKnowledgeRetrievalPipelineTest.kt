@@ -6,6 +6,7 @@ import com.retrosprite.app.domain.models.RetrievalQuery
 import com.retrosprite.app.domain.models.SpoilerLevel
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -283,6 +284,222 @@ class LocalKnowledgeRetrievalPipelineTest {
         val results = pipeline.retrieve(query("怎么玩经验高"))
 
         assertEquals("mechanic.leveling-general", results.first().entityId)
+    }
+
+    @Test
+    fun `entity anchored noisy usage tail matches the entity usage template`() = runTest {
+        val pipeline = LocalKnowledgeRetrievalPipeline(
+            FakeKnowledgeRepository(
+                listOf(
+                    chunk(
+                        entityId = "item.vigor-ball",
+                        entityType = "item",
+                        canonicalName = "Vigor Ball / 活力球",
+                        aliases = listOf("活力球", "气合之玉"),
+                        descriptionShort = "Vigor Ball 可让 Priest 系角色转成 Master Monk。",
+                        spoilerLevel = "medium",
+                        sourceRefs = listOf("sf2.promotion"),
+                        answerTemplates = listOf(
+                            """{"template_id":"template.sf2.vigor-ball.zh","intent":"usage","question_patterns":["气合之玉怎么用","气合之玉给谁"],"answer":"Vigor Ball（活力球/气合之玉）给 Priest 系角色用于转 Master Monk。","source_refs":["sf2.promotion"],"spoiler_level":"light"}"""
+                        ),
+                    ),
+                )
+            )
+        )
+
+        val results = pipeline.retrieve(query("气合之玉怎么又"))
+
+        assertEquals("item.vigor-ball", results.first().entityId)
+        assertEquals(
+            "Vigor Ball（活力球/气合之玉）给 Priest 系角色用于转 Master Monk。",
+            results.first().evidence.first().snippet,
+        )
+    }
+
+    @Test
+    fun `multiple templates on same entity choose the matching question pattern`() = runTest {
+        val pipeline = LocalKnowledgeRetrievalPipeline(
+            FakeKnowledgeRepository(
+                listOf(
+                    chunk(
+                        entityId = "strategy.team-build-general",
+                        entityType = "strategy",
+                        canonicalName = "通用角色培养原则",
+                        aliases = listOf(
+                            "现在哪些角色适合培养",
+                            "开局哪些角色值得练",
+                            "哪些角色值得练",
+                            "直接告诉我强力角色名单",
+                        ),
+                        descriptionShort = "如果还没提供进度，默认给低剧透培养原则。",
+                        spoilerLevel = "light",
+                        sourceRefs = listOf("sf2.project_mechanics"),
+                        answerTemplates = listOf(
+                            """{"template_id":"template.sf2.team-build-early.zh","intent":"team_build","question_patterns":["开局哪些角色值得练"],"answer_light":"开局低剧透推荐。","spoiler_light":"light","source_refs":["sf2.project_mechanics"]}""",
+                            """{"template_id":"template.sf2.team-build-direct-roster.zh","intent":"team_build","question_patterns":["直接告诉我强力角色名单"],"answer_light":"这会涉及后期加入角色。","spoiler_light":"light","source_refs":["sf2.project_mechanics"]}""",
+                            """{"template_id":"template.sf2.team-build-general.zh","intent":"team_build","question_patterns":["现在哪些角色适合培养","哪些角色值得练"],"answer_light":"通用原则：先不列全角色名单。","spoiler_light":"light","source_refs":["sf2.project_mechanics"]}""",
+                        ),
+                    ),
+                )
+            )
+        )
+
+        assertEquals(
+            "通用原则：先不列全角色名单。",
+            pipeline.retrieve(query("现在哪些角色适合培养")).first().evidence.first().snippet,
+        )
+        assertEquals(
+            "开局低剧透推荐。",
+            pipeline.retrieve(query("开局哪些角色值得练")).first().evidence.first().snippet,
+        )
+        assertEquals(
+            "通用原则：先不列全角色名单。",
+            pipeline.retrieve(query("哪些角色直练")).first().evidence.first().snippet,
+        )
+        assertEquals(
+            "这会涉及后期加入角色。",
+            pipeline.retrieve(query("直接告诉我强力角色名单")).first().evidence.first().snippet,
+        )
+    }
+
+    @Test
+    fun `longest localized item alias matches mithril usage template`() = runTest {
+        val pipeline = LocalKnowledgeRetrievalPipeline(
+            FakeKnowledgeRepository(
+                listOf(
+                    chunk(
+                        entityId = "item.mithril",
+                        entityType = "item",
+                        canonicalName = "Mithril / 秘银",
+                        aliases = listOf("秘银", "米斯里鲁", "米斯里鲁银"),
+                        descriptionShort = "Mithril 是中期后锻造材料。",
+                        spoilerLevel = "medium",
+                        sourceRefs = listOf("sf2.items"),
+                        answerTemplates = listOf(
+                            """{"template_id":"template.sf2.mithril.usage.zh","intent":"usage","question_patterns":["米斯里鲁有什么用","米斯里鲁银有什么用"],"answer":"Mithril（米斯里鲁银）可交给 Dwarven Blacksmith 打造强力武器。","source_refs":["sf2.items"],"spoiler_level":"light"}"""
+                        ),
+                    ),
+                )
+            )
+        )
+
+        val results = pipeline.retrieve(query("米斯里鲁银有什么用"))
+
+        assertEquals("item.mithril", results.first().entityId)
+        assertEquals(
+            "Mithril（米斯里鲁银）可交给 Dwarven Blacksmith 打造强力武器。",
+            results.first().evidence.first().snippet,
+        )
+    }
+
+    @Test
+    fun `suggests nearby template questions without repeating the current question`() = runTest {
+        val pipeline = LocalKnowledgeRetrievalPipeline(
+            FakeKnowledgeRepository(
+                listOf(
+                    chunk(
+                        entityId = "item.vigor-ball",
+                        entityType = "item",
+                        canonicalName = "Vigor Ball / 活力球",
+                        aliases = listOf("活力球", "气合之玉"),
+                        descriptionShort = "Vigor Ball 可让 Priest 系角色转成 Master Monk。",
+                        spoilerLevel = "medium",
+                        sourceRefs = listOf("sf2.promotion"),
+                        answerTemplates = listOf(
+                            """{"template_id":"template.sf2.vigor-ball.zh","intent":"usage","question_patterns":["气合之玉怎么用","气合之玉给谁","谁适合转 Master Monk"],"answer":"Vigor Ball（活力球/气合之玉）给 Priest 系角色用于转 Master Monk。","source_refs":["sf2.promotion"],"spoiler_level":"light"}"""
+                        ),
+                    ),
+                )
+            )
+        )
+
+        val suggestions = pipeline.suggestQuestions(
+            query = query("气合之欲怎么又"),
+            results = emptyList(),
+        )
+
+        assertTrue(suggestions.contains("气合之玉怎么用？"))
+        assertFalse(suggestions.contains("气合之欲怎么又？"))
+    }
+
+    @Test
+    fun `successful entity hits suggest related questions from the same entity`() = runTest {
+        val pipeline = LocalKnowledgeRetrievalPipeline(
+            FakeKnowledgeRepository(
+                listOf(
+                    chunk(
+                        entityId = "item.vigor-ball",
+                        entityType = "item",
+                        canonicalName = "Vigor Ball / 活力球",
+                        aliases = listOf("活力球", "气合之玉"),
+                        descriptionShort = "Vigor Ball 可让 Priest 系角色转成 Master Monk。",
+                        spoilerLevel = "medium",
+                        sourceRefs = listOf("sf2.promotion"),
+                        answerTemplates = listOf(
+                            """{"template_id":"template.sf2.vigor-ball.zh","intent":"usage","question_patterns":["气合之玉怎么用","气合之玉在哪里","谁适合转 Master Monk"],"answer":"Vigor Ball（活力球/气合之玉）给 Priest 系角色用于转 Master Monk。","source_refs":["sf2.promotion"],"spoiler_level":"light"}"""
+                        ),
+                    ),
+                    chunk(
+                        entityId = "item.mithril",
+                        entityType = "item",
+                        canonicalName = "Mithril / 秘银",
+                        aliases = listOf("米斯里鲁银"),
+                        descriptionShort = "Mithril 是锻造材料。",
+                        spoilerLevel = "medium",
+                        sourceRefs = listOf("sf2.items"),
+                        answerTemplates = listOf(
+                            """{"template_id":"template.sf2.mithril.usage.zh","intent":"usage","question_patterns":["米斯里鲁银有什么用"],"answer":"Mithril 可锻造武器。","source_refs":["sf2.items"],"spoiler_level":"light"}"""
+                        ),
+                    ),
+                )
+            )
+        )
+        val results = pipeline.retrieve(query("气合之玉怎么用"))
+
+        val suggestions = pipeline.suggestQuestions(
+            query = query("气合之玉怎么用"),
+            results = results,
+        )
+
+        assertFalse(suggestions.contains("气合之玉怎么用？"))
+        assertTrue(suggestions.contains("气合之玉在哪里？"))
+        assertTrue(suggestions.contains("谁适合转 Master Monk？"))
+        assertFalse(suggestions.contains("米斯里鲁银有什么用？"))
+    }
+
+    @Test
+    fun `successful item hits do not spend all suggestions on alias variants`() = runTest {
+        val pipeline = LocalKnowledgeRetrievalPipeline(
+            FakeKnowledgeRepository(
+                listOf(
+                    chunk(
+                        entityId = "item.mithril",
+                        entityType = "item",
+                        canonicalName = "Mithril / 秘银",
+                        aliases = listOf("Mithril", "秘银", "米斯里鲁", "米斯里鲁银"),
+                        descriptionShort = "Mithril 是中期后锻造材料。",
+                        spoilerLevel = "medium",
+                        sourceRefs = listOf("sf2.items"),
+                        answerTemplates = listOf(
+                            """{"template_id":"template.sf2.mithril.usage.zh","intent":"usage","question_patterns":["Mithril 有什么用","秘银有什么用","米斯里鲁有什么用","米斯里鲁银有什么用"],"answer":"Mithril 可锻造武器。","source_refs":["sf2.items"],"spoiler_level":"light"}""",
+                            """{"template_id":"template.sf2.mithril.location.zh","intent":"location","question_patterns":["Mithril 在哪里","秘银在哪里","米斯里鲁银在哪里"],"answer_light":"位置清单会剧透探索路线。","source_refs":["sf2.items"],"spoiler_light":"light"}""",
+                        ),
+                    ),
+                )
+            )
+        )
+        val results = pipeline.retrieve(query("米斯里鲁银有什么用"))
+
+        val suggestions = pipeline.suggestQuestions(
+            query = query("米斯里鲁银有什么用"),
+            results = results,
+        )
+
+        assertTrue(suggestions.contains("米斯里鲁银在哪里？"))
+        assertTrue(
+            "usage aliases should not consume every slot: $suggestions",
+            suggestions.count { it.contains("有什么用") } <= 1,
+        )
     }
 
     private fun query(

@@ -34,6 +34,9 @@ class RetroSpriteApp : Application() {
         EndpointController.setRequestLogSink(ServiceLocator.requestLogSink)
         EndpointController.setResponseGenerator(ServiceLocator.responseGenerator)
         EndpointController.setHotkeyListener(ServiceLocator.hotkeyVoiceOverlayController)
+        EndpointController.setHotkeyVoiceOverlayDebugProvider(
+            ServiceLocator.hotkeyVoiceOverlayDebugProvider,
+        )
 
         // 4. Boot the local RetroArch endpoint as a foreground service.
         // TODO(Phase 1): observe ServiceLocator.portState and restart the

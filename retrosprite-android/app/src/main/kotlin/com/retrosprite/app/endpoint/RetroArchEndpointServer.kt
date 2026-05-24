@@ -1,6 +1,7 @@
 package com.retrosprite.app.endpoint
 
 import android.util.Log
+import com.retrosprite.app.endpoint.model.DebugHotkeyVoiceOverlayResponse
 import com.retrosprite.app.endpoint.model.DebugLatestRequestResponse
 import com.retrosprite.app.endpoint.model.HealthResponse
 import com.retrosprite.app.endpoint.model.RetroArchRequest
@@ -46,6 +47,9 @@ class RetroArchEndpointServer(
     private val responseGenerator: ResponseGenerator = PlaceholderResponseGenerator(),
     private val requestLogger: RequestLogger = RequestLogger(),
     private val hotkeyListener: RetroArchHotkeyListener = NoopRetroArchHotkeyListener,
+    private val hotkeyVoiceOverlayDebugProvider: () -> DebugHotkeyVoiceOverlayResponse = {
+        DebugHotkeyVoiceOverlayResponse.idle()
+    },
 ) {
 
     private val running = AtomicBoolean(false)
@@ -65,7 +69,12 @@ class RetroArchEndpointServer(
         }
         try {
             engine = embeddedServer(CIO, host = host, port = port) {
-                retroArchModule(responseGenerator, requestLogger, hotkeyListener)
+                retroArchModule(
+                    responseGenerator = responseGenerator,
+                    requestLogger = requestLogger,
+                    hotkeyListener = hotkeyListener,
+                    hotkeyVoiceOverlayDebugProvider = hotkeyVoiceOverlayDebugProvider,
+                )
             }.also { it.start(wait = false) }
             Log.i(TAG, "RetroArch endpoint listening on $host:$port")
         } catch (t: Throwable) {
@@ -117,6 +126,9 @@ fun Application.retroArchModule(
     responseGenerator: ResponseGenerator,
     requestLogger: RequestLogger,
     hotkeyListener: RetroArchHotkeyListener = NoopRetroArchHotkeyListener,
+    hotkeyVoiceOverlayDebugProvider: () -> DebugHotkeyVoiceOverlayResponse = {
+        DebugHotkeyVoiceOverlayResponse.idle()
+    },
 ) {
     install(ContentNegotiation) {
         json(retroArchJson)
@@ -131,6 +143,10 @@ fun Application.retroArchModule(
                 ?.toDebugLatestRequestResponse()
                 ?: DebugLatestRequestResponse.empty()
             call.respond(response)
+        }
+
+        get("/debug/hotkey-voice-overlay") {
+            call.respond(hotkeyVoiceOverlayDebugProvider())
         }
 
         post("/debug/ask") {
@@ -336,6 +352,7 @@ private fun RequestLogEntry.toDebugLatestRequestResponse(): DebugLatestRequestRe
         answer_confidence = answerConfidence,
         spoiler_level_used = spoilerLevelUsed,
         next_actions = nextActions,
+        suggested_questions = suggestedQuestions,
         pipeline_stage = pipelineStage,
         llm_status = llmStatus,
         source_ids = sourceIds,

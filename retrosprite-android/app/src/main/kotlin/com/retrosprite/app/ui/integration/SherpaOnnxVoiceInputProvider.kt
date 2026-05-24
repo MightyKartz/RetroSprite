@@ -6,6 +6,7 @@ import android.content.res.AssetManager
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
+import android.os.SystemClock
 import com.k2fsa.sherpa.onnx.OnlineRecognizer
 import com.k2fsa.sherpa.onnx.OnlineStream
 import com.retrosprite.app.ui.viewmodel.UiVoiceInputState
@@ -70,10 +71,11 @@ class SherpaOnnxVoiceInputProvider(
                     isListening = false,
                     engineLabel = model.engineLabel,
                     errorMessage = model.missingAssetsMessage(missing),
-                )
+                ).withAsrDiagnostics(initialDiagnostics(), profile = null)
                 return
             }
 
+            val recognitionPlan = recognitionPlanFor(context)
             val activeRecognizer = try {
                 val isFirstLoad = recognizer == null
                 if (isFirstLoad) {
@@ -84,10 +86,13 @@ class SherpaOnnxVoiceInputProvider(
                             engineLabel = model.engineLabel,
                             statusMessage = "首次加载本地 ASR 模型，可能需要几秒钟…",
                             errorMessage = null,
+                        ).withAsrDiagnostics(
+                            diagnostics = recognitionPlan.diagnostics,
+                            profile = recognitionPlan.profile,
                         )
                     }
                 }
-                recognizerFor(context)
+                recognizerFor(recognitionPlan)
             } catch (error: Throwable) {
                 _state.value = UiVoiceInputState(
                     isAvailable = false,
@@ -95,6 +100,9 @@ class SherpaOnnxVoiceInputProvider(
                     engineLabel = model.engineLabel,
                     statusMessage = null,
                     errorMessage = "sherpa-onnx 本地 ASR 初始化失败：${error.humanMessage()}",
+                ).withAsrDiagnostics(
+                    diagnostics = recognitionPlan.diagnostics,
+                    profile = recognitionPlan.profile,
                 )
                 return
             }
@@ -151,8 +159,9 @@ class SherpaOnnxVoiceInputProvider(
                     engineLabel = model.engineLabel,
                     statusMessage = null,
                     errorMessage = null,
-                    asrBiasingProfileId = context?.biasingProfile?.fingerprint,
-                    asrHotwordCount = context?.biasingProfile?.normalizedEntries?.size ?: 0,
+                ).withAsrDiagnostics(
+                    diagnostics = recognitionPlan.diagnostics,
+                    profile = recognitionPlan.profile,
                 )
             }
 
@@ -261,6 +270,7 @@ class SherpaOnnxVoiceInputProvider(
         frames: ReceiveChannel<FloatArray>,
     ): String {
         var latestText = ""
+        val endpointCommitGate = SherpaEndpointCommitGate()
         for (samples in frames) {
             stream.acceptWaveform(samples, model.sampleRateHz)
             while (recognizer.isReady(stream)) {
@@ -279,7 +289,12 @@ class SherpaOnnxVoiceInputProvider(
                 }
             }
 
-            if (recognizer.isEndpoint(stream) && partial.isNotBlank()) {
+            if (endpointCommitGate.shouldCommit(
+                    nowMillis = SystemClock.elapsedRealtime(),
+                    endpointDetected = recognizer.isEndpoint(stream),
+                    partialText = partial,
+                )
+            ) {
                 shouldRecord = false
                 break
             }
@@ -292,7 +307,7 @@ class SherpaOnnxVoiceInputProvider(
         stream: OnlineStream,
         latestText: String,
     ): String {
-        stream.acceptWaveform(FloatArray((model.sampleRateHz * 0.3f).toInt()), model.sampleRateHz)
+        stream.acceptWaveform(FloatArray((model.sampleRateHz * 0.8f).toInt()), model.sampleRateHz)
         stream.inputFinished()
         while (recognizer.isReady(stream)) {
             recognizer.decode(stream)
@@ -323,15 +338,13 @@ class SherpaOnnxVoiceInputProvider(
         )
     }
 
-    private suspend fun recognizerFor(context: AsrRecognitionContext?): OnlineRecognizer {
-        val profile = context?.biasingProfile?.takeIf { it.enabled && it.normalizedEntries.isNotEmpty() }
-        val hotwordMode = context?.hotwordMode ?: AsrHotwordMode.Auto
-        val hotwordPlan = hotwordPlanFor(profile, hotwordMode)
+    private suspend fun recognizerFor(plan: SherpaRecognitionPlan): OnlineRecognizer {
         val fingerprint = listOfNotNull(
-            profile?.fingerprint,
-            hotwordMode.name,
-            hotwordPlan.streamHotwords,
-            hotwordPlan.hotwordsFile,
+            model.architecture.name,
+            plan.profile?.fingerprint,
+            plan.hotwordMode.name,
+            plan.hotwordPlan.streamHotwords,
+            plan.hotwordPlan.hotwordsFile,
         ).joinToString(":").takeIf { it.isNotBlank() }
         recognizer?.takeIf { recognizerProfileFingerprint == fingerprint }?.let { return it }
 
@@ -340,20 +353,44 @@ class SherpaOnnxVoiceInputProvider(
         recognizerProfileFingerprint = null
         recognizerHotwords = null
 
-        profile?.let { hotwordFileWriter.write(it) }
+        plan.profile?.let { hotwordFileWriter.write(it) }
         return withContext(Dispatchers.Default) {
             SherpaOnnxRecognizerFactory.create(
                 assetManager = assets,
                 model = model,
-                hotwordsFile = hotwordPlan.hotwordsFile,
+                hotwordsFile = plan.hotwordPlan.hotwordsFile,
                 hotwordsScore = DEFAULT_HOTWORDS_SCORE,
-                enableHotwords = hotwordPlan.enabled,
+                enableHotwords = plan.hotwordPlan.enabled,
             )
         }.also {
             recognizer = it
             recognizerProfileFingerprint = fingerprint
-            recognizerHotwords = hotwordPlan.streamHotwords
+            recognizerHotwords = plan.hotwordPlan.streamHotwords
         }
+    }
+
+    private fun recognitionPlanFor(context: AsrRecognitionContext?): SherpaRecognitionPlan {
+        val profile = context?.biasingProfile?.takeIf { it.enabled && it.normalizedEntries.isNotEmpty() }
+        val hotwordMode = context?.hotwordMode ?: AsrHotwordMode.Auto
+        val hotwordPlan = if (model.supportsHotwords) {
+            hotwordPlanFor(profile, hotwordMode)
+        } else {
+            SherpaHotwordPlan.Disabled
+        }
+        val diagnostics = SherpaAsrNativeHotwordDiagnostics.from(
+            model = model,
+            profile = profile,
+            hotwordMode = hotwordMode,
+            hotwordPlanEnabled = hotwordPlan.enabled,
+            streamHotwords = hotwordPlan.streamHotwords,
+            hotwordsFile = hotwordPlan.hotwordsFile,
+        )
+        return SherpaRecognitionPlan(
+            profile = profile,
+            hotwordMode = hotwordMode,
+            hotwordPlan = hotwordPlan,
+            diagnostics = diagnostics,
+        )
     }
 
     private fun hotwordPlanFor(
@@ -403,8 +440,18 @@ class SherpaOnnxVoiceInputProvider(
             isListening = false,
             engineLabel = model.engineLabel,
             errorMessage = missing.takeIf { it.isNotEmpty() }?.let(model::missingAssetsMessage),
-        )
+        ).withAsrDiagnostics(initialDiagnostics(), profile = null)
     }
+
+    private fun initialDiagnostics(): SherpaAsrNativeHotwordDiagnostics =
+        SherpaAsrNativeHotwordDiagnostics.from(
+            model = model,
+            profile = null,
+            hotwordMode = AsrHotwordMode.Auto,
+            hotwordPlanEnabled = false,
+            streamHotwords = null,
+            hotwordsFile = null,
+        )
 
     private fun missingModelAssets(): List<String> =
         model.requiredAssetPaths.filterNot(::assetExists)
@@ -425,7 +472,7 @@ class SherpaOnnxVoiceInputProvider(
     private companion object {
         const val PCM_FLOAT_SCALE = 32768.0f
         const val VISUAL_FRAME_MS = 10
-        const val DEFAULT_HOTWORDS_SCORE = 2.5f
+        const val DEFAULT_HOTWORDS_SCORE = 4.0f
         const val ASSET_FILE_SMALL_HOTWORDS = "asr-hotwords/shining-force-ii-md-small.hotwords.txt"
     }
 }
@@ -443,3 +490,26 @@ private data class SherpaHotwordPlan(
         )
     }
 }
+
+private data class SherpaRecognitionPlan(
+    val profile: AsrBiasingProfile?,
+    val hotwordMode: AsrHotwordMode,
+    val hotwordPlan: SherpaHotwordPlan,
+    val diagnostics: SherpaAsrNativeHotwordDiagnostics,
+)
+
+private fun UiVoiceInputState.withAsrDiagnostics(
+    diagnostics: SherpaAsrNativeHotwordDiagnostics,
+    profile: AsrBiasingProfile?,
+): UiVoiceInputState =
+    copy(
+        asrBiasingProfileId = profile?.fingerprint,
+        asrHotwordCount = profile?.normalizedEntries?.size ?: 0,
+        asrArchitecture = diagnostics.architecture,
+        asrDecodingMethod = diagnostics.decodingMethod,
+        asrModelingUnit = diagnostics.modelingUnit,
+        asrNativeHotwordsEnabled = diagnostics.nativeHotwordsEnabled,
+        asrNativeHotwordsReason = diagnostics.reason,
+        asrHotwordMode = diagnostics.hotwordMode,
+        asrHotwordPreview = diagnostics.hotwordPreview,
+    )

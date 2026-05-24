@@ -19,6 +19,7 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -93,6 +94,92 @@ class HotkeyVoiceQuestionControllerTest {
     }
 
     @Test
+    fun `hotkey voice renders follow up suggestions without speaking them`() = runTest {
+        val renderer = FakeRenderer()
+        val coordinator = HotkeyVoiceOverlayCoordinator(
+            renderer = renderer,
+            canDrawOverlays = { true },
+            scheduleAutoHide = {},
+            cancelAutoHide = {},
+        )
+        val speech = FakeSpeechOutputProvider()
+        val voice = FakeVoiceInputProvider("气合之玉怎么用")
+        val controller = HotkeyVoiceQuestionController(
+            coordinator = coordinator,
+            voiceInput = voice,
+            responseGenerator = CapturingGenerator(
+                answer = "Vigor Ball 给 Priest 系角色用于转 Master Monk。\n来源：item.vigor-ball",
+                diagnostics = ResponseDiagnostics(
+                    answerShort = "Vigor Ball 给 Priest 系角色用于转 Master Monk。",
+                    answerDetail = "Vigor Ball 给 Priest 系角色用于转 Master Monk。",
+                    suggestedQuestions = listOf("气合之玉在哪里？", "谁适合转 Master Monk？"),
+                ),
+            ),
+            speechOutput = speech,
+            loggerProvider = { RequestLogger() },
+            scope = this,
+        )
+
+        controller.onHotkey(event())
+        advanceUntilIdle()
+
+        val speakingState = renderer.renderedStates.last {
+            it.phase == HotkeyVoiceOverlayPhase.Speaking
+        }
+        assertEquals(
+            "Vigor Ball 给 Priest 系角色用于转 Master Monk。\n\n你还可以问：\n· 气合之玉在哪里？\n· 谁适合转 Master Monk？",
+            speakingState.answerText,
+        )
+        assertEquals(listOf("Vigor Ball 给 Priest 系角色用于转 Master Monk。"), speech.spoken)
+    }
+
+    @Test
+    fun `hotkey voice keeps all three follow up suggestions visible`() = runTest {
+        val renderer = FakeRenderer()
+        val coordinator = HotkeyVoiceOverlayCoordinator(
+            renderer = renderer,
+            canDrawOverlays = { true },
+            scheduleAutoHide = {},
+            cancelAutoHide = {},
+        )
+        val voice = FakeVoiceInputProvider("哪些角色适合培养")
+        val speech = FakeSpeechOutputProvider()
+        val controller = HotkeyVoiceQuestionController(
+            coordinator = coordinator,
+            voiceInput = voice,
+            responseGenerator = CapturingGenerator(
+                answer = "通用原则：优先练能稳定出场、补足治疗或远程输出、移动和生存不拖队伍的角色。\n来源：sf2.project_mechanics",
+                diagnostics = ResponseDiagnostics(
+                    answerShort = "通用原则：优先练能稳定出场、补足治疗或远程输出、移动和生存不拖队伍的角色。",
+                    answerDetail = "通用原则：优先练能稳定出场、补足治疗或远程输出、移动和生存不拖队伍的角色。告诉我你现在到哪一章或刚收了哪些角色，我可以更具体。",
+                    suggestedQuestions = listOf("哪些角色值得练？", "角色练哪些比较稳？", "培养谁？"),
+                ),
+            ),
+            speechOutput = speech,
+            loggerProvider = { RequestLogger() },
+            scope = this,
+        )
+
+        controller.onHotkey(event())
+        advanceUntilIdle()
+
+        val speakingState = renderer.renderedStates.last {
+            it.phase == HotkeyVoiceOverlayPhase.Speaking
+        }
+        assertTrue(speakingState.answerText.orEmpty().contains("· 哪些角色值得练？"))
+        assertTrue(speakingState.answerText.orEmpty().contains("· 角色练哪些比较稳？"))
+        assertTrue(speakingState.answerText.orEmpty().contains("· 培养谁？"))
+        assertTrue(
+            "follow-up block should not be pre-truncated: ${speakingState.answerText}",
+            !speakingState.answerText.orEmpty().contains("..."),
+        )
+        assertEquals(
+            listOf("通用原则：优先练能稳定出场、补足治疗或远程输出、移动和生存不拖队伍的角色。"),
+            speech.spoken,
+        )
+    }
+
+    @Test
     fun `blank hotkey voice renders muted recovery state`() = runTest {
         val renderer = FakeRenderer()
         val coordinator = HotkeyVoiceOverlayCoordinator(
@@ -128,6 +215,37 @@ class HotkeyVoiceQuestionControllerTest {
             ),
             renderer.renderedPhases,
         )
+    }
+
+    @Test
+    fun `single character asr noise renders muted recovery and skips pipeline`() = runTest {
+        val renderer = FakeRenderer()
+        val coordinator = HotkeyVoiceOverlayCoordinator(
+            renderer = renderer,
+            canDrawOverlays = { true },
+            scheduleAutoHide = {},
+            cancelAutoHide = {},
+        )
+        val voice = FakeVoiceInputProvider("心")
+        val generator = CapturingGenerator("answer")
+        val controller = HotkeyVoiceQuestionController(
+            coordinator = coordinator,
+            voiceInput = voice,
+            responseGenerator = generator,
+            speechOutput = FakeSpeechOutputProvider(),
+            loggerProvider = { RequestLogger() },
+            scope = this,
+        )
+
+        controller.onHotkey(event())
+        advanceUntilIdle()
+
+        val mutedState = renderer.renderedStates.last {
+            it.phase == HotkeyVoiceOverlayPhase.Muted
+        }
+        assertEquals("Muted", mutedState.message)
+        assertEquals("没有听到问题，请再按一次热键。", mutedState.answerText)
+        assertEquals(null, generator.request)
     }
 
     @Test
@@ -251,6 +369,47 @@ class HotkeyVoiceQuestionControllerTest {
         assertEquals("角色如何搭配", listeningState.transcript)
         assertEquals("角色如何搭配", thinkingState.transcript)
         assertEquals("角色如何搭配", speakingState.transcript)
+    }
+
+    @Test
+    fun `hotkey voice passes normalized transcript diagnostics to overlay`() = runTest {
+        val renderer = FakeRenderer()
+        val coordinator = HotkeyVoiceOverlayCoordinator(
+            renderer = renderer,
+            canDrawOverlays = { true },
+            scheduleAutoHide = {},
+            cancelAutoHide = {},
+        )
+        val voice = FakeVoiceInputProvider("修医是谁")
+        val controller = HotkeyVoiceQuestionController(
+            coordinator = coordinator,
+            voiceInput = voice,
+            responseGenerator = CapturingGenerator(
+                answer = "Higins 是一名中后期加入的骑士。\n来源：sf2.character.higins",
+                diagnostics = ResponseDiagnostics(
+                    question = "修伊是谁",
+                    rawQuestion = "修医是谁",
+                    normalizedQuestion = "修伊是谁",
+                    questionNormalizationReason = "game_term",
+                    normalizedQuestionMatchedTerm = "修伊",
+                    normalizedQuestionMatchedEntityId = "sf2.character.higins",
+                    answerShort = "Higins 是一名中后期加入的骑士。",
+                ),
+            ),
+            speechOutput = FakeSpeechOutputProvider(),
+            loggerProvider = { RequestLogger() },
+            scope = this,
+        )
+
+        controller.onHotkey(event())
+        advanceUntilIdle()
+
+        val speakingState = renderer.renderedStates.last {
+            it.phase == HotkeyVoiceOverlayPhase.Speaking
+        }
+        assertEquals("修医是谁", speakingState.transcript)
+        assertEquals("修伊是谁", speakingState.normalizedTranscript)
+        assertEquals("修伊", speakingState.transcriptMatchedTerm)
     }
 
     @Test
@@ -448,7 +607,11 @@ class HotkeyVoiceQuestionControllerTest {
 
         assertEquals(1, voice.cancelCount)
         assertEquals(listOf("show:mega_drive__光明力量2", "hide"), renderer.calls)
-        assertEquals(HotkeyVoiceOverlayState.Idle, coordinator.state.value)
+        val finished = coordinator.state.value
+        assertTrue(finished is HotkeyVoiceOverlayState.Finished)
+        assertEquals("muted_recovery", (finished as HotkeyVoiceOverlayState.Finished).reason)
+        assertEquals("finished", coordinator.debugSnapshot().lifecycle_phase)
+        assertEquals(false, coordinator.debugSnapshot().is_visible)
     }
 
     private fun event(): RetroArchHotkeyEvent =

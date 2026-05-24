@@ -14,7 +14,7 @@ object QuestionIntentClassifier {
         if (question.containsAny("谁开发", "开发商", "发行", "发售", "制作公司", "什么时候出")) {
             return AnswerType.Production
         }
-        if (question.containsAny("英文", "中文", "汉化名", "原名", "对应", "叫什么", "叫啥")) {
+        if (question.isNameMappingQuestion()) {
             return AnswerType.NameMapping
         }
         if (question.containsAny("这游戏怎么玩", "这个游戏怎么玩", "游戏怎么玩", "这游戏要怎么玩", "这个游戏要怎么玩", "游戏要怎么玩", "这游戏该怎么玩", "要怎么玩", "该怎么玩", "到底要怎么玩", "这游戏玩什么", "这个游戏玩什么", "游戏玩什么", "主要玩什么", "玩法是什么", "主要干什么", "主要是干嘛", "干嘛的", "玩点是什么", "好玩在哪", "好玩在哪里", "乐趣", "核心玩法", "适合什么玩家")) {
@@ -29,17 +29,22 @@ object QuestionIntentClassifier {
         if (question.containsAny("怎么玩经验", "经验高", "经验怎么", "练级", "升级快", "升级技巧", "升级有什么技巧", "怎样升级", "怎么升级", "刷级", "低等级怎么追")) {
             return AnswerType.Leveling
         }
+        if (question.containsAny("攻击力", "防御力", "速度", "敏捷", "属性", "能力值") &&
+            question.containsAny("有什么用", "高", "低", "影响", "怎么算", "是什么")
+        ) {
+            return AnswerType.Mechanic
+        }
+        if (question.containsAny("值得练", "培养", "练谁", "练哪些", "角色练", "谁强", "阵容", "队伍里谁", "队伍怎么搭配", "队伍搭配", "角色怎么搭配", "角色如何搭配", "职业怎么搭配", "怎么搭配", "搭配", "哪些角色", "强力角色", "角色名单", "最强角色", "强力名单", "强力阵容", "后期阵容")) {
+            return AnswerType.TeamBuild
+        }
         if (question.containsAny("新手", "开局", "刚开始", "前期怎么玩", "第一小时", "先干什么", "先做什么")) {
             return AnswerType.BeginnerGuide
         }
-        if (question.containsAny("怎么用", "干嘛", "有什么用", "给谁用", "用法")) {
+        if (question.containsAny("怎么用", "干嘛", "有什么用", "给谁用", "用法", "要买", "买吗", "买不买")) {
             return AnswerType.Usage
         }
         if (question.containsAny("怎么复活", "为什么不能", "怎么转职", "几级转职", "转职", "复活", "机制")) {
             return AnswerType.Mechanic
-        }
-        if (question.containsAny("值得练", "培养", "练谁", "练哪些", "角色练", "谁强", "阵容", "队伍里谁", "队伍怎么搭配", "队伍搭配", "角色怎么搭配", "角色如何搭配", "职业怎么搭配", "怎么搭配", "搭配", "哪些角色")) {
-            return AnswerType.TeamBuild
         }
         if (question.containsAny("打不过", "敌人怎么办", "怎么打", "打法", "策略", "培养", "站位", "稳吗", "怎么才能赢", "怎样才能赢", "如何才能赢", "怎么赢", "有什么技巧", "技巧")) {
             return AnswerType.Strategy
@@ -48,7 +53,61 @@ object QuestionIntentClassifier {
     }
 
     private fun String.isLocationQuestion(): Boolean =
-        containsAny("在哪里", "在哪儿", "哪拿", "怎么拿", "位置", "怎么找") ||
+        containsAny("在哪里", "在哪儿", "哪拿", "怎么拿", "位置", "怎么找", "地点", "隐藏地") ||
             (contains("在哪") && !contains("哪些")) ||
             (containsAny("是什么", "什么地方") && containsAny("森林", "村庄", "村", "城镇", "城堡", "塔"))
+
+    private fun String.isNameMappingQuestion(): Boolean =
+        containsAny("英文", "中文", "汉化名", "原名", "对应", "叫什么", "叫啥") ||
+            isAliasEquivalenceQuestion()
+
+    private fun String.isAliasEquivalenceQuestion(): Boolean {
+        if (containsAny("是一个吗", "是同一个吗", "同一个游戏", "同一款游戏", "是不是同一个", "是不是同款", "是不是一个")) {
+            return true
+        }
+        if (!contains("是不是")) return false
+
+        val left = substringBefore("是不是").trimNameSide()
+        val right = substringAfter("是不是").trimNameSide()
+        if (left.length !in 2..24 || right.length !in 2..24) return false
+        if (right.containsAny(
+                "隐藏地点",
+                "隐藏地",
+                "地方",
+                "地点",
+                "道具",
+                "装备",
+                "角色",
+                "人物",
+                "队员",
+                "好用",
+                "好玩",
+                "值得",
+                "强",
+                "弱",
+                "难打",
+                "好打",
+                "能用",
+                "要买",
+                "有什么用",
+                "怎么用",
+                "怎么打",
+                "会剧透",
+            )
+        ) {
+            return false
+        }
+        return left.hasNameLikeToken() && right.hasNameLikeToken()
+    }
+
+    private fun String.trimNameSide(): String =
+        trim()
+            .trim('？', '?', '。', '.', '！', '!', '，', ',', ' ')
+            .removeSuffix("吗")
+            .trim()
+
+    private fun String.hasNameLikeToken(): Boolean =
+        any { it.code in CJK_RANGE || it.isLetterOrDigit() }
+
+    private val CJK_RANGE = 0x4E00..0x9FFF
 }

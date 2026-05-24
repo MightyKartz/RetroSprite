@@ -73,6 +73,7 @@ data class UiRequestLogItem(
     val answerConfidence: String? = null,
     val spoilerLevelUsed: String? = null,
     val nextActions: List<String> = emptyList(),
+    val suggestedQuestions: List<String> = emptyList(),
     val llmProvider: String? = null,
     val llmModel: String? = null,
     val llmMaxTokens: Int? = null,
@@ -133,6 +134,13 @@ data class UiVoiceInputState(
     val errorMessage: String? = null,
     val asrBiasingProfileId: String? = null,
     val asrHotwordCount: Int = 0,
+    val asrArchitecture: String? = null,
+    val asrDecodingMethod: String? = null,
+    val asrModelingUnit: String? = null,
+    val asrNativeHotwordsEnabled: Boolean = false,
+    val asrNativeHotwordsReason: String? = null,
+    val asrHotwordMode: String? = null,
+    val asrHotwordPreview: String? = null,
 )
 
 /** App-side short-answer speech output state. */

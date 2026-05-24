@@ -37,6 +37,7 @@ data class AnswerResult(
     val answerType: AnswerType = AnswerType.UnknownOrOutOfScope,
     val spoilerLevelUsed: SpoilerLevel = SpoilerLevel.LIGHT,
     val nextActions: List<AnswerNextAction> = emptyList(),
+    val suggestedQuestions: List<String> = emptyList(),
 ) {
     val textWithSources: String
         get() {
@@ -44,8 +45,23 @@ data class AnswerResult(
                 .map { it.trim() }
                 .filter { it.isNotEmpty() }
                 .distinct()
-            if (cleanSources.isEmpty()) return answerDetail
-            return "$answerDetail\n来源：${cleanSources.joinToString(", ")}"
+            return buildString {
+                append(answerDetail)
+                if (cleanSources.isNotEmpty()) {
+                    appendLine()
+                    append("来源：${cleanSources.joinToString(", ")}")
+                }
+                suggestedQuestions.cleanSuggestedQuestions()
+                    .takeIf { it.isNotEmpty() && !answerDetail.containsSuggestedQuestionBlock() }
+                    ?.let { questions ->
+                    appendLine()
+                    appendLine("你还可以问：")
+                    questions.forEachIndexed { index, question ->
+                        if (index > 0) appendLine()
+                        append("· $question")
+                    }
+                }
+            }
         }
 
     companion object {
@@ -56,6 +72,7 @@ data class AnswerResult(
             answerType: AnswerType = AnswerType.UnknownOrOutOfScope,
             spoilerLevelUsed: SpoilerLevel = SpoilerLevel.LIGHT,
             nextActions: List<AnswerNextAction> = emptyList(),
+            suggestedQuestions: List<String> = emptyList(),
         ): AnswerResult = AnswerResult(
             answerShort = text.shortAnswer(),
             answerDetail = text,
@@ -64,6 +81,7 @@ data class AnswerResult(
             answerType = answerType,
             spoilerLevelUsed = spoilerLevelUsed,
             nextActions = nextActions,
+            suggestedQuestions = suggestedQuestions.cleanSuggestedQuestions(),
         )
     }
 }
@@ -91,7 +109,21 @@ private fun String.endsWithAnySentencePunctuation(): Boolean =
     endsWith("。") || endsWith("！") || endsWith("？") ||
         endsWith(".") || endsWith("!") || endsWith("?")
 
+private fun String.containsSuggestedQuestionBlock(): Boolean =
+    contains("你可以这样问：") || contains("你还可以问：")
+
 private fun List<String>.cleanSourceIds(): List<String> =
     map { it.trim() }
         .filter { it.isNotEmpty() }
         .distinct()
+
+private fun List<String>.cleanSuggestedQuestions(): List<String> =
+    map { it.trim().ensureQuestionMark() }
+        .filter { it.isNotEmpty() }
+        .distinct()
+        .take(3)
+
+private fun String.ensureQuestionMark(): String {
+    if (isBlank()) return ""
+    return if (endsWith("？") || endsWith("?")) this else "$this？"
+}

@@ -20,6 +20,7 @@ sealed interface HotkeyVoiceOverlayState {
 
 enum class HotkeyVoiceOverlayPhase {
     Wake,
+    Preparing,
     Listening,
     Muted,
     Thinking,
@@ -36,16 +37,22 @@ data class HotkeyVoiceOverlayRenderState(
     val transcript: String? = null,
     val normalizedTranscript: String? = null,
     val transcriptMatchedTerm: String? = null,
+    val showTranscriptHud: Boolean = true,
     val answerText: String? = null,
     val sourceIds: List<String> = emptyList(),
+    val micLive: Boolean = false,
     val asrArchitecture: String? = null,
     val asrDecodingMethod: String? = null,
     val asrModelingUnit: String? = null,
-    val asrNativeHotwordsEnabled: Boolean? = null,
-    val asrNativeHotwordsReason: String? = null,
-    val asrHotwordCount: Int? = null,
-    val asrHotwordMode: String? = null,
-    val asrHotwordPreview: String? = null,
+    val asrCommitReason: String? = null,
+    val asrLastPartial: String? = null,
+    val asrFinalText: String? = null,
+    val asrSelectedTranscript: String? = null,
+    val asrPostVoiceSilenceMillis: Long? = null,
+    val asrPartialStableMillis: Long? = null,
+    val asrRequiredStableMillis: Long? = null,
+    val asrEndpointArmed: Boolean? = null,
+    val asrFinalFlushMillis: Long? = null,
 )
 
 interface HotkeyVoiceOverlayRenderer {
@@ -97,11 +104,13 @@ class HotkeyVoiceOverlayCoordinator(
         _state.value = HotkeyVoiceOverlayState.Listening(event)
         val now = clockMillis()
         debugSnapshot = event.toDebugSnapshot(
-            lifecyclePhase = "listening",
+            lifecyclePhase = "preparing",
+            lifecyclePhaseLabel = "Preparing",
             isActive = true,
             isVisible = true,
-            renderPhase = HotkeyVoiceOverlayPhase.Wake.debugName(),
-            message = "MIC STARTING",
+            renderPhase = HotkeyVoiceOverlayPhase.Preparing.debugName(),
+            renderPhaseLabel = HotkeyVoiceOverlayPhase.Preparing.statusLabel(),
+            message = "Preparing - mic off",
             startedAt = now,
             updatedAt = now,
         )
@@ -109,8 +118,8 @@ class HotkeyVoiceOverlayCoordinator(
         renderer.render(
             HotkeyVoiceOverlayRenderState(
                 event = event,
-                phase = HotkeyVoiceOverlayPhase.Wake,
-                message = "MIC STARTING",
+                phase = HotkeyVoiceOverlayPhase.Preparing,
+                message = "Preparing - mic off",
             )
         )
         return true
@@ -123,34 +132,49 @@ class HotkeyVoiceOverlayCoordinator(
         transcript: String? = null,
         normalizedTranscript: String? = null,
         transcriptMatchedTerm: String? = null,
+        showTranscriptHud: Boolean = true,
         answerText: String? = null,
         sourceIds: List<String> = emptyList(),
+        micLive: Boolean? = null,
         asrArchitecture: String? = null,
         asrDecodingMethod: String? = null,
         asrModelingUnit: String? = null,
-        asrNativeHotwordsEnabled: Boolean? = null,
-        asrNativeHotwordsReason: String? = null,
-        asrHotwordCount: Int? = null,
-        asrHotwordMode: String? = null,
-        asrHotwordPreview: String? = null,
+        asrCommitReason: String? = null,
+        asrLastPartial: String? = null,
+        asrFinalText: String? = null,
+        asrSelectedTranscript: String? = null,
+        asrPostVoiceSilenceMillis: Long? = null,
+        asrPartialStableMillis: Long? = null,
+        asrRequiredStableMillis: Long? = null,
+        asrEndpointArmed: Boolean? = null,
+        asrFinalFlushMillis: Long? = null,
     ) {
         val event = activeEvent ?: return
+        val nextMicLive = micLive ?: false
         val nextAsrArchitecture = asrArchitecture ?: debugSnapshot.asr_architecture
         val nextAsrDecodingMethod = asrDecodingMethod ?: debugSnapshot.asr_decoding_method
         val nextAsrModelingUnit = asrModelingUnit ?: debugSnapshot.asr_modeling_unit
-        val nextAsrNativeHotwordsEnabled =
-            asrNativeHotwordsEnabled ?: debugSnapshot.asr_native_hotwords_enabled
-        val nextAsrNativeHotwordsReason =
-            asrNativeHotwordsReason ?: debugSnapshot.asr_native_hotwords_reason
-        val nextAsrHotwordCount = asrHotwordCount ?: debugSnapshot.asr_hotword_count
-        val nextAsrHotwordMode = asrHotwordMode ?: debugSnapshot.asr_hotword_mode
-        val nextAsrHotwordPreview = asrHotwordPreview ?: debugSnapshot.asr_hotword_preview
+        val nextAsrCommitReason = asrCommitReason ?: debugSnapshot.asr_commit_reason
+        val nextAsrLastPartial = asrLastPartial ?: debugSnapshot.asr_last_partial
+        val nextAsrFinalText = asrFinalText ?: debugSnapshot.asr_final_text
+        val nextAsrSelectedTranscript = asrSelectedTranscript ?: debugSnapshot.asr_selected_transcript
+        val nextAsrPostVoiceSilenceMillis =
+            asrPostVoiceSilenceMillis ?: debugSnapshot.asr_post_voice_silence_ms
+        val nextAsrPartialStableMillis =
+            asrPartialStableMillis ?: debugSnapshot.asr_partial_stable_ms
+        val nextAsrRequiredStableMillis =
+            asrRequiredStableMillis ?: debugSnapshot.asr_required_stable_ms
+        val nextAsrEndpointArmed = asrEndpointArmed ?: debugSnapshot.asr_endpoint_armed
+        val nextAsrFinalFlushMillis = asrFinalFlushMillis ?: debugSnapshot.asr_final_flush_ms
         debugSnapshot = event.toDebugSnapshot(
-            lifecyclePhase = "listening",
+            lifecyclePhase = phase.lifecycleDebugName(),
+            lifecyclePhaseLabel = phase.statusLabel(),
             isActive = true,
             isVisible = true,
             renderPhase = phase.debugName(),
+            renderPhaseLabel = phase.statusLabel(),
             message = message,
+            micLive = nextMicLive,
             transcript = transcript,
             normalizedTranscript = normalizedTranscript,
             transcriptMatchedTerm = transcriptMatchedTerm,
@@ -159,11 +183,15 @@ class HotkeyVoiceOverlayCoordinator(
             asrArchitecture = nextAsrArchitecture,
             asrDecodingMethod = nextAsrDecodingMethod,
             asrModelingUnit = nextAsrModelingUnit,
-            asrNativeHotwordsEnabled = nextAsrNativeHotwordsEnabled,
-            asrNativeHotwordsReason = nextAsrNativeHotwordsReason,
-            asrHotwordCount = nextAsrHotwordCount,
-            asrHotwordMode = nextAsrHotwordMode,
-            asrHotwordPreview = nextAsrHotwordPreview,
+            asrCommitReason = nextAsrCommitReason,
+            asrLastPartial = nextAsrLastPartial,
+            asrFinalText = nextAsrFinalText,
+            asrSelectedTranscript = nextAsrSelectedTranscript,
+            asrPostVoiceSilenceMillis = nextAsrPostVoiceSilenceMillis,
+            asrPartialStableMillis = nextAsrPartialStableMillis,
+            asrRequiredStableMillis = nextAsrRequiredStableMillis,
+            asrEndpointArmed = nextAsrEndpointArmed,
+            asrFinalFlushMillis = nextAsrFinalFlushMillis,
             startedAt = debugSnapshot.started_at ?: clockMillis(),
             updatedAt = clockMillis(),
         )
@@ -173,19 +201,25 @@ class HotkeyVoiceOverlayCoordinator(
                 phase = phase,
                 amplitude = amplitude,
                 message = message,
+                micLive = nextMicLive,
                 transcript = transcript,
                 normalizedTranscript = normalizedTranscript,
                 transcriptMatchedTerm = transcriptMatchedTerm,
+                showTranscriptHud = showTranscriptHud,
                 answerText = answerText,
                 sourceIds = sourceIds,
                 asrArchitecture = nextAsrArchitecture,
                 asrDecodingMethod = nextAsrDecodingMethod,
                 asrModelingUnit = nextAsrModelingUnit,
-                asrNativeHotwordsEnabled = nextAsrNativeHotwordsEnabled,
-                asrNativeHotwordsReason = nextAsrNativeHotwordsReason,
-                asrHotwordCount = nextAsrHotwordCount,
-                asrHotwordMode = nextAsrHotwordMode,
-                asrHotwordPreview = nextAsrHotwordPreview,
+                asrCommitReason = nextAsrCommitReason,
+                asrLastPartial = nextAsrLastPartial,
+                asrFinalText = nextAsrFinalText,
+                asrSelectedTranscript = nextAsrSelectedTranscript,
+                asrPostVoiceSilenceMillis = nextAsrPostVoiceSilenceMillis,
+                asrPartialStableMillis = nextAsrPartialStableMillis,
+                asrRequiredStableMillis = nextAsrRequiredStableMillis,
+                asrEndpointArmed = nextAsrEndpointArmed,
+                asrFinalFlushMillis = nextAsrFinalFlushMillis,
             )
         )
     }
@@ -204,10 +238,13 @@ class HotkeyVoiceOverlayCoordinator(
         val now = clockMillis()
         debugSnapshot = debugSnapshot.copy(
             lifecycle_phase = "finished",
+            lifecycle_phase_label = "Finished",
             is_active = false,
             is_visible = false,
             render_phase = "finished",
+            render_phase_label = "Finished",
             message = "已结束",
+            mic_live = false,
             answer_visible = false,
             updated_at = now,
             finished_at = now,
@@ -223,10 +260,13 @@ class HotkeyVoiceOverlayCoordinator(
 
 private fun RetroArchHotkeyEvent.toDebugSnapshot(
     lifecyclePhase: String,
+    lifecyclePhaseLabel: String? = null,
     isActive: Boolean,
     isVisible: Boolean,
     renderPhase: String? = null,
+    renderPhaseLabel: String? = null,
     message: String? = null,
+    micLive: Boolean = false,
     transcript: String? = null,
     normalizedTranscript: String? = null,
     transcriptMatchedTerm: String? = null,
@@ -235,16 +275,21 @@ private fun RetroArchHotkeyEvent.toDebugSnapshot(
     asrArchitecture: String? = null,
     asrDecodingMethod: String? = null,
     asrModelingUnit: String? = null,
-    asrNativeHotwordsEnabled: Boolean? = null,
-    asrNativeHotwordsReason: String? = null,
-    asrHotwordCount: Int? = null,
-    asrHotwordMode: String? = null,
-    asrHotwordPreview: String? = null,
+    asrCommitReason: String? = null,
+    asrLastPartial: String? = null,
+    asrFinalText: String? = null,
+    asrSelectedTranscript: String? = null,
+    asrPostVoiceSilenceMillis: Long? = null,
+    asrPartialStableMillis: Long? = null,
+    asrRequiredStableMillis: Long? = null,
+    asrEndpointArmed: Boolean? = null,
+    asrFinalFlushMillis: Long? = null,
     startedAt: Long? = null,
     updatedAt: Long? = null,
 ): DebugHotkeyVoiceOverlayResponse =
     DebugHotkeyVoiceOverlayResponse(
         lifecycle_phase = lifecyclePhase,
+        lifecycle_phase_label = lifecyclePhaseLabel.takeUnless { it.isNullOrBlank() },
         is_active = isActive,
         is_visible = isVisible,
         label = label,
@@ -252,7 +297,9 @@ private fun RetroArchHotkeyEvent.toDebugSnapshot(
         image_bytes = imageBytes,
         paused = paused,
         render_phase = renderPhase,
+        render_phase_label = renderPhaseLabel.takeUnless { it.isNullOrBlank() },
         message = message.takeUnless { it.isNullOrBlank() },
+        mic_live = micLive,
         transcript = transcript.takeUnless { it.isNullOrBlank() },
         normalized_transcript = normalizedTranscript.takeUnless { it.isNullOrBlank() },
         transcript_matched_term = transcriptMatchedTerm.takeUnless { it.isNullOrBlank() },
@@ -261,14 +308,25 @@ private fun RetroArchHotkeyEvent.toDebugSnapshot(
         asr_architecture = asrArchitecture.takeUnless { it.isNullOrBlank() },
         asr_decoding_method = asrDecodingMethod.takeUnless { it.isNullOrBlank() },
         asr_modeling_unit = asrModelingUnit.takeUnless { it.isNullOrBlank() },
-        asr_native_hotwords_enabled = asrNativeHotwordsEnabled,
-        asr_native_hotwords_reason = asrNativeHotwordsReason.takeUnless { it.isNullOrBlank() },
-        asr_hotword_count = asrHotwordCount,
-        asr_hotword_mode = asrHotwordMode.takeUnless { it.isNullOrBlank() },
-        asr_hotword_preview = asrHotwordPreview.takeUnless { it.isNullOrBlank() },
+        asr_commit_reason = asrCommitReason.takeUnless { it.isNullOrBlank() },
+        asr_last_partial = asrLastPartial.takeUnless { it.isNullOrBlank() },
+        asr_final_text = asrFinalText.takeUnless { it.isNullOrBlank() },
+        asr_selected_transcript = asrSelectedTranscript.takeUnless { it.isNullOrBlank() },
+        asr_post_voice_silence_ms = asrPostVoiceSilenceMillis,
+        asr_partial_stable_ms = asrPartialStableMillis,
+        asr_required_stable_ms = asrRequiredStableMillis,
+        asr_endpoint_armed = asrEndpointArmed,
+        asr_final_flush_ms = asrFinalFlushMillis,
         started_at = startedAt,
         updated_at = updatedAt,
     )
 
 private fun HotkeyVoiceOverlayPhase.debugName(): String =
     name.replace(Regex("([a-z])([A-Z])"), "$1_$2").lowercase()
+
+private fun HotkeyVoiceOverlayPhase.lifecycleDebugName(): String =
+    when (this) {
+        HotkeyVoiceOverlayPhase.Preparing,
+        HotkeyVoiceOverlayPhase.Wake -> "preparing"
+        else -> "listening"
+    }

@@ -11,7 +11,6 @@ import com.retrosprite.app.endpoint.RetroArchHotkeyListener
 import com.retrosprite.app.endpoint.model.DebugHotkeyVoiceOverlayResponse
 import com.retrosprite.app.ui.viewmodel.SpeechOutputProvider
 import com.retrosprite.app.ui.viewmodel.VoiceInputProvider
-import com.retrosprite.app.voice.asr.AsrBiasingProfileProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -22,7 +21,7 @@ class AndroidHotkeyVoiceOverlayController(
     responseGenerator: ResponseGenerator,
     speechOutput: SpeechOutputProvider,
     loggerProvider: () -> RequestLogger,
-    asrBiasingProfileProvider: AsrBiasingProfileProvider? = null,
+    showTranscriptHudProvider: () -> Boolean = { true },
     displayMillis: Long = DEFAULT_DISPLAY_MILLIS,
 ) : RetroArchHotkeyListener {
 
@@ -58,7 +57,7 @@ class AndroidHotkeyVoiceOverlayController(
         speechOutput = speechOutput,
         loggerProvider = loggerProvider,
         scope = mainScope,
-        asrBiasingProfileProvider = asrBiasingProfileProvider,
+        showTranscriptHudProvider = showTranscriptHudProvider,
     )
 
     override fun onHotkey(event: RetroArchHotkeyEvent) {

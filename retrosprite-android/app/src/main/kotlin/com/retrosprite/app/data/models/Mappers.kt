@@ -4,6 +4,11 @@ import com.retrosprite.app.data.db.converters.StringListConverter
 import com.retrosprite.app.data.db.entity.GameEntity
 import com.retrosprite.app.data.db.entity.KnowledgeEntity
 import com.retrosprite.app.data.db.entity.RequestLogEntity
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 
 /**
  * Entity <-> Domain mappers.
@@ -12,6 +17,10 @@ import com.retrosprite.app.data.db.entity.RequestLogEntity
  * coroutine dispatcher.
  */
 private val stringListConverter = StringListConverter()
+private val aliasJson = Json {
+    ignoreUnknownKeys = true
+    encodeDefaults = false
+}
 
 // region RequestLog
 fun RequestLogEntity.toDomain(): RequestLogDomain = RequestLogDomain(
@@ -36,6 +45,7 @@ fun RequestLogEntity.toDomain(): RequestLogDomain = RequestLogDomain(
     answerType = answerType,
     answerConfidence = answerConfidence,
     spoilerLevelUsed = spoilerLevelUsed,
+    sourceIds = stringListConverter.toList(sourceIds),
     nextActions = stringListConverter.toList(nextActions),
     suggestedQuestions = stringListConverter.toList(suggestedQuestions),
     responseText = responseText,
@@ -76,6 +86,7 @@ fun RequestLogDomain.toEntity(): RequestLogEntity = RequestLogEntity(
     answerType = answerType,
     answerConfidence = answerConfidence,
     spoilerLevelUsed = spoilerLevelUsed,
+    sourceIds = stringListConverter.fromList(sourceIds),
     nextActions = stringListConverter.fromList(nextActions),
     suggestedQuestions = stringListConverter.fromList(suggestedQuestions),
     responseText = responseText,
@@ -107,6 +118,7 @@ fun GameEntity.toDomain(): GameDomain = GameDomain(
     romSha1 = romSha1,
     retroarchSystemIds = stringListConverter.toList(retroarchSystemIds),
     retroarchLabels = stringListConverter.toList(retroarchLabels),
+    coverageTier = coverageTier,
     packVersion = packVersion,
     schemaVersion = schemaVersion,
     trustLevel = trustLevel,
@@ -130,6 +142,7 @@ fun GameDomain.toEntity(): GameEntity = GameEntity(
     romSha1 = romSha1,
     retroarchSystemIds = stringListConverter.fromList(retroarchSystemIds),
     retroarchLabels = stringListConverter.fromList(retroarchLabels),
+    coverageTier = coverageTier,
     packVersion = packVersion,
     schemaVersion = schemaVersion,
     trustLevel = trustLevel,
@@ -151,6 +164,7 @@ fun KnowledgeEntity.toDomain(): KnowledgeChunkDomain = KnowledgeChunkDomain(
     entityType = entityType,
     canonicalName = canonicalName,
     aliases = stringListConverter.toList(aliasesJson),
+    aliasMetadata = aliasMetadataJson.toAliasMetadata(),
     descriptionShort = descriptionShort,
     descriptionLong = descriptionLong,
     progressGate = progressGate,
@@ -167,6 +181,7 @@ fun KnowledgeChunkDomain.toEntity(): KnowledgeEntity = KnowledgeEntity(
     entityType = entityType,
     canonicalName = canonicalName,
     aliasesJson = stringListConverter.fromList(aliases),
+    aliasMetadataJson = aliasMetadata.toAliasMetadataJson(),
     descriptionShort = descriptionShort,
     descriptionLong = descriptionLong,
     progressGate = progressGate,
@@ -180,3 +195,48 @@ fun KnowledgeChunkDomain.toEntity(): KnowledgeEntity = KnowledgeEntity(
     }
 )
 // endregion
+
+@Serializable
+private data class KnowledgeAliasDto(
+    val term: String,
+    @SerialName("entity_id") val entityId: String,
+    val kind: String = "display_alias",
+    val source: String? = null,
+    val weight: Double? = null,
+    @SerialName("canonical_term") val canonicalTerm: String? = null,
+    val notes: String? = null,
+)
+
+private fun String?.toAliasMetadata(): List<KnowledgeAliasDomain> {
+    if (isNullOrBlank()) return emptyList()
+    return runCatching {
+        aliasJson.decodeFromString<List<KnowledgeAliasDto>>(this)
+            .map { dto ->
+                KnowledgeAliasDomain(
+                    term = dto.term,
+                    entityId = dto.entityId,
+                    kind = dto.kind,
+                    source = dto.source,
+                    weight = dto.weight,
+                    canonicalTerm = dto.canonicalTerm,
+                    notes = dto.notes,
+                )
+            }
+    }.getOrDefault(emptyList())
+}
+
+private fun List<KnowledgeAliasDomain>.toAliasMetadataJson(): String? {
+    if (isEmpty()) return null
+    val dto = map { alias ->
+        KnowledgeAliasDto(
+            term = alias.term,
+            entityId = alias.entityId,
+            kind = alias.kind,
+            source = alias.source,
+            weight = alias.weight,
+            canonicalTerm = alias.canonicalTerm,
+            notes = alias.notes,
+        )
+    }
+    return aliasJson.encodeToString(dto)
+}

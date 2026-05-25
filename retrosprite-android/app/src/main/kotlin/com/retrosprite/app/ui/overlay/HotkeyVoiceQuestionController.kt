@@ -11,8 +11,6 @@ import com.retrosprite.app.endpoint.model.RetroArchState
 import com.retrosprite.app.endpoint.model.ResponseDiagnostics
 import com.retrosprite.app.ui.viewmodel.SpeechOutputProvider
 import com.retrosprite.app.ui.viewmodel.VoiceInputProvider
-import com.retrosprite.app.voice.asr.AsrBiasingProfileProvider
-import com.retrosprite.app.voice.asr.AsrHotwordMode
 import com.retrosprite.app.voice.asr.AsrRecognitionContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -33,7 +31,7 @@ class HotkeyVoiceQuestionController(
     private val speechOutput: SpeechOutputProvider,
     private val loggerProvider: () -> RequestLogger,
     private val scope: CoroutineScope,
-    private val asrBiasingProfileProvider: AsrBiasingProfileProvider? = null,
+    private val showTranscriptHudProvider: () -> Boolean = { true },
 ) : RetroArchHotkeyListener {
 
     private var activeJob: Job? = null
@@ -74,20 +72,40 @@ class HotkeyVoiceQuestionController(
             val initialEventId = voiceInput.state.value.transcriptEventId
             val progressJob = launch {
                 voiceInput.state.collect { state ->
-                    if (state.isListening || state.amplitude > 0f || !state.transcript.isNullOrBlank()) {
+                    val transcriptForSession = state.transcript
+                        ?.takeIf { it.isNotBlank() }
+                        ?.takeIf { state.isListening || state.transcriptEventId > initialEventId }
+                    val isPreparing = !state.isListening &&
+                        transcriptForSession == null &&
+                        state.statusMessage != null
+                    if (isPreparing || state.isListening || state.amplitude > 0f || transcriptForSession != null) {
                         coordinator.renderVoiceState(
-                            phase = HotkeyVoiceOverlayPhase.Listening,
-                            amplitude = state.amplitude,
-                            message = state.statusMessage ?: "正在收音",
-                            transcript = state.transcript,
+                            phase = if (state.isListening || transcriptForSession != null) {
+                                HotkeyVoiceOverlayPhase.Listening
+                            } else {
+                                HotkeyVoiceOverlayPhase.Preparing
+                            },
+                            amplitude = if (state.isListening) state.amplitude else 0f,
+                            message = if (state.isListening || transcriptForSession != null) {
+                                state.statusMessage ?: "Mic live"
+                            } else {
+                                state.statusMessage ?: "Preparing - mic off"
+                            },
+                            micLive = state.isListening,
+                            transcript = transcriptForSession,
+                            showTranscriptHud = showTranscriptHudProvider(),
                             asrArchitecture = state.asrArchitecture,
                             asrDecodingMethod = state.asrDecodingMethod,
                             asrModelingUnit = state.asrModelingUnit,
-                            asrNativeHotwordsEnabled = state.asrNativeHotwordsEnabled,
-                            asrNativeHotwordsReason = state.asrNativeHotwordsReason,
-                            asrHotwordCount = state.asrHotwordCount,
-                            asrHotwordMode = state.asrHotwordMode,
-                            asrHotwordPreview = state.asrHotwordPreview,
+                            asrCommitReason = state.asrCommitReason,
+                            asrLastPartial = state.asrLastPartial,
+                            asrFinalText = state.asrFinalText,
+                            asrSelectedTranscript = state.asrSelectedTranscript,
+                            asrPostVoiceSilenceMillis = state.asrPostVoiceSilenceMillis,
+                            asrPartialStableMillis = state.asrPartialStableMillis,
+                            asrRequiredStableMillis = state.asrRequiredStableMillis,
+                            asrEndpointArmed = state.asrEndpointArmed,
+                            asrFinalFlushMillis = state.asrFinalFlushMillis,
                         )
                     }
                 }
@@ -116,12 +134,21 @@ class HotkeyVoiceQuestionController(
                 } else {
                     HotkeyVoiceOverlayPhase.Error
                 },
-                message = errorMessage ?: "Muted",
+                message = errorMessage ?: "No speech",
                 answerText = if (errorMessage == null) {
                     "没有听到问题，请再按一次热键。"
                 } else {
                     "语音识别失败，请再试一次。"
                 },
+                asrCommitReason = voiceState?.asrCommitReason,
+                asrLastPartial = voiceState?.asrLastPartial,
+                asrFinalText = voiceState?.asrFinalText,
+                asrSelectedTranscript = voiceState?.asrSelectedTranscript,
+                asrPostVoiceSilenceMillis = voiceState?.asrPostVoiceSilenceMillis,
+                asrPartialStableMillis = voiceState?.asrPartialStableMillis,
+                asrRequiredStableMillis = voiceState?.asrRequiredStableMillis,
+                asrEndpointArmed = voiceState?.asrEndpointArmed,
+                asrFinalFlushMillis = voiceState?.asrFinalFlushMillis,
             )
             finishVoiceSessionAfter(
                 RECOVERY_LINGER_MS,
@@ -133,8 +160,18 @@ class HotkeyVoiceQuestionController(
         delay(LISTENING_VISUAL_LINGER_MS)
         coordinator.renderVoiceState(
             phase = HotkeyVoiceOverlayPhase.Thinking,
-            message = "正在检索本地知识",
+            message = "Thinking",
             transcript = question,
+            showTranscriptHud = showTranscriptHudProvider(),
+            asrCommitReason = voiceState?.asrCommitReason,
+            asrLastPartial = voiceState?.asrLastPartial,
+            asrFinalText = voiceState?.asrFinalText,
+            asrSelectedTranscript = voiceState?.asrSelectedTranscript,
+            asrPostVoiceSilenceMillis = voiceState?.asrPostVoiceSilenceMillis,
+            asrPartialStableMillis = voiceState?.asrPartialStableMillis,
+            asrRequiredStableMillis = voiceState?.asrRequiredStableMillis,
+            asrEndpointArmed = voiceState?.asrEndpointArmed,
+            asrFinalFlushMillis = voiceState?.asrFinalFlushMillis,
         )
 
         val logger = loggerProvider()
@@ -166,6 +203,7 @@ class HotkeyVoiceQuestionController(
                 phase = HotkeyVoiceOverlayPhase.Error,
                 message = entry.errorMessage ?: "回答失败",
                 transcript = question,
+                showTranscriptHud = showTranscriptHudProvider(),
                 answerText = "回答失败，请稍后重试。",
             )
             finishVoiceSessionAfter(RECOVERY_LINGER_MS, reason = "generator_error_recovery")
@@ -209,13 +247,14 @@ class HotkeyVoiceQuestionController(
             coordinator.renderVoiceState(
                 phase = responsePhase,
                 message = if (responsePhase == HotkeyVoiceOverlayPhase.NoEvidence) {
-                    "NO RELIABLE EVIDENCE"
+                    "No evidence"
                 } else {
-                    "正在朗读答案"
+                    "Answering"
                 },
                 transcript = overlayTranscript,
                 normalizedTranscript = overlayNormalizedTranscript,
                 transcriptMatchedTerm = entry.normalizedQuestionMatchedTerm,
+                showTranscriptHud = showTranscriptHudProvider(),
                 answerText = if (responsePhase == HotkeyVoiceOverlayPhase.NoEvidence) {
                     (entry.answerDetail ?: entry.responseText).toOverlayAnswerText(
                         maxChars = OVERLAY_NO_EVIDENCE_MAX_CHARS,
@@ -235,6 +274,7 @@ class HotkeyVoiceQuestionController(
                 transcript = overlayTranscript,
                 normalizedTranscript = overlayNormalizedTranscript,
                 transcriptMatchedTerm = entry.normalizedQuestionMatchedTerm,
+                showTranscriptHud = showTranscriptHudProvider(),
                 answerText = "回答失败，请稍后重试。",
             )
             finishVoiceSessionAfter(RECOVERY_LINGER_MS, reason = "answer_error_recovery")
@@ -262,17 +302,13 @@ class HotkeyVoiceQuestionController(
         }
     }
 
-    private suspend fun recognitionContextFor(event: RetroArchHotkeyEvent): AsrRecognitionContext {
-        val resolution = asrBiasingProfileProvider?.resolveForLabel(event.label)
-        return AsrRecognitionContext(
-            label = resolution?.label ?: event.label,
-            gameId = resolution?.profile?.gameId,
+    private fun recognitionContextFor(event: RetroArchHotkeyEvent): AsrRecognitionContext =
+        AsrRecognitionContext(
+            label = event.label,
+            gameId = null,
             spoilerLevel = "light",
             source = QUESTION_SOURCE,
-            biasingProfile = resolution?.profile,
-            hotwordMode = resolution?.hotwordMode ?: AsrHotwordMode.Auto,
         )
-    }
 
     companion object {
         const val OUTPUT_MODE: String = "hotkey_voice:text"
@@ -289,10 +325,27 @@ private const val SOURCE_PREFIX = "来源："
 private const val OVERLAY_ANSWER_MAX_CHARS = 96
 private const val OVERLAY_NO_EVIDENCE_MAX_CHARS = 180
 private const val OVERLAY_MAX_SUGGESTED_QUESTIONS = 3
-private const val MIN_VOICE_QUESTION_CHARS = 2
+private const val MIN_VOICE_QUESTION_CHARS = 3
+private val PATHOLOGICAL_VOICE_FRAGMENTS = setOf(
+    "是什",
+    "关是",
+    "是不",
+    "什",
+    "么",
+)
+private val SHORT_SAFE_VOICE_TERMS = setOf(
+    "伊凡",
+    "玛尔",
+    "魔石",
+)
 
-private fun String.hasEnoughVoiceQuestionSignal(): Boolean =
-    count { !it.isWhitespace() && !it.isISOControl() } >= MIN_VOICE_QUESTION_CHARS
+private fun String.hasEnoughVoiceQuestionSignal(): Boolean {
+    val clean = filter { it.isLetterOrDigit() }
+    if (clean.isBlank()) return false
+    if (clean in PATHOLOGICAL_VOICE_FRAGMENTS) return false
+    if (clean.length >= MIN_VOICE_QUESTION_CHARS) return true
+    return clean in SHORT_SAFE_VOICE_TERMS
+}
 
 private fun ResponseDiagnostics.withInferredNormalization(rawQuestion: String): ResponseDiagnostics {
     val cleanRaw = rawQuestion.trim()

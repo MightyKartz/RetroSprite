@@ -114,7 +114,8 @@ class UiModelMappersTest {
             imageBytes = 0,
             paused = false,
             outputMode = "debug:text",
-            responseText = "两个相同数字滑到一起会合并。\n来源：sample.2048.rules, sample.2048.strategy",
+            diagnosticSourceIds = listOf("sample.2048.rules", "sample.2048.strategy"),
+            responseText = "两个相同数字滑到一起会合并。\n来源：本地知识",
             errorMessage = null,
         )
 
@@ -165,13 +166,14 @@ class UiModelMappersTest {
             outputMode = "app:text",
             question = "How do I merge?",
             questionSource = "app",
-            responseText = "综合答案。\n来源：sample.2048.rules",
+            responseText = "综合答案。\n来源：本地知识",
             durationMillis = 1_234L,
             answerShort = "短答。",
             answerDetail = "完整解释。",
             answerType = "mechanic",
             answerConfidence = "high",
             spoilerLevelUsed = "light",
+            diagnosticSourceIds = listOf("sample.2048.rules"),
             nextActions = listOf("查看来源", "这不对"),
             suggestedQuestions = listOf("气合之玉在哪里？"),
             llmStatusOverride = "used",
@@ -233,7 +235,7 @@ class UiModelMappersTest {
             questionNormalizationReason = "homophone",
             normalizedQuestionMatchedTerm = "修伊",
             normalizedQuestionMatchedEntityId = "npc.jaha",
-            responseText = "Jaha / 修伊 是前期队友。\n来源：sf2.manual_translation",
+            responseText = "Jaha / 修伊 是前期队友。\n来源：本地知识",
         )
 
         val ui = entry.toUi()

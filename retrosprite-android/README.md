@@ -12,6 +12,14 @@
 
 RetroArch AI Service → Android 本地 endpoint → 热键唤醒 RetroSprite 游戏内语音 overlay → 本地 ASR → GKP/AnswerPolicy → 短答 TTS 这条主路径已经接通并进入体验打磨。Home 页文字提问、pending hotkey 问题和 debug curl 仍保留为设置验证与开发 fallback；玩家主体验应是在 RetroArch 中按热键呼出科技感语音波形，不需要频繁回到 App 里操作。
 
+当前 Debug APK 默认打包 `sherpa-onnx-streaming-paraformer-bilingual-zh-en`
+int8 三件套（`encoder.int8.onnx`、`decoder.int8.onnx`、`tokens.txt`），
+通过 sherpa-onnx `OnlineParaformerModelConfig` 做本地 streaming ASR。该路径不启用
+sherpa 原生热词；游戏专属名词靠当前 GKP 的别名/ASR 变体和
+`GameTermNormalizer` 做游戏域内修复，不能退化成跨游戏全局替换。Paraformer 资产约
+226 MB；2026-05-24 本地 `assembleDebug` 产物为 276 MB，APK 内未再打包旧
+14M Zipformer 资产。真机可用性仍以 RG476H 安装、启动、录音和连续问答测试为准。
+
 **当前真实支持游戏：仅 6 个。**RetroSprite 目前内置支持：
 **Shining Force II / 光明力量2**（`community.shining-force-ii-md`）、
 **Golden Sun / 黄金太阳**（`community.golden-sun-gba-zh`）、
@@ -84,6 +92,7 @@ adb forward tcp:4404 tcp:4404
 | [docs/RETROARCH_SETUP.md](./docs/RETROARCH_SETUP.md) | RetroArch AI Service 完整配置步骤 + 故障排查 |
 | [docs/PHASE0_VERIFICATION.md](./docs/PHASE0_VERIFICATION.md) | Phase 0 验收清单（自动化 + 手动） |
 | [docs/PROTOCOL_REFERENCE.md](./docs/PROTOCOL_REFERENCE.md) | RetroArch AI Service 请求 / 响应字段速查 |
+| [docs/ARCHITECTURE_AND_PRODUCT_TIERS.md](./docs/ARCHITECTURE_AND_PRODUCT_TIERS.md) | 主程序、GKP builder、GKP Lite、expanded/deep 覆盖、Pro 商业层和可选 LLM 的当前口径 |
 | [docs/GKP_V0_SCHEMA.md](./docs/GKP_V0_SCHEMA.md) | GKP v0 schema、pack 结构与 lint 规则 |
 | [docs/GKP_LITE_OPTIONAL_LLM_DIRECTION.md](./docs/GKP_LITE_OPTIONAL_LLM_DIRECTION.md) | GKP Lite + 玩家可选 LLM 的后续产品与架构方向 |
 | [docs/REAL_GAME_GKP_EXPANSION_TEMPLATE.md](./docs/REAL_GAME_GKP_EXPANSION_TEMPLATE.md) | 真实游戏 GKP Lite 生产模板、覆盖层级与验收标准 |

@@ -8,30 +8,31 @@ import org.junit.Test
 class SherpaOnnxAsrModelTest {
 
     @Test
-    fun `default model uses chinese transducer assets for native hotwords`() {
+    fun `default model uses only streaming paraformer assets`() {
         val model = SherpaOnnxAsrModel.defaultModel()
 
         assertEquals(
-            "sherpa-onnx-streaming-zipformer-zh-14M-2023-02-23",
+            "sherpa-onnx-streaming-paraformer-bilingual-zh-en",
             model.assetDir,
         )
-        assertEquals("sherpa-onnx Transducer 本地 ASR", model.engineLabel)
+        assertEquals("sherpa-onnx Paraformer 本地 ASR", model.engineLabel)
         assertEquals(16000, model.sampleRateHz)
-        assertEquals(SherpaOnnxAsrModel.Architecture.Transducer, model.architecture)
-        assertTrue(model.supportsHotwords)
-        assertEquals(4, model.requiredAssetPaths.size)
-        assertTrue(model.requiredAssetPaths.any { it.endsWith("encoder-epoch-99-avg-1.int8.onnx") })
-        assertTrue(model.requiredAssetPaths.any { it.endsWith("decoder-epoch-99-avg-1.onnx") })
-        assertTrue(model.requiredAssetPaths.any { it.endsWith("joiner-epoch-99-avg-1.int8.onnx") })
-        assertTrue(model.requiredAssetPaths.any { it.endsWith("tokens.txt") })
+        assertEquals(null, model.joinerAsset)
+        assertEquals(
+            listOf(
+                "${model.assetDir}/encoder.int8.onnx",
+                "${model.assetDir}/decoder.int8.onnx",
+                "${model.assetDir}/tokens.txt",
+            ),
+            model.requiredAssetPaths,
+        )
     }
 
     @Test
     fun `validation reports missing model assets without offering system fallback`() {
         val model = SherpaOnnxAsrModel.defaultModel()
         val existing = setOf(
-            "${model.assetDir}/encoder-epoch-99-avg-1.int8.onnx",
-            "${model.assetDir}/joiner-epoch-99-avg-1.int8.onnx",
+            "${model.assetDir}/encoder.int8.onnx",
             "${model.assetDir}/tokens.txt",
         )
 
@@ -40,12 +41,12 @@ class SherpaOnnxAsrModelTest {
 
         assertEquals(
             listOf(
-                "${model.assetDir}/decoder-epoch-99-avg-1.onnx",
+                "${model.assetDir}/decoder.int8.onnx",
             ),
             missing,
         )
         assertTrue(message.contains("sherpa-onnx 本地 ASR 模型未安装"))
-        assertTrue(message.contains("decoder-epoch-99-avg-1.onnx"))
+        assertTrue(message.contains("decoder.int8.onnx"))
         assertFalse(message.contains("系统语音"))
         assertFalse(message.contains("云 ASR"))
     }

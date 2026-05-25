@@ -33,6 +33,7 @@ data class GkpPreflightReport(
     val gameId: String?,
     val gameTitle: String?,
     val packVersion: String?,
+    val coverageTier: String?,
     val schemaVersion: String?,
     val knowledgeRows: Int,
     val sourceCount: Int,
@@ -79,6 +80,16 @@ class GkpV0PreflightValidator {
                 )
             }
         }
+        files.forEach { (path, text) ->
+            if (text.contains(SCAFFOLD_PLACEHOLDER)) {
+                issue(
+                    severity = GkpPreflightSeverity.Error,
+                    code = "scaffold_placeholder",
+                    path = path,
+                    message = "GKP Lite scaffold placeholder 必须替换为审核后的来源化内容。",
+                )
+            }
+        }
 
         val manifest = readObject(files, MANIFEST_PATH, issues) ?: return report(
             input = input,
@@ -90,6 +101,7 @@ class GkpV0PreflightValidator {
         val schemaVersion = manifest.stringOrNull("schema_version")
         val packId = manifest.stringOrNull("pack_id")
         val packVersion = manifest.stringOrNull("pack_version")
+        val coverageTier = manifest.stringOrNull("coverage_tier")
         val contentDigest = digestOrNull(files)
         val signature = validateSignature(manifest, issues)
         if (schemaVersion != SCHEMA_VERSION) {
@@ -104,6 +116,21 @@ class GkpV0PreflightValidator {
             ?: issue(GkpPreflightSeverity.Error, "missing_field", MANIFEST_PATH, "manifest 缺少 pack_id。")
         requireNonBlank(packVersion, "pack_version", MANIFEST_PATH, issues)
         requireIn(manifest.stringOrNull("trust_level"), TRUST_LEVELS, "trust_level", MANIFEST_PATH, issues)
+        coverageTier?.let { tier ->
+            if (tier !in COVERAGE_TIERS) {
+                issue(
+                    severity = GkpPreflightSeverity.Error,
+                    code = "invalid_coverage_tier",
+                    path = MANIFEST_PATH,
+                    message = "coverage_tier 必须是 ${COVERAGE_TIERS.joinToString()}。",
+                )
+            }
+        } ?: issue(
+            severity = GkpPreflightSeverity.Warning,
+            code = "missing_coverage_tier",
+            path = MANIFEST_PATH,
+            message = "manifest 建议声明 coverage_tier，便于按 Lite/expanded/deep profile 预检。",
+        )
 
         val game = manifest.objOrNull("game")
         val gameId = game?.stringOrNull("game_id")
@@ -130,6 +157,7 @@ class GkpV0PreflightValidator {
                 gameId = gameId,
                 gameTitle = gameTitle,
                 packVersion = packVersion,
+                coverageTier = coverageTier,
                 schemaVersion = schemaVersion,
                 licenseStatus = "未检查",
                 signatureStatus = signature.status.id,
@@ -286,10 +314,27 @@ class GkpV0PreflightValidator {
                 if (obj == null) {
                     issue(GkpPreflightSeverity.Error, "invalid_alias", path, "aliases 必须是对象数组。")
                 } else {
-                    requireNonBlank(obj.stringOrNull("term"), "alias.term", path, issues)
+                    val term = obj.stringOrNull("term")?.trim()
+                    requireNonBlank(term, "alias.term", path, issues)
                     val entityId = obj.stringOrNull("entity_id")
                     if (entityId == null || entityId !in entityIdSet) {
                         issue(GkpPreflightSeverity.Error, "unknown_entity", path, "alias.entity_id 必须指向已存在的 knowledge entity。")
+                    }
+                    val kind = obj.stringOrNull("kind")
+                    val source = obj.stringOrNull("source")
+                    obj.stringOrNull("kind")?.let { requireIn(it, ALIAS_KINDS, "alias.kind", path, issues) }
+                    obj.stringOrNull("source")?.let { requireIn(it, ALIAS_SOURCES, "alias.source", path, issues) }
+                    if (kind in ASR_ALIAS_KINDS || source == "observed_asr") {
+                        val canonicalTerm = obj.stringOrNull("canonical_term")?.trim()
+                        requireNonBlank(canonicalTerm, "alias.canonical_term", path, issues)
+                        if (!term.isNullOrBlank() && !canonicalTerm.isNullOrBlank() && term == canonicalTerm) {
+                            issue(
+                                GkpPreflightSeverity.Error,
+                                "invalid_value",
+                                path,
+                                "alias.canonical_term 不能和 alias.term 相同。",
+                            )
+                        }
                     }
                 }
             }
@@ -332,6 +377,7 @@ class GkpV0PreflightValidator {
             gameId = gameId,
             gameTitle = gameTitle,
             packVersion = packVersion,
+            coverageTier = coverageTier,
             schemaVersion = schemaVersion,
             knowledgeRows = knowledge.size,
             sourceCount = sourceIdSet.size,
@@ -497,6 +543,7 @@ class GkpV0PreflightValidator {
         gameId: String? = null,
         gameTitle: String? = null,
         packVersion: String? = null,
+        coverageTier: String? = null,
         schemaVersion: String? = null,
         knowledgeRows: Int = 0,
         sourceCount: Int = 0,
@@ -512,6 +559,7 @@ class GkpV0PreflightValidator {
         gameId = gameId,
         gameTitle = gameTitle,
         packVersion = packVersion,
+        coverageTier = coverageTier,
         schemaVersion = schemaVersion,
         knowledgeRows = knowledgeRows,
         sourceCount = sourceCount,
@@ -612,6 +660,7 @@ class GkpV0PreflightValidator {
         const val SCHEMA_VERSION = "gkp.v0"
         const val MANIFEST_PATH = "manifest.json"
         const val LICENSE_PATH = "sources/licenses.md"
+        const val SCAFFOLD_PLACEHOLDER = "__REPLACE_WITH_REVIEWED_GKP_DATA__"
 
         val JSON = Json {
             ignoreUnknownKeys = true
@@ -622,6 +671,10 @@ class GkpV0PreflightValidator {
         val SHA256_HEX_PATTERN = Regex("[a-fA-F0-9]{64}")
         val SIGNATURE_ALGORITHMS = setOf("ed25519")
         val TRUST_LEVELS = setOf("official", "community", "personal", "sample")
+        val ALIAS_KINDS = setOf("display_alias", "asr_variant", "observed_asr")
+        val ASR_ALIAS_KINDS = setOf("asr_variant", "observed_asr")
+        val ALIAS_SOURCES = setOf("official", "community", "generated_phonetic", "observed_asr", "manual_review")
+        val COVERAGE_TIERS = setOf("lite", "expanded", "deep")
         val SOURCE_KINDS = setOf(
             "manual",
             "official_site",

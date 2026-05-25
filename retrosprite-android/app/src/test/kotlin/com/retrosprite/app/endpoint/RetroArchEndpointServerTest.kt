@@ -3,6 +3,7 @@ package com.retrosprite.app.endpoint
 import com.retrosprite.app.endpoint.model.RetroArchResponse
 import com.retrosprite.app.endpoint.model.DebugHotkeyVoiceOverlayResponse
 import com.retrosprite.app.endpoint.model.DebugLatestRequestResponse
+import com.retrosprite.app.endpoint.model.ResponseDiagnostics
 import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
@@ -237,7 +238,10 @@ class RetroArchEndpointServerTest {
     fun `debug latest request returns latest diagnostic summary`() = testApplication {
         val logger = RequestLogger()
         val generator = ResponseGenerator { _, _ ->
-            RetroArchResponse.text("两个相同数字滑到一起会合并。\n来源：sample.2048.rules")
+            RetroArchResponse.text(
+                content = "两个相同数字滑到一起会合并。\n来源：本地知识",
+                diagnostics = ResponseDiagnostics(sourceIds = listOf("sample.2048.rules")),
+            )
         }
         application { retroArchModule(generator, logger) }
 
@@ -373,17 +377,26 @@ class RetroArchEndpointServerTest {
                 hotkeyVoiceOverlayDebugProvider = {
                     DebugHotkeyVoiceOverlayResponse(
                         lifecycle_phase = "finished",
+                        lifecycle_phase_label = "Finished",
                         is_active = false,
                         is_visible = false,
                         label = "mega_drive__光明力量2",
                         render_phase = "speaking",
+                        render_phase_label = "Answering",
+                        mic_live = false,
                         source_ids = listOf("sf2.manual_translation"),
-                        asr_architecture = "transducer",
-                        asr_decoding_method = "modified_beam_search",
-                        asr_modeling_unit = "cjkchar",
-                        asr_native_hotwords_enabled = true,
-                        asr_hotword_count = 160,
-                        asr_hotword_mode = "Auto",
+                        asr_architecture = "paraformer",
+                        asr_decoding_method = "greedy_search",
+                        asr_modeling_unit = null,
+                        asr_commit_reason = "soft_stop_after_silence_and_stable_partial",
+                        asr_last_partial = "修伊是谁",
+                        asr_final_text = "修伊是",
+                        asr_selected_transcript = "修伊是谁",
+                        asr_post_voice_silence_ms = 1_000L,
+                        asr_partial_stable_ms = 900L,
+                        asr_required_stable_ms = 650L,
+                        asr_endpoint_armed = true,
+                        asr_final_flush_ms = 2_000L,
                         started_at = 10_000L,
                         finished_at = 12_345L,
                         finish_reason = "answer_completed",
@@ -400,17 +413,26 @@ class RetroArchEndpointServerTest {
             resp.bodyAsText(),
         )
         assertEquals("finished", parsed.lifecycle_phase)
+        assertEquals("Finished", parsed.lifecycle_phase_label)
         assertEquals(false, parsed.is_active)
         assertEquals(false, parsed.is_visible)
         assertEquals("mega_drive__光明力量2", parsed.label)
         assertEquals("speaking", parsed.render_phase)
+        assertEquals("Answering", parsed.render_phase_label)
+        assertEquals(false, parsed.mic_live)
         assertEquals(listOf("sf2.manual_translation"), parsed.source_ids)
-        assertEquals("transducer", parsed.asr_architecture)
-        assertEquals("modified_beam_search", parsed.asr_decoding_method)
-        assertEquals("cjkchar", parsed.asr_modeling_unit)
-        assertEquals(true, parsed.asr_native_hotwords_enabled)
-        assertEquals(160, parsed.asr_hotword_count)
-        assertEquals("Auto", parsed.asr_hotword_mode)
+        assertEquals("paraformer", parsed.asr_architecture)
+        assertEquals("greedy_search", parsed.asr_decoding_method)
+        assertEquals(null, parsed.asr_modeling_unit)
+        assertEquals("soft_stop_after_silence_and_stable_partial", parsed.asr_commit_reason)
+        assertEquals("修伊是谁", parsed.asr_last_partial)
+        assertEquals("修伊是", parsed.asr_final_text)
+        assertEquals("修伊是谁", parsed.asr_selected_transcript)
+        assertEquals(1_000L, parsed.asr_post_voice_silence_ms)
+        assertEquals(900L, parsed.asr_partial_stable_ms)
+        assertEquals(650L, parsed.asr_required_stable_ms)
+        assertEquals(true, parsed.asr_endpoint_armed)
+        assertEquals(2_000L, parsed.asr_final_flush_ms)
         assertEquals(12_345L, parsed.finished_at)
         assertEquals("answer_completed", parsed.finish_reason)
     }

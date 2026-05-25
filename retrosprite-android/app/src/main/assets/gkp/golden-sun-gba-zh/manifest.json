@@ -1,7 +1,7 @@
 {
   "schema_version": "gkp.v0",
   "pack_id": "community.golden-sun-gba-zh",
-  "pack_version": "0.1.1",
+  "pack_version": "0.1.2",
   "coverage_tier": "lite",
   "default_language": "zh",
   "game": {
@@ -11,7 +11,19 @@
     "region": null,
     "languages": ["zh"],
     "retroarch_system_ids": ["gba", "game_boy_advance"],
-    "retroarch_labels": ["gba__Golden Sun", "gba__黄金太阳"],
+    "retroarch_labels": [
+      "gba__Golden Sun",
+      "game_boy_advance__Golden Sun",
+      "gba__Golden_Sun",
+      "gba__Golden Sun (USA)",
+      "gba__Golden Sun (Japan)",
+      "gba__Golden Sun (Rev 1)",
+      "gba__Golden Sun [!]",
+      "gba__黄金太阳",
+      "game_boy_advance__黄金太阳",
+      "gba__黄金太阳-开启的封印",
+      "gba__黄金太阳 开启的封印"
+    ],
     "rom_identity": {
       "crc32": null,
       "sha1": null

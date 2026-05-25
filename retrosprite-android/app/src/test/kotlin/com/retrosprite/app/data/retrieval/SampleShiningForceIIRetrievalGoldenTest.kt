@@ -3,6 +3,7 @@ package com.retrosprite.app.data.retrieval
 import com.retrosprite.app.data.gkp.GkpV0Parser
 import com.retrosprite.app.data.models.KnowledgeChunkDomain
 import com.retrosprite.app.data.repository.KnowledgeRepository
+import com.retrosprite.app.domain.models.AnswerType
 import com.retrosprite.app.domain.models.RetrievalQuery
 import com.retrosprite.app.domain.models.SpoilerLevel
 import com.retrosprite.app.domain.normalization.GameTermNormalizer
@@ -136,6 +137,40 @@ class SampleShiningForceIIRetrievalGoldenTest {
         }
     }
 
+    @Test
+    fun `sample shining force ii identity variants keep game overview type`() = runTest {
+        val fixture = loadPack()
+        val pipeline = LocalKnowledgeRetrievalPipeline(FixtureKnowledgeRepository(fixture.knowledge))
+
+        listOf(
+            "这是什么游戏",
+            "这个游戏是什么",
+            "光明力量2是什么游戏",
+            "Shining Force II 是什么游戏",
+        ).forEach { question ->
+            val normalized = GameTermNormalizer()
+                .normalize(pipeline.normalizeQuestion(question, "zh"), fixture.knowledge)
+                .normalizedQuestion
+            val results = pipeline.retrieve(
+                RetrievalQuery(
+                    gameId = "shining_force_ii_md",
+                    normalizedQuery = normalized,
+                    language = "zh",
+                    progressGate = "start",
+                    spoilerLevel = SpoilerLevel.LIGHT,
+                    limit = 5,
+                )
+            )
+            val identity = results.firstOrNull { it.entityId == "note.game-identity" }
+
+            assertTrue(
+                "question=<$question> normalized=<$normalized> got ${results.map { it.entityId }}",
+                identity != null,
+            )
+            assertEquals("question=<$question>", AnswerType.GameOverview, identity?.answerType)
+        }
+    }
+
     private data class PackFixture(
         val packDir: Path,
         val knowledge: List<KnowledgeChunkDomain>,
@@ -204,7 +239,10 @@ class SampleShiningForceIIRetrievalGoldenTest {
         val parser = GkpV0Parser(nowMillis = { 0L })
         val knowledgeFiles = parser.knowledgePaths(manifestText)
             .associateWith { relative -> readText(packDir.resolve(relative)) }
-        val parsed = parser.parse(manifestText, knowledgeFiles)
+        val aliasFiles = parser.aliasPath(manifestText)
+            ?.let { relative -> mapOf(relative to readText(packDir.resolve(relative))) }
+            .orEmpty()
+        val parsed = parser.parse(manifestText, knowledgeFiles, aliasFiles)
         return PackFixture(packDir = packDir, knowledge = parsed.knowledge)
     }
 

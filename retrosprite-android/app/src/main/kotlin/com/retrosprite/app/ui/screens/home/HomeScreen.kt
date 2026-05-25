@@ -1261,9 +1261,9 @@ private fun ConversationTrayBox(
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis
                         )
-                        if (turn.result.sourceIds.isNotEmpty()) {
+                        displaySourceNotice(turn.result.sourceIds)?.let { sourceNotice ->
                             Text(
-                                text = "来源：${turn.result.sourceIds.joinToString(", ")}",
+                                text = sourceNotice,
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,
@@ -1452,9 +1452,9 @@ private fun RetroArchContextBox(
                     modifier = Modifier.testTag("home_gkp_disabled_notice")
                 )
             }
-            if (context.sourceIds.isNotEmpty()) {
+            displaySourceNotice(context.sourceIds)?.let { sourceNotice ->
                 Text(
-                    text = "\u6765\u6e90\uff1a${context.sourceIds.joinToString(", ")}",
+                    text = sourceNotice,
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
@@ -1556,7 +1556,7 @@ private fun QuestionResultBox(
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(
-                text = if (result.ok) "ANSWER" else "ERROR",
+                text = if (result.ok) "回答" else "错误",
                 style = MaterialTheme.typography.labelSmall,
                 color = if (result.ok) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
             )
@@ -1584,9 +1584,9 @@ private fun QuestionResultBox(
                 result = result,
                 onNavigateToTarget = onNavigateToTarget,
             )
-            if (result.sourceIds.isNotEmpty()) {
+            displaySourceNotice(result.sourceIds)?.let { sourceNotice ->
                 Text(
-                    text = "\u6765\u6e90\uff1a${result.sourceIds.joinToString(", ")}",
+                    text = sourceNotice,
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -2047,10 +2047,10 @@ private fun UiEndpointStatus.subhead(): String = when (phase) {
 }
 
 private fun UiEndpointStatus.statusChipLabel(): String = when (phase) {
-    UiEndpointPhase.Running -> "RUNNING : ${port}"
-    UiEndpointPhase.Starting -> "STARTING"
-    UiEndpointPhase.Stopped -> "STOPPED"
-    UiEndpointPhase.Error -> "ERROR"
+    UiEndpointPhase.Running -> "运行中 : ${port}"
+    UiEndpointPhase.Starting -> "启动中"
+    UiEndpointPhase.Stopped -> "已停止"
+    UiEndpointPhase.Error -> "错误"
 }
 
 private fun relTime(ts: Long): String {
@@ -2084,6 +2084,16 @@ private fun String.displayNameForQuestionSource(): String = when (this) {
     "pending_hotkey" -> "Pending hotkey"
     "retroarch" -> "RetroArch 提问"
     else -> this
+}
+
+private fun displaySourceNotice(sourceIds: List<String>): String? {
+    val count = sourceIds
+        .map { it.trim() }
+        .filter { it.isNotEmpty() }
+        .distinct()
+        .size
+    if (count == 0) return null
+    return if (count == 1) "来源：本地知识" else "来源：本地知识（$count 条）"
 }
 
 @Preview(

@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Added regression coverage for existing scoped `observed_asr` aliases around 组合技.
+- Added voice-like golden questions covering current-game ASR normalization.
+
+## 0.1.1 - 2026-05-24
+
+- Added the runtime wording variant “组合技要不要一开始研究” to the combination-attack template so natural Chinese phrasing resolves locally.
+
 ## 0.1.0 - 2026-05-24
 
 - Coverage tier: `lite`.

@@ -1,210 +1,359 @@
 # RetroSprite
 
-[中文说明](./README.zh-CN.md) | English
+中文（默认） | [English](./README.en.md)
 
-RetroSprite is an Android companion for RetroArch that lets a player press the
-RetroArch AI Service hotkey, ask a short in-game question, and receive a
-low-spoiler answer grounded in local Game Knowledge Packs.
-
-The project is currently focused on a local-first, evidence-first loop:
-
-```text
-RetroArch AI Service hotkey
-  -> RetroSprite localhost endpoint
-  -> short in-game voice overlay
-  -> local sherpa-onnx Paraformer ASR
-  -> GKP resolver + local retrieval + AnswerPolicy
-  -> short answer + Android TTS
-```
-
-External LLMs are optional BYOK composers. They are not the default fact source
-and are skipped when local evidence is missing, disabled, or over the selected
-spoiler level.
-
-The next development direction is **GKP Lite plus optional BYOK LLM assistance**:
-each game's first support package should be a lightweight, source-cited,
-testable knowledge anchor rather than a complete walkthrough. When enabled by
-the player, an LLM can improve query understanding, cross-language mapping,
-evidence synthesis, translation, and phrasing, but it must not bare-answer
-game-specific facts without local evidence.
-
-## Current Status
-
-RetroSprite is in the M10/M11 track: Hotkey Voice Overlay plus Zero-LLM GKP.
-
-### Supported Games
-
-RetroSprite currently supports exactly **six** bundled real games:
-
-- **Shining Force II / 光明力量2** (Sega Mega Drive / Genesis) —
-  `community.shining-force-ii-md`
-- **Golden Sun / 黄金太阳** (Game Boy Advance) —
-  `community.golden-sun-gba-zh`
-- **Phantasy Star IV / 梦幻之星 IV** (Sega Mega Drive / Genesis) —
-  `community.phantasy-star-iv-md-zh`
-- **Langrisser II / 梦幻模拟战 II** (Sega Mega Drive / Genesis) —
-  `community.langrisser-ii-md-zh`
-- **Chrono Trigger / 时空之轮** (Super Nintendo / Super Famicom) —
-  `community.chrono-trigger-snes-zh`
-- **Final Fantasy VI / 最终幻想 VI** (Super Nintendo / Super Famicom) —
-  `community.final-fantasy-vi-snes-zh`
-
-This is the full current game support surface. The former `sample-2048` and
-`sample-relay-station` demo packs have been removed from bundled assets; smoke
-checks should use real GKP packs.
-
-Implemented pieces include:
-
-- Android app in Kotlin with Jetpack Compose and Material 3.
-- Foreground-service-hosted Ktor endpoint bound to `127.0.0.1:4404`.
-- RetroArch-compatible `POST /?output=text`, `GET /health`,
-  `POST /debug/ask`, and `GET /debug/latest-request` routes.
-- Hotkey-triggered overlay flow using Android overlay permission, one-shot
-  local ASR, GKP answer generation, request logging, and short-answer TTS.
-- Local Room database with request logs, games, knowledge rows, GKP metadata,
-  enable/disable state, and migration schemas.
-- Game Knowledge Pack v0 parser, bundled importer, external-pack preflight,
-  install/replace confirmation, and Packs management UI.
-- Six bundled real GKP packs: `community.shining-force-ii-md` plus five Retro
-  JRPG/SRPG Chinese Lite packs.
-- Local retrieval through template, alias/entity, and FTS-style matching with
-  spoiler gating and source IDs.
-- Settings for RetroArch setup guidance, endpoint port, overlay permission,
-  default spoiler level, and BYOK OpenAI-compatible/DeepSeek LLM config.
-- Diagnostics surfaces for request source, pipeline stage, LLM status, latency,
-  token budget, feedback, and latest request replay.
-
-## Repository Layout
+RetroSprite 是一个面向 **RetroArch** 的 Android 游戏内 AI 问答伙伴。玩家在
+RetroArch 中按下 AI Service 热键后，可以直接用语音询问当前游戏里的问题，
+RetroSprite 会优先基于本地 Game Knowledge Pack（GKP）给出短、准、低剧透、
+可追溯来源的回答。
 
 ```text
-.
-├── retrosprite-android/        # Main Android application
-│   ├── app/src/main/kotlin/    # Kotlin source
-│   ├── app/src/main/assets/    # Bundled GKP + local ASR model assets
-│   ├── app/src/test/           # JVM unit tests
-│   ├── app/src/androidTest/    # Instrumented Android and Compose tests
-│   ├── docs/                   # Protocol, GKP, setup, QA, and planning docs
-│   └── scripts/                # Endpoint and AVD/device smoke scripts
-├── RetroSprite_Development_Plan.md
-├── README_AI_SERVICE_RESEARCH.md
-└── RetroArch_AI_Service_Protocol_Specification.txt
+RetroArch AI Service 热键
+  -> RetroSprite 本地 endpoint
+  -> 游戏内短时语音 overlay
+  -> 本地 sherpa-onnx Paraformer ASR
+  -> 当前游戏 GKP / 本地检索 / AnswerPolicy
+  -> 短答案 + Android TTS 朗读
 ```
 
-The most detailed Android-specific guide lives in
-[`retrosprite-android/README.md`](./retrosprite-android/README.md).
+RetroSprite 的默认路线是 **本地优先、证据优先、低剧透优先**。外部 LLM 是可选的
+BYOK 增强层，不是默认事实来源；没有本地证据、知识包被禁用、证据超过当前剧透级别时，
+RetroSprite 不会让 LLM 裸答。
 
-## Quick Start
+## 当前版本状态
 
-Requirements:
+RetroSprite 当前处在发布前最后测试阶段：Hotkey Voice Overlay + 本地 GKP 问答主路径已接通，
+重点验证真实 RetroArch 热键、语音识别、GKP 命中、短答 TTS、Diagnostics 和六个内置游戏包。
 
-- Android Studio or a local Android SDK.
-- JDK 17. Android Studio's bundled JBR is a safe default.
-- A device or emulator running Android API 26+.
-- RetroArch Android with AI Service enabled for the full hotkey path.
+这仍是 preview 阶段，不是“支持所有游戏”的通用攻略机器人。当前 APK 面向测试、演示和早期反馈；
+正式使用前请先确认你的游戏属于下方支持列表。
 
-Build the debug APK:
+## 当前支持的游戏
+
+RetroSprite 目前只内置支持 **6 个真实游戏**：
+
+| 游戏 | 平台 | GKP 包 |
+| --- | --- | --- |
+| **Shining Force II / 光明力量2** | Sega Mega Drive / Genesis | `community.shining-force-ii-md` |
+| **Golden Sun / 黄金太阳** | Game Boy Advance | `community.golden-sun-gba-zh` |
+| **Phantasy Star IV / 梦幻之星 IV** | Sega Mega Drive / Genesis | `community.phantasy-star-iv-md-zh` |
+| **Langrisser II / 梦幻模拟战 II** | Sega Mega Drive / Genesis | `community.langrisser-ii-md-zh` |
+| **Chrono Trigger / 时空之轮** | Super Nintendo / Super Famicom | `community.chrono-trigger-snes-zh` |
+| **Final Fantasy VI / 最终幻想 VI** | Super Nintendo / Super Famicom | `community.final-fantasy-vi-snes-zh` |
+
+这是当前完整的正式游戏支持范围。此前的 `sample-2048` 和 `sample-relay-station`
+演示包已从 bundled assets 移除；开发和冒烟测试也应使用真实 GKP。
+
+## 适合谁使用
+
+- 你在 Android 设备上使用 RetroArch，并愿意通过 AI Service 热键触发问答。
+- 你正在玩上方 6 个支持游戏之一。
+- 你希望得到短答案、轻提示、低剧透建议，而不是整段攻略搬运。
+- 你希望默认离线、本地优先，不把游戏问题直接交给云端模型猜。
+- 你愿意接受 preview 阶段的限制，并反馈识别错误、无答案问题和不准确来源。
+
+## 主要功能
+
+- **RetroArch AI Service 集成**：使用 RetroArch 官方 AI Service 热键作为游戏内触发入口。
+- **本地 HTTP endpoint**：Android 前台服务默认监听 `127.0.0.1:4404`。
+- **游戏内语音 overlay**：按热键后显示短时语音波形，收集一个问题。
+- **本地 ASR**：使用 sherpa-onnx Paraformer 模型进行本地中文/英文语音识别。
+- **当前游戏 GKP 检索**：按 RetroArch label、游戏标题、平台和启用状态解析当前知识包。
+- **低剧透回答策略**：默认轻提示，可通过追问升级为更明确或直接答案。
+- **来源与诊断**：回答保留 source id，Diagnostics 可查看 pipeline stage、LLM 状态、耗时和最新请求。
+- **可选 BYOK LLM**：支持 OpenAI-compatible / DeepSeek 配置，但只作为有证据时的表达和综合增强。
+- **Packs 管理**：内置 GKP 自动导入，外部 GKP 支持预检、安装、覆盖、启用/禁用和删除确认。
+
+## 安装
+
+### 1. 准备环境
+
+- Android 8.0+（API 26+）设备或模拟器。
+- 已安装 RetroArch Android，并能正常载入游戏。
+- 如果要走完整热键体验，需要 RetroArch 版本带有 **AI Service** 设置。
+- 推荐使用手柄、掌机实体键或外接键盘绑定 AI Service 热键。
+
+### 2. 下载 APK
+
+从 GitHub Releases 下载最新的 RetroSprite preview APK：
+
+[https://github.com/MightyKartz/RetroSprite/releases](https://github.com/MightyKartz/RetroSprite/releases)
+
+当前 preview APK 是 debug-signed，用于测试和预览分发，不是 Play Store 或生产签名版本。
+
+### 3. 安装 APK
+
+在 Android 设备上安装下载的 APK：
 
 ```bash
-cd retrosprite-android
-./gradlew assembleDebug
+adb install -r app-debug.apk
 ```
 
-Install it:
+也可以直接在设备上打开 APK 安装。若系统提示“安装未知来源应用”，请按 Android 系统提示为当前文件管理器或浏览器授予安装权限。
 
-```bash
-adb install -r app/build/outputs/apk/debug/app-debug.apk
-```
+### 4. 首次启动权限
 
-For host-side endpoint testing against a running device app:
+首次启动 RetroSprite 后，建议按提示授予：
 
-```bash
-adb forward tcp:4404 tcp:4404
-./scripts/test_endpoint.sh
-```
+- **麦克风权限**：用于热键后的本地语音提问。
+- **显示在其他应用上层**：用于在 RetroArch 游戏画面上显示短时语音波形和回答 HUD。
+- **通知/前台服务权限**：用于保持本地 endpoint 运行。
 
-For the fuller AVD/device smoke:
+RetroSprite 不需要修改 RetroArch core，不需要广泛存储权限，也不会自动改写 `retroarch.cfg`。
 
-```bash
-./scripts/android_avd_smoke.sh
-```
+## RetroArch 配置
 
-## RetroArch Setup
-
-In RetroArch Android, open:
+在 RetroArch Android 中打开：
 
 ```text
 Settings -> Accessibility -> AI Service
 ```
 
-Use RetroSprite's default endpoint:
+推荐配置：
+
+| RetroArch 字段 | 推荐值 |
+| --- | --- |
+| AI Service | `ON` |
+| AI Service URL | `http://localhost:4404` |
+| AI Service Output | `Narrator Mode` / 旁白模式 |
+| Pause During Translation | `ON` |
+
+然后进入：
 
 ```text
-http://localhost:4404
+Settings -> Input -> Hotkeys -> AI Service
 ```
 
-Then bind and press the RetroArch AI Service hotkey. RetroSprite treats that
-hotkey as a wake signal, shows a short overlay, records one local question, and
-answers through the same GKP/evidence pipeline used by app-side text questions.
+绑定一个你在游戏中容易按到的热键。掌机/手柄上推荐使用不容易误触的组合键，例如
+`Select + Start` 或你自己熟悉的快捷键。
 
-Full setup and troubleshooting are documented in
-[`retrosprite-android/docs/RETROARCH_SETUP.md`](./retrosprite-android/docs/RETROARCH_SETUP.md).
+## 快速使用
 
-## Development
+1. 打开 RetroSprite，确认 Home 页显示本地 endpoint 正在运行。
+2. 打开 RetroArch，载入当前支持的 6 个游戏之一。
+3. 按下你在 RetroArch 中绑定的 AI Service 热键。
+4. 看到 RetroSprite 语音波形后，说一个短问题。
+5. RetroSprite 会用本地 ASR 识别问题，并从当前游戏 GKP 中检索证据。
+6. 如果命中本地证据，会在游戏内显示短回答并通过 Android TTS 朗读。
+7. 如果没有可靠证据，会说明暂时不能可靠回答，而不是猜测。
 
-Run JVM tests:
+适合的提问方式：
+
+- `修伊怎么用？`
+- `角色什么时候转职？`
+- `黄金太阳刚开始练谁？`
+- `梦幻模拟战 II 转职怎么选？`
+- `克拉肯怎么过？`
+- `不要剧透，下一步去哪？`
+- `直接告诉我具体位置。`
+
+建议一次只问一个短问题。当前版本更擅长角色、道具、路线、战斗、转职、地点和低剧透下一步提示。
+
+## App 内页面说明
+
+- **Home**：查看 endpoint 状态，发起文字问题，准备/调试热键问题，查看最近上下文。
+- **Packs**：查看已导入 GKP、启用/禁用知识包、预检和安装外部 GKP。
+- **Settings**：查看 RetroArch 设置助手、端口、overlay 权限、默认剧透级别、LLM provider 配置。
+- **Diagnostics**：查看最新请求、pipeline stage、source ids、LLM 状态、延迟、反馈和错误信息。
+
+## GKP 是什么
+
+GKP（Game Knowledge Pack）是 RetroSprite 的本地游戏知识包。它不是 ROM，也不是商业攻略书复制；
+它是一组可检索、可测试、可标注来源和剧透等级的结构化知识文件。
+
+一个 GKP 通常包含：
+
+```text
+manifest.json
+aliases.json
+knowledge/*.jsonl
+sources/citations.jsonl
+sources/licenses.md
+spoiler_graph.json
+qa_goldens.jsonl
+changelog.md
+```
+
+RetroSprite 会按当前游戏解析 GKP，只检索对应游戏的本地知识，并根据剧透级别选择回答内容。
+
+## LLM 与隐私
+
+默认情况下，RetroSprite 的回答路径不需要外部 LLM：
+
+- 本地 ASR 识别语音。
+- 本地 GKP 提供事实和来源。
+- 本地检索和 AnswerPolicy 决定是否回答、如何低剧透回答。
+- 没有 evidence 时不调用 LLM 裸答。
+
+如果你在 Settings 中配置 BYOK LLM provider，LLM 只用于有本地证据时的综合、翻译、改写或表达润色。
+请不要把它理解为实时联网搜索或万能攻略库。
+
+RetroSprite 默认 endpoint 绑定在 `127.0.0.1`，也就是本机 loopback。请求日志保存在本机 Room 数据库中，
+可通过 Diagnostics 查看和清理。
+
+## 常见问题
+
+### RetroArch 按热键后没有反应
+
+- 确认 RetroSprite Home 页 endpoint 正在运行。
+- 确认 RetroArch 的 AI Service 已开启。
+- 确认 AI Service URL 是 `http://localhost:4404`。
+- 确认热键已绑定，并且当前设备/手柄能触发该热键。
+- 在开发机上可用 `adb forward tcp:18080 tcp:4404` 后访问 `/health` 验证 endpoint。
+
+### 有波形但没有答案
+
+- 确认已授予麦克风权限。
+- 尽量使用短句提问。
+- 在 RetroArch 中打开 `Pause During Translation`，减少游戏 BGM 干扰。
+- 到 Diagnostics 查看 `raw_question`、`normalized_question`、`pipeline_stage` 和 `source_ids`。
+
+### 回答说没有可靠证据
+
+- 当前游戏可能不在 6 个支持列表中。
+- 当前问题可能超出 GKP Lite 覆盖范围。
+- 当前 GKP 可能被禁用。
+- 问题可能需要更明确的角色、道具、地点、章节或目标。
+
+### 支持其他游戏吗
+
+当前正式支持范围只有 README 中列出的 6 个游戏。其它游戏可能会被 RetroArch 触发到 endpoint，
+但不会有可靠 GKP 证据，因此不应期待稳定回答。
+
+### APK 为什么要 clean build
+
+改过 ASR 模型或大 asset 后，Gradle/ZIP 增量打包可能留下异常旧产物空洞，导致 APK 体积虚高。
+发布或测试前建议使用 clean build：
 
 ```bash
 cd retrosprite-android
-./gradlew testDebugUnitTest
+JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home" ./gradlew :app:clean :app:testDebugUnitTest :app:assembleDebug
 ```
 
-Run instrumented tests on a connected device or emulator:
+## 开发者构建
+
+环境要求：
+
+- Android Studio 或本地 Android SDK。
+- JDK 17，推荐使用 Android Studio 自带 JBR。
+- Android API 26+ 的设备或模拟器。
+
+构建 Debug APK：
 
 ```bash
 cd retrosprite-android
-./gradlew connectedDebugAndroidTest
+JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home" ./gradlew :app:clean :app:assembleDebug
 ```
 
-Useful documentation:
+运行 JVM 单元测试：
 
-- [`retrosprite-android/docs/GKP_V0_SCHEMA.md`](./retrosprite-android/docs/GKP_V0_SCHEMA.md)
-- [`retrosprite-android/docs/GKP_LITE_OPTIONAL_LLM_DIRECTION.md`](./retrosprite-android/docs/GKP_LITE_OPTIONAL_LLM_DIRECTION.md)
-- [`retrosprite-android/docs/REAL_GAME_GKP_EXPANSION_TEMPLATE.md`](./retrosprite-android/docs/REAL_GAME_GKP_EXPANSION_TEMPLATE.md)
-- [`retrosprite-android/docs/PROTOCOL_REFERENCE.md`](./retrosprite-android/docs/PROTOCOL_REFERENCE.md)
-- [`retrosprite-android/docs/TEST_COVERAGE.md`](./retrosprite-android/docs/TEST_COVERAGE.md)
-- [`retrosprite-android/docs/NEXT_IMPLEMENTATION_PLAN.md`](./retrosprite-android/docs/NEXT_IMPLEMENTATION_PLAN.md)
+```bash
+cd retrosprite-android
+JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home" ./gradlew :app:testDebugUnitTest
+```
 
-## Design Boundaries
+运行发布前推荐检查：
 
-RetroSprite deliberately avoids several tempting shortcuts:
+```bash
+cd retrosprite-android
+JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home" ./gradlew :app:clean :app:testDebugUnitTest :app:assembleDebug
+```
 
-- No RetroArch core modifications.
-- No continuous screen capture through MediaProjection.
-- No Accessibility Service as the main integration path.
-- No broad storage permission or automatic `retroarch.cfg` rewriting.
-- No ROMs, commercial guide text, executable code, or long copyrighted excerpts
-  inside GKP content.
-- No LLM bare-answer fallback when local evidence is unavailable.
+安装到连接设备：
 
-## License
+```bash
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+```
 
-RetroSprite's project license is TBD.
+Host 侧 endpoint 验证：
 
-### Third-Party Notices
+```bash
+adb forward tcp:18080 tcp:4404
+curl -fsS http://127.0.0.1:18080/health
+```
 
-RetroSprite uses and may bundle third-party open-source ASR components:
+Debug 问答示例：
 
-- `sherpa-onnx` by k2-fsa for local offline speech recognition.
-  Source: <https://github.com/k2-fsa/sherpa-onnx>
-  License: Apache License 2.0.
-- `csukuangfj/streaming-paraformer-zh` ONNX Paraformer model files for
-  local Chinese ASR.
-  Source: <https://huggingface.co/csukuangfj/streaming-paraformer-zh>
-  License: Apache License 2.0.
-- The Paraformer model is converted from the ModelScope Paraformer ASR model.
-  Source:
-  <https://modelscope.cn/models/iic/speech_paraformer-large_asr_nat-zh-cn-16k-common-vocab8404-online-onnx>
-  License: Apache License 2.0.
+```bash
+curl -fsS -X POST 'http://127.0.0.1:18080/debug/ask?output=text' \
+  -H 'Content-Type: application/json' \
+  --data '{"label":"mega_drive__光明力量2","question":"角色什么时候转职？","spoiler_level":"light","state":{}}'
+```
 
-Apache-2.0 permits commercial use, modification, and redistribution, provided
-the applicable license and attribution notices are preserved.
+完整 AVD/真机 smoke：
+
+```bash
+cd retrosprite-android
+./scripts/android_avd_smoke.sh
+```
+
+## 仓库结构
+
+```text
+.
+├── README.md                       # 默认中文首页
+├── README.en.md                    # 英文版 README
+├── retrosprite-android/            # Android 主应用
+│   ├── app/src/main/kotlin/        # Kotlin 源码
+│   ├── app/src/main/assets/        # 内置 GKP + 本地 ASR 模型资源
+│   ├── app/src/test/               # JVM 单元测试
+│   ├── app/src/androidTest/        # Android / Compose 集成测试
+│   ├── docs/                       # 协议、GKP、设置、测试和计划文档
+│   └── scripts/                    # endpoint、AVD、真机 smoke 脚本
+├── tools/gkp-builder/              # GKP Lite 生成工具与模板
+├── RetroSprite_Development_Plan.md
+├── README_AI_SERVICE_RESEARCH.md
+└── RetroArch_AI_Service_Protocol_Specification.txt
+```
+
+## 关键文档
+
+- [Android App 详细说明](./retrosprite-android/README.md)
+- [RetroArch AI Service 配置指南](./retrosprite-android/docs/RETROARCH_SETUP.md)
+- [架构与产品层级](./retrosprite-android/docs/ARCHITECTURE_AND_PRODUCT_TIERS.md)
+- [GKP v0 Schema](./retrosprite-android/docs/GKP_V0_SCHEMA.md)
+- [GKP Lite + 可选 LLM 方向](./retrosprite-android/docs/GKP_LITE_OPTIONAL_LLM_DIRECTION.md)
+- [真实游戏 GKP Lite 生产模板](./retrosprite-android/docs/REAL_GAME_GKP_EXPANSION_TEMPLATE.md)
+- [RetroArch AI Service 协议参考](./retrosprite-android/docs/PROTOCOL_REFERENCE.md)
+- [测试覆盖说明](./retrosprite-android/docs/TEST_COVERAGE.md)
+
+## 设计边界
+
+RetroSprite 明确避免这些路径：
+
+- 不修改 RetroArch core。
+- 不用 MediaProjection 做连续屏幕捕获。
+- 不把 Accessibility Service 作为主集成路径。
+- 不申请广泛存储权限，也不自动改写 `retroarch.cfg`。
+- GKP 不包含 ROM、商业攻略书原文、可执行代码或长篇受版权保护文本。
+- 没有本地证据时，不让 LLM 裸答。
+- 不在问答产品可靠之前做 AI 自动游玩、存档/读档、自动输入控制。
+
+## 已知限制
+
+- 当前只支持 6 个内置真实游戏。
+- 5 个 Retro JRPG/SRPG 包是 GKP Lite，不是完整攻略包。
+- 语音识别会受环境噪声、BGM、发音、设备麦克风影响。
+- 热键语音主路径需要 RetroArch AI Service 正确配置。
+- 当前 APK 是 preview/debug-signed 构建，不是生产签名发行版。
+
+## 许可证与第三方声明
+
+RetroSprite 项目自身许可证暂未确定。
+
+RetroSprite 使用并可能随 APK 打包以下第三方开源 ASR 组件：
+
+- `sherpa-onnx`，由 k2-fsa 提供，用于本地离线语音识别。
+  来源：<https://github.com/k2-fsa/sherpa-onnx>
+  许可证：Apache License 2.0。
+- `csukuangfj/sherpa-onnx-streaming-paraformer-bilingual-zh-en` ONNX Paraformer int8 模型文件，
+  用于本地中英 ASR。
+  来源：<https://huggingface.co/csukuangfj/sherpa-onnx-streaming-paraformer-bilingual-zh-en>
+  Release 包：<https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-paraformer-bilingual-zh-en.tar.bz2>
+  许可证：Apache License 2.0。
+
+Apache-2.0 允许商业使用、修改和再分发，但需要保留相应许可证和归属声明。
+
+## English
+
+The English README is available here: [README.en.md](./README.en.md).

@@ -15,76 +15,44 @@ internal object SherpaOnnxRecognizerFactory {
     fun create(
         assetManager: AssetManager,
         model: SherpaOnnxAsrModel,
-        hotwordsFile: String? = null,
-        hotwordsScore: Float = DEFAULT_HOTWORDS_SCORE,
-        enableHotwords: Boolean = !hotwordsFile.isNullOrBlank(),
     ): OnlineRecognizer =
         OnlineRecognizer(
             assetManager = assetManager,
-            config = createConfig(
-                model = model,
-                hotwordsFile = hotwordsFile,
-                hotwordsScore = hotwordsScore,
-                enableHotwords = enableHotwords,
-            ),
+            config = createConfig(model = model),
         )
 
-    fun createConfig(
-        model: SherpaOnnxAsrModel,
-        hotwordsFile: String? = null,
-        hotwordsScore: Float = DEFAULT_HOTWORDS_SCORE,
-        enableHotwords: Boolean = !hotwordsFile.isNullOrBlank(),
-    ): OnlineRecognizerConfig {
-        val effectiveHotwords = enableHotwords && model.supportsHotwords
-        return OnlineRecognizerConfig(
-            decodingMethod = if (effectiveHotwords) "modified_beam_search" else "greedy_search",
-            maxActivePaths = if (effectiveHotwords) HOTWORD_MAX_ACTIVE_PATHS else DEFAULT_MAX_ACTIVE_PATHS,
-            hotwordsFile = hotwordsFile.takeIf { effectiveHotwords }.orEmpty(),
-            hotwordsScore = if (effectiveHotwords) hotwordsScore else 0.0f,
+    fun createConfig(model: SherpaOnnxAsrModel): OnlineRecognizerConfig =
+        OnlineRecognizerConfig(
+            decodingMethod = "greedy_search",
+            maxActivePaths = DEFAULT_MAX_ACTIVE_PATHS,
+            hotwordsFile = "",
+            hotwordsScore = 0.0f,
             featConfig = FeatureConfig(
                 sampleRate = model.sampleRateHz,
                 featureDim = model.featureDim,
             ),
             modelConfig = OnlineModelConfig(
-                transducer = model.transducerConfig(),
-                paraformer = model.paraformerConfig(),
+                // sherpa's OnlineModelConfig keeps a transducer slot even for
+                // Paraformer models. Leave it empty; RetroSprite's product ASR
+                // path is Paraformer-only and has no native-hotword runtime.
+                transducer = OnlineTransducerModelConfig(),
+                paraformer = OnlineParaformerModelConfig(
+                    encoder = model.encoderAsset,
+                    decoder = model.decoderAsset,
+                ),
                 tokens = model.tokensAsset,
                 numThreads = model.numThreads,
                 provider = "cpu",
                 modelType = model.modelType,
-                modelingUnit = if (effectiveHotwords) "cjkchar" else "",
+                modelingUnit = "",
             ),
             endpointConfig = EndpointConfig(
                 rule1 = EndpointRule(false, 2.4f, 0.0f),
-                rule2 = EndpointRule(true, 1.4f, 0.0f),
+                rule2 = EndpointRule(true, 2.8f, 0.0f),
                 rule3 = EndpointRule(false, 0.0f, 20.0f),
             ),
             enableEndpoint = true,
         )
-    }
 
     private const val DEFAULT_MAX_ACTIVE_PATHS = 4
-    private const val HOTWORD_MAX_ACTIVE_PATHS = 8
-    private const val DEFAULT_HOTWORDS_SCORE = 4.0f
 }
-
-private fun SherpaOnnxAsrModel.transducerConfig(): OnlineTransducerModelConfig =
-    if (architecture == SherpaOnnxAsrModel.Architecture.Transducer) {
-        OnlineTransducerModelConfig(
-            encoder = encoderAsset,
-            decoder = decoderAsset,
-            joiner = joinerAsset.orEmpty(),
-        )
-    } else {
-        OnlineTransducerModelConfig()
-    }
-
-private fun SherpaOnnxAsrModel.paraformerConfig(): OnlineParaformerModelConfig =
-    if (architecture == SherpaOnnxAsrModel.Architecture.Paraformer) {
-        OnlineParaformerModelConfig(
-            encoder = encoderAsset,
-            decoder = decoderAsset,
-        )
-    } else {
-        OnlineParaformerModelConfig()
-    }

@@ -35,11 +35,12 @@ class RetroJrpgSrpgPackCoverageTest {
 
             val manifest = readObject(packDir.resolve("manifest.json"))
             assertEquals("pack_id must end with -zh", true, manifest.string("pack_id").endsWith("-zh"))
-            manifest.stringOrNull("coverage_tier")?.let { tier ->
-                assertEquals("coverage_tier for ${pack.slug}", "lite", tier)
-            } ?: println("WARNING: ${pack.slug} missing coverage_tier; schema support may be pending.")
+            assertEquals("coverage_tier for ${pack.slug}", "lite", manifest.string("coverage_tier"))
             assertEquals("zh", manifest.string("default_language"))
-            assertEquals(pack.gameId, manifest.obj("game").string("game_id"))
+            val game = manifest.obj("game")
+            assertEquals(pack.gameId, game.string("game_id"))
+            assertTrue("${pack.slug} retroarch_system_ids", game.array("retroarch_system_ids").isNotEmpty())
+            assertTrue("${pack.slug} retroarch_labels", game.array("retroarch_labels").size >= 6)
 
             val contents = manifest.obj("contents")
             val knowledge = contents.array("knowledge")
@@ -73,6 +74,11 @@ class RetroJrpgSrpgPackCoverageTest {
                 val entityId = alias.jsonObject.string("entity_id")
                 assertTrue("${pack.slug} dangling alias entity_id $entityId", entityIds.contains(entityId))
             }
+            val asrAliases = aliases.count { alias ->
+                val obj = alias.jsonObject
+                obj.stringOrNull("kind") in ASR_ALIAS_KINDS || obj.stringOrNull("source") == "observed_asr"
+            }
+            assertTrue("${pack.slug} scoped ASR alias metadata=$asrAliases", asrAliases >= 3)
             val localizedAliases = aliases.count { it.jsonObject.string("term").hasCjk() }
             assertTrue("${pack.slug} localized aliases=$localizedAliases", localizedAliases >= 40)
             val entityTypes = knowledge.associate { it.string("entity_id") to it.string("entity_type") }
@@ -87,7 +93,7 @@ class RetroJrpgSrpgPackCoverageTest {
             )
 
             val goldens = readJsonl(packDir.resolve(contents.string("qa_goldens")))
-            assertTrue("${pack.slug} golden rows=${goldens.size}", goldens.size in 20..40)
+            assertTrue("${pack.slug} golden rows=${goldens.size}", goldens.size >= 20)
             val localizedGoldens = goldens.count { it.stringOrNull("language") == "zh" }
             assertTrue("${pack.slug} localized goldens=$localizedGoldens", localizedGoldens >= 20)
             val pureChineseGoldens = goldens.count { qa ->
@@ -206,6 +212,7 @@ class RetroJrpgSrpgPackCoverageTest {
         val CJK = Regex("[\\u4E00-\\u9FFF]")
         val ASCII_LETTER = Regex("[A-Za-z]")
         val PROPER_NAME_ENTITY_TYPES = setOf("npc", "item", "location", "boss", "enemy")
+        val ASR_ALIAS_KINDS = setOf("asr_variant", "observed_asr")
         val PACKS = listOf(
             Pack("golden-sun-gba-zh", "golden_sun_gba", "golden-sun-gba-entity-skeleton.md"),
             Pack("phantasy-star-iv-md-zh", "phantasy_star_iv_md", "phantasy-star-iv-md-entity-skeleton.md"),

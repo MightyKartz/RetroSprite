@@ -27,7 +27,7 @@ class GameTermNormalizer {
         rawQuestion: String,
         rows: List<KnowledgeChunkDomain>,
     ): GameTermNormalizationResult {
-        val cleanQuestion = rawQuestion.trim()
+        val cleanQuestion = rawQuestion.cleanQuestionText()
         if (cleanQuestion.isBlank()) {
             return GameTermNormalizationResult(
                 rawQuestion = rawQuestion,
@@ -36,32 +36,40 @@ class GameTermNormalizer {
             )
         }
 
+        GkpAsrVariantIndex().build(rows).firstOrNull { variant ->
+            variant.canApplyTo(cleanQuestion)
+        }?.let { variant ->
+            val normalized = cleanQuestion.replaceFirst(variant.term, variant.canonicalTerm)
+            val overlapCollapsed = normalized.collapseReplacementOverlapFor(variant.canonicalTerm)
+            val overlapApplied = overlapCollapsed != normalized
+            val duplicateCollapsed = overlapCollapsed.collapseDuplicatePrefixFor(variant.canonicalTerm)
+            val duplicateApplied = duplicateCollapsed != overlapCollapsed
+            val tailCompleted = duplicateCollapsed.completeTruncatedQuestionTail()
+            val tailApplied = tailCompleted != duplicateCollapsed
+            val cleanupApplied = overlapApplied || duplicateApplied || tailApplied
+            val baseReason = if (variant.kind == "observed_asr" || variant.source == "observed_asr") {
+                "gkp_observed_asr_variant"
+            } else {
+                "gkp_asr_variant"
+            }
+            return GameTermNormalizationResult(
+                rawQuestion = rawQuestion,
+                normalizedQuestion = tailCompleted,
+                applied = cleanupApplied || tailCompleted != cleanQuestion,
+                reason = baseReason.withCleanupReasons(
+                    duplicateApplied = duplicateApplied,
+                    overlapApplied = overlapApplied,
+                    tailApplied = tailApplied,
+                ),
+                matchedTerm = variant.canonicalTerm,
+                matchedEntityId = variant.entityId,
+            )
+        }
+
         val terms = rows.flatMap { it.toTerms() }
             .distinctBy { it.term }
             .filter { it.term.length in MIN_TERM_CHARS..MAX_TERM_CHARS }
             .filterNot { it.term in STOP_TERMS }
-
-        OBSERVED_ENTITY_REWRITES.firstOrNull { rewrite ->
-            cleanQuestion.contains(rewrite.rawSpan) &&
-                rows.any { it.entityId == rewrite.entityId }
-        }?.let { rewrite ->
-            val normalized = cleanQuestion.replaceFirst(rewrite.rawSpan, rewrite.term)
-            val duplicateCollapsed = normalized.collapseDuplicatePrefixFor(rewrite.term)
-            val duplicateApplied = duplicateCollapsed != normalized
-            val tailCompleted = duplicateCollapsed.completeTruncatedQuestionTail()
-            val tailApplied = tailCompleted != duplicateCollapsed
-            return GameTermNormalizationResult(
-                rawQuestion = rawQuestion,
-                normalizedQuestion = tailCompleted,
-                applied = tailCompleted != cleanQuestion,
-                reason = "observed_asr_rewrite".withCleanupReasons(
-                    duplicateApplied = duplicateApplied,
-                    tailApplied = tailApplied,
-                ),
-                matchedTerm = rewrite.term,
-                matchedEntityId = rewrite.entityId,
-            )
-        }
 
         terms.firstOrNull { term ->
             term.entityType == ITEM_ENTITY_TYPE &&
@@ -117,16 +125,20 @@ class GameTermNormalizer {
         }
 
         val normalized = cleanQuestion.replaceFirst(top.rawSpan, top.term)
-        val duplicateCollapsed = normalized.collapseDuplicatePrefixFor(top.term)
-        val duplicateApplied = duplicateCollapsed != normalized
+        val overlapCollapsed = normalized.collapseReplacementOverlapFor(top.term)
+        val overlapApplied = overlapCollapsed != normalized
+        val duplicateCollapsed = overlapCollapsed.collapseDuplicatePrefixFor(top.term)
+        val duplicateApplied = duplicateCollapsed != overlapCollapsed
         val tailCompleted = duplicateCollapsed.completeTruncatedQuestionTail()
         val tailApplied = tailCompleted != duplicateCollapsed
+        val cleanupApplied = overlapApplied || duplicateApplied || tailApplied
         return GameTermNormalizationResult(
             rawQuestion = rawQuestion,
             normalizedQuestion = tailCompleted,
-            applied = tailCompleted != cleanQuestion,
+            applied = cleanupApplied || tailCompleted != cleanQuestion,
             reason = top.reason.withCleanupReasons(
                 duplicateApplied = duplicateApplied,
+                overlapApplied = overlapApplied,
                 tailApplied = tailApplied,
             ),
             matchedTerm = top.term,
@@ -197,6 +209,11 @@ class GameTermNormalizer {
         )
     }
 
+    private fun GkpAsrVariant.canApplyTo(question: String): Boolean {
+        if (!question.contains(term)) return false
+        return term !in WHOLE_QUESTION_ASR_TERMS || question == term
+    }
+
     private fun String.completeTruncatedQuestionTail(): String =
         TRUNCATED_SUFFIXES.entries.fold(this) { current, (truncated, full) ->
             if (current.endsWith(truncated) && !current.endsWith(full)) {
@@ -206,6 +223,22 @@ class GameTermNormalizer {
             }
         }
 
+    private fun String.collapseReplacementOverlapFor(term: String): String {
+        if (term.isEmpty()) return this
+        val start = indexOf(term)
+        if (start < 0) return this
+        val suffixStart = start + term.length
+        if (suffixStart >= length) return this
+        val maxOverlap = min(term.length, length - suffixStart)
+        for (size in maxOverlap downTo 1) {
+            val suffix = substring(suffixStart, suffixStart + size)
+            if (term.endsWith(suffix)) {
+                return removeRange(suffixStart, suffixStart + size)
+            }
+        }
+        return this
+    }
+
     private fun String.collapseDuplicatePrefixFor(term: String): String {
         val first = term.firstOrNull() ?: return this
         return replaceFirst("$first$term", term)
@@ -213,13 +246,21 @@ class GameTermNormalizer {
 
     private fun String.withCleanupReasons(
         duplicateApplied: Boolean,
+        overlapApplied: Boolean,
         tailApplied: Boolean,
     ): String =
         buildList {
             add(this@withCleanupReasons)
             if (duplicateApplied) add("duplicate_prefix")
+            if (overlapApplied) add("overlap_suffix")
             if (tailApplied) add("truncated_suffix")
         }.joinToString("+")
+
+    private fun String.cleanQuestionText(): String =
+        trim()
+            .replace(PUNCTUATION, " ")
+            .replace(WHITESPACE, " ")
+            .trim()
 
     private fun editDistance(a: String, b: String): Int {
         if (a == b) return 0
@@ -243,8 +284,6 @@ class GameTermNormalizer {
 
     private data class Term(val term: String, val entityId: String, val entityType: String)
     private data class ScoredMatch(val score: Double, val reason: String)
-    private data class ObservedEntityRewrite(val rawSpan: String, val term: String, val entityId: String)
-
     private companion object {
         const val EXACT_SCORE = 1.00
         const val HOMOPHONE_SCORE = 0.94
@@ -258,11 +297,10 @@ class GameTermNormalizer {
         const val ITEM_ENTITY_TYPE = "item"
 
         val STOP_TERMS = setOf("是谁", "在哪", "在哪里", "怎么用", "有什么用", "怎么办", "怎么打", "怎么练")
-        val OBSERVED_ENTITY_REWRITES = listOf(
-            ObservedEntityRewrite("气合之欲", "气合之玉", "item.vigor-ball"),
-            ObservedEntityRewrite("米斯里鲁因", "米斯里鲁银", "item.mithril"),
-        )
+        val PUNCTUATION = Regex("[\\p{Punct}，。？！、；：]+")
+        val WHITESPACE = Regex("\\s+")
         val OBSERVED_BARE_USAGE_ITEM_TERMS = setOf("米斯里鲁")
+        val WHOLE_QUESTION_ASR_TERMS = setOf("怎么玩")
         val TRUNCATED_SUFFIXES = mapOf(
             "隐藏地" to "隐藏地点",
             "怎么有" to "怎么用",

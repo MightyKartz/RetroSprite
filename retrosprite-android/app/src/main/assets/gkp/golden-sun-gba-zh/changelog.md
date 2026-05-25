@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+## 0.1.2 - 2026-05-25
+
+- Added scoped `observed_asr` aliases from MacBook-speaker Paraformer QA for Ivan / 伊万 / 伊凡.
+- Added voice-like golden questions covering current-game ASR normalization.
+- Added scoped `observed_asr` aliases for the repeated Golden Sun Lite boundary transcript drift around `直接列出所有精灵位置`.
+
 ## 0.1.1 - 2026-05-24
 
 - Added a low-spoiler `mechanic.stats-equipment` row for basic stat and equipment questions such as `攻击力高有什么用`.

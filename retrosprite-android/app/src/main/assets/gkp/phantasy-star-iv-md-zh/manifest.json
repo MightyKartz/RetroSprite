@@ -1,7 +1,7 @@
 {
   "schema_version": "gkp.v0",
   "pack_id": "community.phantasy-star-iv-md-zh",
-  "pack_version": "0.1.0",
+  "pack_version": "0.1.1",
   "coverage_tier": "lite",
   "default_language": "zh",
   "game": {
@@ -11,7 +11,19 @@
     "region": null,
     "languages": ["zh"],
     "retroarch_system_ids": ["md", "genesis", "mega_drive"],
-    "retroarch_labels": ["md__Phantasy Star IV", "md__梦幻之星IV"],
+    "retroarch_labels": [
+      "md__Phantasy Star IV",
+      "genesis__Phantasy Star IV",
+      "mega_drive__Phantasy Star IV",
+      "md__Phantasy_Star_IV",
+      "md__Phantasy Star 4",
+      "md__Phantasy Star IV (USA)",
+      "md__Phantasy Star IV (Japan)",
+      "md__Phantasy Star IV [!]",
+      "md__梦幻之星IV",
+      "mega_drive__梦幻之星4",
+      "md__梦幻之星IV 千年纪的终结"
+    ],
     "rom_identity": {
       "crc32": null,
       "sha1": null

@@ -1,0 +1,18 @@
+case_name	pack_id	category	label	spoken_prompt	expected_question_source	expected_stage	expected_answer_type	expected_llm_status	expected_source	expected_matched_term	expected_entity_id	notes
+sf2_core_gameplay	shining-force-ii-md	core_gameplay	md__Shining Force II	这游戏怎么玩？	hotkey_voice	evidence	game_overview	skipped	sf2.official_overview			Broad natural player question should stay local and low-spoiler.
+sf2_localized_term	shining-force-ii-md	localized_term	md__Shining Force II	气合之玉怎么用？	hotkey_voice	evidence	usage	skipped	sf2.promotion			Localized item name / ASR-prone term.
+sf2_boss_term	shining-force-ii-md	localized_boss	md__Shining Force II	克拉肯怎么过？	hotkey_voice	evidence	strategy	skipped	sf2.enemy_boss_notes			Localized boss term should resolve through native hotword plus GKP strategy evidence.
+sf2_no_evidence_boundary	shining-force-ii-md	no_evidence_boundary	md__Shining Force II	这个游戏有没有恋爱系统？	hotkey_voice	no_evidence	no_evidence	skipped				Unsupported feature should not be invented.
+golden_sun_core_gameplay	golden-sun-gba-zh	core_gameplay	gba__黄金太阳	黄金太阳主要玩什么？	hotkey_voice	evidence	game_overview	skipped	gs.official_manual			Core gameplay for first Lite pack.
+golden_sun_localized_term	golden-sun-gba-zh	localized_term	gba__黄金太阳	伊凡是不是伊万？	hotkey_voice	evidence	name_mapping	skipped	gs.localized_name_audit			Name variant should resolve to Ivan.
+golden_sun_no_evidence_boundary	golden-sun-gba-zh	no_evidence_boundary	gba__黄金太阳	直接列出所有精灵位置。	hotkey_voice	evidence	no_evidence	skipped	gs.project_notes			Lite boundary refusal may be source-grounded.
+chrono_trigger_core_gameplay	chrono-trigger-snes-zh	core_gameplay	sfc__Chrono Trigger (USA)	时空之轮主要玩什么？	hotkey_voice	evidence	game_overview	skipped	ct.square_enix			SNES/SFC Lite core route.
+chrono_trigger_localized_term	chrono-trigger-snes-zh	localized_term	sfc__Chrono Trigger (USA)	玛尔是谁？	hotkey_voice	evidence	name_mapping	skipped	ct.project_notes			Localized character term with low-spoiler answer.
+chrono_trigger_no_evidence_boundary	chrono-trigger-snes-zh	no_evidence_boundary	sfc__Chrono Trigger (USA)	直接告诉我所有结局。	hotkey_voice	evidence	no_evidence	skipped	ct.project_notes			Lite boundary should avoid full ending list.
+sf2_vigor_ball_observed	shining-force-ii-md	localized_term	md__Shining Force II	气合之玉怎么用？	hotkey_voice	evidence	usage	skipped	sf2.promotion			Observed ASR should normalize 契合之欲/契合之域 to 气合之玉 when the recognizer produces that transcript.
+golden_sun_ivan_observed	golden-sun-gba-zh	localized_term	gba__黄金太阳	伊凡是不是伊万？	hotkey_voice	evidence	name_mapping	skipped	gs.localized_name_audit			Observed ASR should normalize 一凡/亿万 variants when the recognizer produces that transcript.
+chrono_marle_observed	chrono-trigger-snes-zh	localized_term	sfc__Chrono Trigger (USA)	玛尔是谁？	hotkey_voice	evidence	name_mapping	skipped	ct.project_notes			Observed ASR should normalize 迈尔/纳尔 variants when the recognizer produces that transcript.
+chrono_atb_observed	chrono-trigger-snes-zh	mechanic	sfc__Chrono Trigger (USA)	时间条战斗怎么理解？	hotkey_voice	evidence	mechanic	skipped	ct.project_notes			Observed ASR should normalize 时间调战斗 when the recognizer produces that transcript.
+ff6_magicite_observed	final-fantasy-vi-snes-zh	mechanic	super_nintendo__Final Fantasy VI (USA)	魔石系统是什么？	hotkey_voice	evidence	mechanic	skipped	ff6.magicite_wiki			Observed ASR should normalize 无时系统 when the recognizer produces that transcript.
+langrisser_commander_smoke	langrisser-ii-md-zh	mechanic	md__Langrisser II (Japan)	指挥官是什么？	hotkey_voice	evidence	mechanic	skipped	l2.project_notes			Passing smoke for Langrisser II.
+phantasy_star_tech_skill_smoke	phantasy-star-iv-md-zh	mechanic	genesis__Phantasy_Star_IV	技巧和技能有什么区别？	hotkey_voice	evidence	mechanic	skipped	ps4.techniques_wiki			Passing smoke for Phantasy Star IV.

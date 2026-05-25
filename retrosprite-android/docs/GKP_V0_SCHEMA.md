@@ -26,6 +26,18 @@ may rewrite questions, bridge languages, synthesize multiple evidence rows, or
 translate answers, but it must not become the factual source for game-specific
 claims without GKP evidence.
 
+Coverage tier vocabulary:
+
+| `coverage_tier` | Product label | Meaning |
+| --- | --- | --- |
+| `lite` | GKP Lite | first support, common safe questions |
+| `expanded` | GKP Expanded | broader reviewed pack for active users |
+| `deep` | GKP Deep | mature detailed pack with stronger progress gates |
+
+`expanded` is a GKP coverage tier, not a paid app tier. Do not use `plus` or
+`pro` as `coverage_tier` values; Pro is reserved for the commercial product
+line.
+
 See `GKP_LITE_OPTIONAL_LLM_DIRECTION.md` and
 `REAL_GAME_GKP_EXPANSION_TEMPLATE.md` for the product policy and production
 template.
@@ -294,6 +306,76 @@ Allowed `reliability`: `verified`, `community`, `uncertain`.
 
 `weight` is optional and defaults to `1.0`.
 
+### Game-Scoped ASR Name Variants
+
+Game-specific names are part of the GKP contract, not something RetroSprite
+should expect a general ASR model to know. Proper nouns such as character names,
+localized item names, boss names, route names, and transliterated English terms
+must be scoped to the current game pack and used only after the current game has
+been resolved. A pack should not contribute global speech rewrites.
+
+`aliases.json` may carry ASR-oriented entries alongside normal lookup aliases.
+These entries use the same required `term` and `entity_id` fields and may add
+optional metadata so builder tooling can distinguish them from source-backed
+display aliases:
+
+Operational rule: Paraformer does not receive GKP terms as native hotwords.
+GKP `asr_variant` and `observed_asr` entries are post-ASR, current-game
+normalization data. They must include `canonical_term`, avoid generic
+fragments, and be covered by a golden or real-device QA case.
+
+```json
+{
+  "term": "密营",
+  "entity_id": "item.mithril",
+  "weight": 0.72,
+  "kind": "asr_variant",
+  "source": "observed_asr",
+  "canonical_term": "秘银",
+  "notes": "Observed microphone ASR variant for 秘银."
+}
+```
+
+Recommended `kind` values:
+
+| `kind` | Meaning | Runtime use |
+| --- | --- | --- |
+| `display_alias` | official, localized, fan, abbreviation, or English name | retrieval and user-facing lookup |
+| `asr_variant` | likely speech-recognition confusion for a known display alias | current-game ASR normalization only |
+| `observed_asr` | transcript captured from device QA or user feedback | current-game ASR normalization with diagnostics |
+
+Recommended `source` values:
+
+| `source` | Meaning |
+| --- | --- |
+| `official` | official localized name or manual term |
+| `community` | common fan translation or community usage |
+| `generated_phonetic` | generated from pinyin, kana, romanization, or number variants |
+| `observed_asr` | seen in real microphone logs or reproducible QA |
+| `manual_review` | explicitly approved by a pack author after review |
+
+ASR variants must stay narrow:
+
+- Prefer proper nouns and durable game terms: characters, recruitable units,
+  items, spells, locations, bosses, systems, and route names.
+- Do not add broad scaffolding words such as `在哪里`, `怎么用`, `角色`, `道具`,
+  `下一步`, or `怎么玩` as high-confidence ASR variants.
+- Do not globally rewrite common words such as `你的` to a character name.
+  If a risky variant is useful, apply it only when the current GKP contains the
+  target entity and surrounding intent strongly suggests that entity class.
+- Keep generated variants lower weight than official/localized aliases until a
+  real transcript proves they are useful.
+- Store repeated real term failures as `observed_asr` entries. Keep scoped
+  full-question transformations in GKP as `term -> canonical_term` aliases when
+  they cannot be represented as a single proper noun repair, then add golden
+  questions that prove the repaired transcript resolves to the intended entity.
+
+For example, a Shining Force II pack can map `秘银`, `Mithril`, `米斯里鲁`,
+and `米斯里鲁银` as display aliases for `item.mithril`, while `密营`,
+`密影`, `米斯林鲁`, or `以斯列鲁` should be treated as ASR variants. These
+variants should influence only the current game's normalization step before
+retrieval; they should not become generic cross-game dictionary entries.
+
 ## Spoiler Graph
 
 `spoiler_graph.json` declares known progress gates. v0 uses a simple directed order; later versions may add richer prerequisites.
@@ -378,6 +460,7 @@ an explicit confirmation plan before writing:
 - target `game_id`
 - current installed pack version, when the game already exists
 - new pack version
+- coverage tier (`GKP Lite`, `GKP Expanded`, or `GKP Deep`)
 - current and new knowledge row counts
 - source and golden Q&A counts
 - install provenance (`external` for folder imports)
@@ -433,6 +516,7 @@ external pack with the same `game_id`, the bundled importer must not overwrite i
 | `game.languages` | `games.languages` JSON array |
 | `game.rom_identity.crc32` | `games.rom_crc32` |
 | `game.rom_identity.sha1` | `games.rom_sha1` |
+| `coverage_tier` | `games.coverage_tier` |
 | `pack_version` | `games.pack_version` |
 | `schema_version` | `games.schema_version` |
 | `trust_level` | `games.trust_level` |

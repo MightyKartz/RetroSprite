@@ -167,6 +167,11 @@ Recommended first slice size:
 Deep packs are still allowed later. They should be incremental expansions on
 top of GKP Lite, not the requirement for first support.
 
+Terminology note: keep GKP coverage tiers separate from commercial product
+tiers. Use `expanded` for the intermediate coverage tier and avoid `plus` or
+`pro` as `coverage_tier` values. Pro is reserved for the paid product line
+described in `../../VIRTUAL_SPIRIT_COMMERCIALIZATION_DISCUSSION.md`.
+
 ## 5. Language Strategy
 
 Do not duplicate a whole GKP for every player language.

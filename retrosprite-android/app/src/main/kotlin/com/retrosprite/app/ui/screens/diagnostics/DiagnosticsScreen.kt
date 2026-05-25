@@ -283,10 +283,10 @@ private fun ToolsCard(
         accent = false,
         trailing = {
             StatusIndicator(phase = status.phase, label = when (status.phase) {
-                UiEndpointPhase.Running -> "RUNNING"
-                UiEndpointPhase.Starting -> "STARTING"
-                UiEndpointPhase.Stopped -> "STOPPED"
-                UiEndpointPhase.Error -> "ERROR"
+                UiEndpointPhase.Running -> "运行中"
+                UiEndpointPhase.Starting -> "启动中"
+                UiEndpointPhase.Stopped -> "已停止"
+                UiEndpointPhase.Error -> "错误"
             })
         }
     ) {

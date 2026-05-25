@@ -161,9 +161,135 @@ class RetroSpriteDatabaseMigrationTest {
         db.close()
     }
 
+    @Test
+    fun migration10To11AddsCoverageTierToGames() {
+        helper.createDatabase(TEST_DB_10_11, 10).apply {
+            execSQL(
+                """
+                INSERT INTO games (
+                    game_id, pack_id, title, platform, region, languages, rom_crc32, rom_sha1,
+                    retroarch_system_ids, retroarch_labels, pack_version, schema_version,
+                    trust_level, provenance, signature_status, enabled, installed_at
+                ) VALUES (
+                    'golden_sun_gba', 'community.golden-sun-gba-zh', 'Golden Sun / 黄金太阳',
+                    'gba', NULL, '["zh"]', NULL, NULL,
+                    '["gba","game_boy_advance"]', '["gba__黄金太阳"]',
+                    '0.1.1', 'gkp.v0', 'community', 'bundled', 'unsigned', 1, 1
+                )
+                """.trimIndent()
+            )
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(
+            TEST_DB_10_11,
+            11,
+            true,
+            *RetroSpriteDatabase.MIGRATIONS,
+        )
+
+        db.query("SELECT coverage_tier FROM games WHERE game_id = 'golden_sun_gba'")
+            .use { cursor ->
+                cursor.moveToFirst()
+                assertEquals(true, cursor.isNull(0))
+        }
+        db.close()
+    }
+
+    @Test
+    fun migration11To12AddsAliasMetadataToKnowledge() {
+        helper.createDatabase(TEST_DB_11_12, 11).apply {
+            execSQL(
+                """
+                INSERT INTO games (
+                    game_id, pack_id, title, platform, region, languages, rom_crc32, rom_sha1,
+                    retroarch_system_ids, retroarch_labels, pack_version, schema_version,
+                    trust_level, provenance, signature_status, enabled, installed_at, coverage_tier
+                ) VALUES (
+                    'shining_force_ii_md', 'community.shining-force-ii-md', 'Shining Force II / 光明力量2',
+                    'mega_drive', NULL, '["zh"]', NULL, NULL,
+                    '["genesis_plus_gx"]', '["mega_drive__光明力量2"]',
+                    '0.1.0', 'gkp.v0', 'community', 'bundled', 'unsigned', 1, 1, 'lite'
+                )
+                """.trimIndent()
+            )
+            execSQL(
+                """
+                INSERT INTO knowledge (
+                    game_id, entity_id, entity_type, canonical_name, aliases_json,
+                    description_short, description_long, progress_gate, spoiler_level,
+                    source_refs_json, confidence, answer_templates_json
+                ) VALUES (
+                    'shining_force_ii_md', 'item.mithril', 'item', 'Mithril / 秘银',
+                    '["秘银","米斯里鲁"]', '稀有锻造材料。', NULL, 'start', 'light',
+                    '["test.source"]', 'verified', NULL
+                )
+                """.trimIndent()
+            )
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(
+            TEST_DB_11_12,
+            12,
+            true,
+            *RetroSpriteDatabase.MIGRATIONS,
+        )
+
+        db.query("SELECT alias_metadata_json FROM knowledge WHERE entity_id = 'item.mithril'")
+            .use { cursor ->
+                cursor.moveToFirst()
+                assertEquals(true, cursor.isNull(0))
+            }
+        db.close()
+    }
+
+    @Test
+    fun migration12To13AddsSourceIdsToRequestLogs() {
+        helper.createDatabase(TEST_DB_12_13, 12).apply {
+            execSQL(
+                """
+                INSERT INTO request_logs (
+                    timestamp, request_key, label, system, game, image_size, paused,
+                    output_mode, question, question_source,
+                    answer_short, answer_detail, answer_type, answer_confidence,
+                    spoiler_level_used, next_actions, suggested_questions,
+                    response_text, error_message,
+                    duration_millis, llm_tokens_in, llm_tokens_out
+                ) VALUES (
+                    1, 'request-1', 'mega_drive__光明力量2', 'mega_drive', '光明力量2', 0, 1,
+                    'hotkey_voice:text', '气合之玉怎么用', 'hotkey_voice',
+                    NULL, NULL, NULL, NULL,
+                    NULL, NULL, NULL,
+                    '气合之玉给僧侣系角色用于转武僧。', NULL,
+                    0, 0, 0
+                )
+                """.trimIndent()
+            )
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(
+            TEST_DB_12_13,
+            13,
+            true,
+            *RetroSpriteDatabase.MIGRATIONS,
+        )
+
+        db.query("SELECT source_ids FROM request_logs WHERE request_key = 'request-1'")
+            .use { cursor ->
+                cursor.moveToFirst()
+                assertEquals(true, cursor.isNull(0))
+            }
+        db.close()
+    }
+
     private companion object {
         const val TEST_DB = "migration-3-5"
         const val TEST_DB_5_6 = "migration-5-6"
         const val TEST_DB_7_8 = "migration-7-8"
+        const val TEST_DB_10_11 = "migration-10-11"
+        const val TEST_DB_11_12 = "migration-11-12"
+        const val TEST_DB_12_13 = "migration-12-13"
     }
 }

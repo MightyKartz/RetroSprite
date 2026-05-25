@@ -3,10 +3,12 @@ package com.retrosprite.app.ui.settings
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.retrosprite.app.BuildConfig
 import com.retrosprite.app.security.AndroidKeystoreSecretCipher
 import com.retrosprite.app.security.SecretCipher
 import com.retrosprite.app.ui.viewmodel.DEFAULT_LLM_MAX_TOKENS
@@ -51,7 +53,9 @@ class UiSettingsStore(
                     .coerceIn(MIN_LLM_TIMEOUT_SECONDS, MAX_LLM_TIMEOUT_SECONDS),
                 llmMaxTokens = (prefs[Keys.LLM_MAX_TOKENS] ?: DEFAULT_LLM_MAX_TOKENS)
                     .coerceIn(MIN_LLM_MAX_TOKENS, MAX_LLM_MAX_TOKENS),
-                spoilerLevel = (prefs[Keys.SPOILER_LEVEL] ?: UiSpoilerLevel.Light.id).toSpoiler()
+                spoilerLevel = (prefs[Keys.SPOILER_LEVEL] ?: UiSpoilerLevel.Light.id).toSpoiler(),
+                hotkeyVoiceTranscriptHudEnabled =
+                    prefs[Keys.HOTKEY_VOICE_TRANSCRIPT_HUD_ENABLED] ?: BuildConfig.DEBUG,
             )
         }
 
@@ -88,6 +92,12 @@ class UiSettingsStore(
         context.uiSettingsDataStore.edit { it[Keys.SPOILER_LEVEL] = level.id }
     }
 
+    override suspend fun updateHotkeyVoiceTranscriptHudEnabled(enabled: Boolean) {
+        context.uiSettingsDataStore.edit { prefs ->
+            prefs[Keys.HOTKEY_VOICE_TRANSCRIPT_HUD_ENABLED] = enabled
+        }
+    }
+
     suspend fun migrateLegacyApiKeyIfNeeded() {
         context.uiSettingsDataStore.edit { prefs ->
             val legacy = prefs[Keys.LEGACY_LLM_API_KEY]
@@ -119,6 +129,8 @@ class UiSettingsStore(
         val LLM_TIMEOUT_SECONDS = intPreferencesKey("llm_timeout_seconds")
         val LLM_MAX_TOKENS = intPreferencesKey("llm_max_tokens")
         val SPOILER_LEVEL = stringPreferencesKey("spoiler_level")
+        val HOTKEY_VOICE_TRANSCRIPT_HUD_ENABLED =
+            booleanPreferencesKey("hotkey_voice_transcript_hud_enabled")
     }
 }
 

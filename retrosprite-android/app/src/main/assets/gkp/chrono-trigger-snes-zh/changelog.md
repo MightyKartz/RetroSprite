@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Added scoped `observed_asr` aliases from MacBook-speaker Paraformer QA for 时空之轮, 玛尔, and 时间条战斗.
+- Added voice-like golden questions covering current-game ASR normalization.
+
+## 0.1.1 - 2026-05-24
+
+- Added the runtime wording variant “三人技要不要背全” to the Dual/Triple Tech template so low-spoiler player phrasing resolves without requiring an explicit progress gate.
+
 ## 0.1.0 - 2026-05-24
 
 - Coverage tier: `lite`.

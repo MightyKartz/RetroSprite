@@ -19,8 +19,9 @@ class RealPlayerQuestionProviderTest {
         val logger = RequestLogger()
         val generator = CapturingGenerator(
             RetroArchResponse.text(
-                content = "把两个相同数字滑到一起会合并。\n来源：sample.2048.rules",
+                content = "把两个相同数字滑到一起会合并。\n来源：本地知识",
                 diagnostics = ResponseDiagnostics(
+                    sourceIds = listOf("sample.2048.rules"),
                     llmStatus = "used",
                     llmProvider = "deepseek",
                     llmModel = "deepseek-v4-pro",

@@ -11,7 +11,19 @@
     "region": null,
     "languages": ["zh"],
     "retroarch_system_ids": ["md", "genesis", "mega_drive"],
-    "retroarch_labels": ["md__Langrisser II", "md__梦幻模拟战II"],
+    "retroarch_labels": [
+      "md__Langrisser II",
+      "genesis__Langrisser II",
+      "mega_drive__Langrisser II",
+      "md__Langrisser_II",
+      "md__Langrisser 2",
+      "md__Langrisser II (Japan)",
+      "md__Langrisser II [!]",
+      "md__梦幻模拟战II",
+      "mega_drive__梦幻模拟战2",
+      "genesis__梦幻模拟战II",
+      "md__兰古利萨II"
+    ],
     "rom_identity": {
       "crc32": null,
       "sha1": null

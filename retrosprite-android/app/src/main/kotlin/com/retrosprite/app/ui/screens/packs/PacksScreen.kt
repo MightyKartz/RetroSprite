@@ -281,7 +281,7 @@ private fun PreflightResultBlock(result: UiGkpPreflightResult) {
         }
 
         Text(
-            text = "License：${result.licenseStatus} · 签名：${result.signatureStatus} · game_id ${result.gameId ?: "未知"}",
+            text = "${result.coverageTierLabel} · License：${result.licenseStatus} · 签名：${result.signatureStatus} · game_id ${result.gameId ?: "未知"}",
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -350,7 +350,7 @@ private fun InstallPlanCard(
             }
 
             Text(
-                text = "${plan.provenanceLabel} · ${plan.signatureLabel} · ${plan.sourceCount} 个来源 · ${plan.goldenRows} 条 Golden",
+                text = "${plan.coverageTierLabel} · ${plan.provenanceLabel} · ${plan.signatureLabel} · ${plan.sourceCount} 个来源 · ${plan.goldenRows} 条 Golden",
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -616,6 +616,7 @@ private fun PackRow(
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             InfoChip(text = "v${pack.packVersion}")
+            InfoChip(text = pack.coverageTierLabel)
             InfoChip(text = pack.schemaVersion)
             InfoChip(text = pack.platform)
         }

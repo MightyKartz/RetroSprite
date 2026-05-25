@@ -51,6 +51,10 @@ data class KnowledgeEntity(
     @ColumnInfo(name = "aliases_json")
     val aliasesJson: String,
 
+    /** JSON array string of structured aliases from aliases.json. */
+    @ColumnInfo(name = "alias_metadata_json")
+    val aliasMetadataJson: String? = null,
+
     @ColumnInfo(name = "description_short")
     val descriptionShort: String,
 

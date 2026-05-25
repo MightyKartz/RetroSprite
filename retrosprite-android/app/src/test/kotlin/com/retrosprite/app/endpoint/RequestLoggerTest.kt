@@ -34,4 +34,27 @@ class RequestLoggerTest {
         assertEquals("修伊", entry.normalizedQuestionMatchedTerm)
         assertEquals("npc.jaha", entry.normalizedQuestionMatchedEntityId)
     }
+
+    @Test
+    fun `logs source ids from diagnostics without parsing visible answer text`() {
+        val logger = RequestLogger()
+
+        val entry = logger.log(
+            label = "mega_drive__光明力量2",
+            imageBase64 = "",
+            paused = true,
+            outputMode = "hotkey_voice:text",
+            responseText = "气合之玉给僧侣系角色用于转武僧。\n来源：本地知识",
+            diagnostics = ResponseDiagnostics(
+                sourceIds = listOf("sf2.promotion"),
+                llmStatus = "skipped",
+            ),
+            question = "气合之玉怎么用",
+            questionSource = "hotkey_voice",
+        )
+
+        assertEquals(listOf("sf2.promotion"), entry.sourceIds)
+        assertEquals("evidence", entry.pipelineStage)
+        assertEquals("skipped", entry.llmStatus)
+    }
 }

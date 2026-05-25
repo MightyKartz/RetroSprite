@@ -46,6 +46,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
@@ -166,6 +167,7 @@ fun SettingsScreen(
         onApplyLlm = viewModel::applyLlmConfig,
         onTestLlm = viewModel::testLlmConfig,
         onApplySpoiler = viewModel::applySpoilerLevel,
+        onApplyHotkeyVoiceTranscriptHudEnabled = viewModel::applyHotkeyVoiceTranscriptHudEnabled,
         onOpenOverlayPermission = viewModel::openOverlayPermissionSettings,
         onRefreshOverlayPermission = viewModel::refreshOverlayPermission,
         onTestOverlay = {
@@ -182,7 +184,7 @@ fun SettingsScreen(
                     HotkeyVoiceOverlayRenderState(
                         event = event,
                         phase = HotkeyVoiceOverlayPhase.Wake,
-                        message = "RETROSPRITE LISTENING",
+                        message = "Overlay test",
                     )
                 )
                 delay(2_500L)
@@ -230,6 +232,7 @@ private fun SettingsContent(
     onApplyLlm: (UiLlmProvider, String, String, String, Int, Int) -> Unit,
     onTestLlm: (UiLlmProvider, String, String, String, Int, Int) -> Unit,
     onApplySpoiler: (UiSpoilerLevel) -> Unit,
+    onApplyHotkeyVoiceTranscriptHudEnabled: (Boolean) -> Unit,
     onOpenOverlayPermission: () -> Unit,
     onRefreshOverlayPermission: () -> Unit,
     onTestOverlay: () -> Unit,
@@ -271,6 +274,8 @@ private fun SettingsContent(
             onTest = onTestLlm,
         )
         DeveloperDiagnosticsSection(
+            showTranscriptHud = settings.hotkeyVoiceTranscriptHudEnabled,
+            onShowTranscriptHudChange = onApplyHotkeyVoiceTranscriptHudEnabled,
             onOpenAppQuestionConsole = onOpenAppQuestionConsole,
             onOpenDiagnostics = onOpenDiagnostics,
         )
@@ -430,25 +435,17 @@ private fun MicrophonePermissionSection(
                     modifier = Modifier.testTag("settings_microphone_test_status"),
                 )
             }
-            val hotwordStatus = when {
-                voiceInputState.asrNativeHotwordsEnabled ->
-                    "ASR 原生热词已进入解码：${voiceInputState.asrHotwordCount} 个，${voiceInputState.asrDecodingMethod}"
-                voiceInputState.asrBiasingProfileId != null ->
-                    "ASR 热词资料已生成，但原生热词未启用：${voiceInputState.asrNativeHotwordsReason ?: "当前模型不支持"}"
+            val asrStatus = when {
                 voiceInputState.asrArchitecture != null ->
-                    "ASR 模型：${voiceInputState.asrArchitecture}，等待游戏热词资料"
+                    "ASR 模型：Paraformer，本地识别；游戏术语纠错在回答阶段按当前 GKP 生效"
                 else -> null
             }
-            if (hotwordStatus != null) {
+            if (asrStatus != null) {
                 Text(
-                    text = hotwordStatus,
+                    text = asrStatus,
                     style = MaterialTheme.typography.labelSmall,
-                    color = if (voiceInputState.asrNativeHotwordsEnabled) {
-                        MaterialTheme.colorScheme.secondary
-                    } else {
-                        MaterialTheme.colorScheme.outline
-                    },
-                    modifier = Modifier.testTag("settings_asr_hotwords_status"),
+                    color = MaterialTheme.colorScheme.outline,
+                    modifier = Modifier.testTag("settings_asr_status"),
                 )
             }
         }
@@ -457,6 +454,8 @@ private fun MicrophonePermissionSection(
 
 @Composable
 private fun DeveloperDiagnosticsSection(
+    showTranscriptHud: Boolean,
+    onShowTranscriptHudChange: (Boolean) -> Unit,
     onOpenAppQuestionConsole: () -> Unit,
     onOpenDiagnostics: () -> Unit,
 ) {
@@ -485,6 +484,28 @@ private fun DeveloperDiagnosticsSection(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+            }
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        text = "显示语音识别字幕",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        text = "用于测试 ASR；正式游玩默认隐藏，诊断时可打开。",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(
+                    checked = showTranscriptHud,
+                    onCheckedChange = onShowTranscriptHudChange,
+                    modifier = Modifier.testTag("settings_hotkey_voice_transcript_hud_switch"),
+                )
             }
             OutlinedButton(
                 onClick = onOpenAppQuestionConsole,
@@ -995,6 +1016,7 @@ private fun SettingsPreview() {
             onApplyLlm = { _, _, _, _, _, _ -> },
             onTestLlm = { _, _, _, _, _, _ -> },
             onApplySpoiler = {},
+            onApplyHotkeyVoiceTranscriptHudEnabled = {},
             onOpenOverlayPermission = {},
             onRefreshOverlayPermission = {},
             onTestOverlay = {},

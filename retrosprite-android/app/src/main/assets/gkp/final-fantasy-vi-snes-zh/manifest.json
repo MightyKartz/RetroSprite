@@ -11,7 +11,19 @@
     "region": null,
     "languages": ["zh"],
     "retroarch_system_ids": ["snes", "sfc", "super_nintendo"],
-    "retroarch_labels": ["snes__Final Fantasy VI", "snes__最终幻想VI", "snes__太空战士VI"],
+    "retroarch_labels": [
+      "snes__Final Fantasy VI",
+      "sfc__Final Fantasy VI",
+      "super_nintendo__Final Fantasy VI",
+      "snes__Final_Fantasy_VI",
+      "snes__Final Fantasy 6",
+      "snes__Final Fantasy VI (USA)",
+      "snes__Final Fantasy III (USA)",
+      "snes__最终幻想VI",
+      "sfc__最终幻想6",
+      "snes__太空战士VI",
+      "snes__太空战士6 [!]"
+    ],
     "rom_identity": {
       "crc32": null,
       "sha1": null

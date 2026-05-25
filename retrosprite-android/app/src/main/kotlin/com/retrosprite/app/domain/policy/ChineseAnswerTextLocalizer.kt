@@ -1,14 +1,13 @@
 package com.retrosprite.app.domain.policy
 
 import com.retrosprite.app.domain.models.AnswerResult
-import com.retrosprite.app.domain.models.AnswerType
 import com.retrosprite.app.domain.models.SessionContext
 
 internal object ChineseAnswerTextLocalizer {
 
     fun localize(result: AnswerResult, context: SessionContext): AnswerResult {
         if (!context.language.startsWith("zh", ignoreCase = true)) return result
-        if (result.answerType in ENGLISH_REQUIRED_TYPES) {
+        if (result.shouldPreserveEnglish(context)) {
             return result.copy(
                 suggestedQuestions = result.suggestedQuestions
                     .map { it.toChineseDisplayText() }
@@ -24,6 +23,12 @@ internal object ChineseAnswerTextLocalizer {
         )
     }
 
+    private fun AnswerResult.shouldPreserveEnglish(context: SessionContext): Boolean =
+        context.playerQuestion.orEmpty().explicitlyAsksForEnglishName()
+
+    private fun String.explicitlyAsksForEnglishName(): Boolean =
+        contains("英文") || contains("英语") || contains("原名")
+
     private fun String.toChineseDisplayText(): String =
         DISPLAY_REPLACEMENTS.fold(this) { text, (english, chinese) ->
             text.replace(english, chinese, ignoreCase = false)
@@ -32,18 +37,35 @@ internal object ChineseAnswerTextLocalizer {
     private fun String.cleanChineseSpacing(): String =
         replace(Regex("(?<=[\\p{IsHan}）])\\s+(?=[\\p{IsHan}（])"), "")
 
-    private val ENGLISH_REQUIRED_TYPES: Set<AnswerType> = setOf(
-        AnswerType.NameMapping,
-        AnswerType.Production,
-    )
-
     private val DISPLAY_REPLACEMENTS: List<Pair<String, String>> = listOf(
+        "SEGA Mega Drive Mini" to "世嘉迷你复刻主机",
+        "Mega Drive Mini" to "世嘉迷你复刻主机",
+        "Mega Drive / Genesis" to "世嘉 MD/创世纪",
+        "MobyGames" to "资料站",
+        "Sonic Co." to "索尼克公司",
+        "Mega Drive" to "世嘉 MD",
+        "Genesis" to "创世纪",
+        "SEGA" to "世嘉",
+        "Sonic" to "索尼克",
+        "Golden Sun / 黄金太阳" to "黄金太阳",
+        "Chrono Trigger / 时空之轮" to "时空之轮",
+        "Final Fantasy VI / 最终幻想 VI" to "最终幻想VI",
+        "Final Fantasy VI / 最终幻想VI" to "最终幻想VI",
+        "Chrono Trigger" to "时空之轮",
+        "Kraken / 克拉肯" to "克拉肯",
+        "Active Time Battle / ATB 战斗" to "行动条战斗",
+        "ATB 战斗" to "行动条战斗",
+        "Dual and Triple Techs / 双人技和三人技" to "双人技和三人技",
         "Vigor Ball（活力球/气合之玉）" to "气合之玉（活力球）",
         "Vigor Ball（汉化名也可见“气合之玉”）" to "气合之玉",
         "Mithril（米斯里鲁银）" to "米斯里鲁银",
         "Mithril（汉化名也可见“米斯里鲁银”）" to "米斯里鲁银",
         "Dwarven Town（矮人村）" to "矮人村",
         "Elven Town（精灵森林）" to "精灵森林",
+        "Fairy Powder / 妖精粉" to "妖精粉",
+        "Pacalon / 帕卡隆" to "帕卡隆",
+        "Red Baron / 红男爵" to "红男爵",
+        "Pegasus Wing（飞马之翼/天马之翼）" to "飞马之翼（天马之翼）",
         "Dwarven Blacksmith" to "矮人工匠",
         "Dwarven Town" to "矮人村",
         "Elven Town" to "精灵森林",
@@ -54,9 +76,44 @@ internal object ChineseAnswerTextLocalizer {
         "Warrior Pride" to "勇者之证",
         "Pegasus Wing" to "飞马之翼",
         "Vigor Ball" to "气合之玉",
+        "Fairy Powder" to "妖精粉",
+        "Pacalon" to "帕卡隆",
+        "Red Baron" to "红男爵",
         "Secret Book" to "秘传书",
         "Silver Tank" to "银战车",
         "Mithril" to "米斯里鲁银",
+        "JRPG" to "日式角色扮演",
+        "ATB" to "行动条战斗",
+        "行动条战斗战斗" to "行动条战斗",
+        "Techniques" to "技巧",
+        "Technique" to "技巧",
+        "Skills" to "技能",
+        "Skill" to "技能",
+        "Macros" to "宏命令",
+        "Macro" to "宏命令",
+        "Techs" to "角色技",
+        "Tech" to "角色技",
+        "ASR" to "语音识别",
+        "Boss" to "首领战",
+        "HP" to "生命值",
+        "MP" to "魔法值",
+        "PP" to "精神力",
+        "Ivan" to "伊万",
+        "Isaac" to "伊萨克",
+        "Garret" to "加雷特",
+        "Mia" to "米娅",
+        "Djinn" to "精灵",
+        "Magicite" to "魔石",
+        "Espers" to "幻兽",
+        "Esper" to "幻兽",
+        "Crono" to "克罗诺",
+        "Marle" to "玛尔",
+        "Lucca" to "露卡",
+        "Robo" to "罗伯",
+        "Frog" to "青蛙",
+        "Ayla" to "艾拉",
+        "Magus" to "魔王",
+        "Narshe" to "纳尔谢",
         "Medical Herb" to "医疗草",
         "Healing Seed" to "治疗种子",
         "Angel Wing" to "天使之翼",

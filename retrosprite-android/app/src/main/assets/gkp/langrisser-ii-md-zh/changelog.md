@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Added regression coverage for existing scoped `observed_asr` aliases around 佣兵 and 指挥范围.
+- Added voice-like golden questions covering current-game ASR normalization.
+
 ## 0.1.0 - 2026-05-24
 
 - Coverage tier: `lite`.

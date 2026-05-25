@@ -22,8 +22,7 @@
 #   BUILD=1 INSTALL=1 ./scripts/android_avd_smoke.sh
 #   WAIT_ATTEMPTS=30 ./scripts/android_avd_smoke.sh
 #   RUN_DEBUG_ASK=0 ./scripts/android_avd_smoke.sh
-#   RUN_SECOND_DEBUG_ASK=0 ./scripts/android_avd_smoke.sh
-#   SECOND_DEBUG_QUESTION="精神力是什么？" ./scripts/android_avd_smoke.sh
+#   GKP_DEBUG_CASES_FILE=scripts/gkp_debug_cases.tsv ./scripts/android_avd_smoke.sh
 # -----------------------------------------------------------------------------
 set -u
 
@@ -39,18 +38,8 @@ BUILD="${BUILD:-0}"
 APK_PATH="${APK_PATH:-${ROOT_DIR}/app/build/outputs/apk/debug/app-debug.apk}"
 WAIT_ATTEMPTS="${WAIT_ATTEMPTS:-20}"
 RUN_DEBUG_ASK="${RUN_DEBUG_ASK:-1}"
-RUN_SECOND_DEBUG_ASK="${RUN_SECOND_DEBUG_ASK:-${RUN_RELAY_DEBUG_ASK:-1}}"
 DEBUG_ATTEMPTS="${DEBUG_ATTEMPTS:-10}"
-DEBUG_LABEL="${DEBUG_LABEL:-md__Shining Force II}"
-DEBUG_QUESTION="${DEBUG_QUESTION:-什么时候转职？}"
-DEBUG_EXPECT_SOURCE="${DEBUG_EXPECT_SOURCE:-sf2.promotion}"
-DEBUG_EXPECT_STAGE="${DEBUG_EXPECT_STAGE:-evidence}"
-DEBUG_EXPECT_LLM_STATUS="${DEBUG_EXPECT_LLM_STATUS:-skipped}"
-SECOND_DEBUG_LABEL="${SECOND_DEBUG_LABEL:-gba__黄金太阳}"
-SECOND_DEBUG_QUESTION="${SECOND_DEBUG_QUESTION:-精神力是什么？}"
-SECOND_DEBUG_EXPECT_SOURCE="${SECOND_DEBUG_EXPECT_SOURCE:-gs.official_manual}"
-SECOND_DEBUG_EXPECT_STAGE="${SECOND_DEBUG_EXPECT_STAGE:-evidence}"
-SECOND_DEBUG_EXPECT_LLM_STATUS="${SECOND_DEBUG_EXPECT_LLM_STATUS:-skipped}"
+GKP_DEBUG_CASES_FILE="${GKP_DEBUG_CASES_FILE:-${ROOT_DIR}/scripts/gkp_debug_cases.tsv}"
 
 fail() {
   printf "FAIL %s\n" "$1" >&2
@@ -150,12 +139,14 @@ run_debug_case() {
   CASE_EXPECT_SOURCE="$4"
   CASE_EXPECT_STAGE="$5"
   CASE_EXPECT_LLM_STATUS="$6"
+  CASE_OUTPUT_MODE="${7:-text}"
+  CASE_EXPECT_QUESTION="${8:-$CASE_QUESTION}"
 
-  info "  ${CASE_NAME}: ${CASE_LABEL} / ${CASE_QUESTION}"
+  info "  ${CASE_NAME}: ${CASE_LABEL} / ${CASE_QUESTION} (${CASE_OUTPUT_MODE})"
   DEBUG_BODY=""
   debug_attempt=1
   while [ "$debug_attempt" -le "$DEBUG_ATTEMPTS" ]; do
-    DEBUG_BODY=$(curl -fsS -m 15 -X POST "http://127.0.0.1:${HOST_PORT}/debug/ask?output=text" \
+    DEBUG_BODY=$(curl -fsS -m 15 -X POST "http://127.0.0.1:${HOST_PORT}/debug/ask?output=${CASE_OUTPUT_MODE}" \
       -H 'Content-Type: application/json' \
       --data @- 2>/dev/null <<JSON
 {"label":"${CASE_LABEL}","question":"${CASE_QUESTION}","state":{"paused":1}}
@@ -163,18 +154,11 @@ JSON
     ) || DEBUG_BODY=""
 
     case "$DEBUG_BODY" in
-      *"\"text\""*)
-        if [ -z "$CASE_EXPECT_SOURCE" ]; then
-          break
-        fi
-        case "$DEBUG_BODY" in
-          *"$CASE_EXPECT_SOURCE"*) break ;;
-        esac
-        ;;
+      *"\"text\""*) break ;;
     esac
 
     if [ "$debug_attempt" -eq "$DEBUG_ATTEMPTS" ]; then
-      fail "${CASE_NAME} /debug/ask did not return expected source ${CASE_EXPECT_SOURCE}; last body: ${DEBUG_BODY}"
+      fail "${CASE_NAME} /debug/ask did not return a text response; last body: ${DEBUG_BODY}"
     fi
     sleep 1
     debug_attempt=$((debug_attempt + 1))
@@ -182,13 +166,34 @@ JSON
 
   info "    /debug/ask: ${DEBUG_BODY}"
 
-  LATEST_BODY=$(curl -fsS -m 5 "http://127.0.0.1:${HOST_PORT}/debug/latest-request" 2>/dev/null) \
-    || fail "${CASE_NAME} /debug/latest-request failed"
+  latest_attempt=1
+  LATEST_BODY=""
+  while [ "$latest_attempt" -le "$DEBUG_ATTEMPTS" ]; do
+    LATEST_BODY=$(curl -fsS -m 5 "http://127.0.0.1:${HOST_PORT}/debug/latest-request" 2>/dev/null) \
+      || LATEST_BODY=""
+    case "$LATEST_BODY" in
+      *"\"has_entry\":true"*"\"label\":\"${CASE_LABEL}\""*"\"question\":\"${CASE_EXPECT_QUESTION}\""*) break ;;
+    esac
+    if [ "$latest_attempt" -eq "$DEBUG_ATTEMPTS" ]; then
+      break
+    fi
+    sleep 1
+    latest_attempt=$((latest_attempt + 1))
+  done
+  [ -n "$LATEST_BODY" ] || fail "${CASE_NAME} /debug/latest-request failed"
   info "    /debug/latest-request: ${LATEST_BODY}"
 
   case "$LATEST_BODY" in
     *"\"has_entry\":true"*) ;;
     *) fail "${CASE_NAME} /debug/latest-request did not report has_entry=true" ;;
+  esac
+  case "$LATEST_BODY" in
+    *"\"label\":\"${CASE_LABEL}\""*) ;;
+    *) fail "${CASE_NAME} /debug/latest-request missing label ${CASE_LABEL}" ;;
+  esac
+  case "$LATEST_BODY" in
+    *"\"question\":\"${CASE_EXPECT_QUESTION}\""*) ;;
+    *) fail "${CASE_NAME} /debug/latest-request missing question ${CASE_EXPECT_QUESTION}" ;;
   esac
   case "$LATEST_BODY" in
     *"\"pipeline_stage\":\"${CASE_EXPECT_STAGE}\""*) ;;
@@ -213,22 +218,32 @@ if [ "$RUN_DEBUG_ASK" != "1" ]; then
   exit 0
 fi
 
-run_debug_case "shining-force-ii-md" \
-  "$DEBUG_LABEL" \
-  "$DEBUG_QUESTION" \
-  "$DEBUG_EXPECT_SOURCE" \
-  "$DEBUG_EXPECT_STAGE" \
-  "$DEBUG_EXPECT_LLM_STATUS"
+[ -f "$GKP_DEBUG_CASES_FILE" ] || fail "GKP debug cases file not found: ${GKP_DEBUG_CASES_FILE}"
 
-if [ "$RUN_SECOND_DEBUG_ASK" = "1" ]; then
-  run_debug_case "golden-sun-gba-zh" \
-    "$SECOND_DEBUG_LABEL" \
-    "$SECOND_DEBUG_QUESTION" \
-    "$SECOND_DEBUG_EXPECT_SOURCE" \
-    "$SECOND_DEBUG_EXPECT_STAGE" \
-    "$SECOND_DEBUG_EXPECT_LLM_STATUS"
-else
-  info "  second GKP debug case skipped because RUN_SECOND_DEBUG_ASK=${RUN_SECOND_DEBUG_ASK}"
-fi
+case_count=0
+while IFS="$(printf '\t')" read -r CASE_NAME CASE_LABEL CASE_QUESTION CASE_EXPECT_SOURCE CASE_EXPECT_STAGE CASE_EXPECT_LLM_STATUS CASE_OUTPUT_MODE CASE_EXPECT_QUESTION || [ -n "${CASE_NAME:-}" ]; do
+  case "$CASE_NAME" in
+    ""|\#*) continue ;;
+    case_name) continue ;;
+  esac
+  [ -n "${CASE_LABEL:-}" ] || fail "missing label for GKP debug case ${CASE_NAME}"
+  [ -n "${CASE_QUESTION:-}" ] || fail "missing question for GKP debug case ${CASE_NAME}"
+  [ -n "${CASE_EXPECT_STAGE:-}" ] || fail "missing expected stage for GKP debug case ${CASE_NAME}"
+  [ -n "${CASE_EXPECT_LLM_STATUS:-}" ] || fail "missing expected LLM status for GKP debug case ${CASE_NAME}"
+  CASE_OUTPUT_MODE="${CASE_OUTPUT_MODE:-text}"
+  CASE_EXPECT_QUESTION="${CASE_EXPECT_QUESTION:-$CASE_QUESTION}"
+  case_count=$((case_count + 1))
+  run_debug_case \
+    "$CASE_NAME" \
+    "$CASE_LABEL" \
+    "$CASE_QUESTION" \
+    "$CASE_EXPECT_SOURCE" \
+    "$CASE_EXPECT_STAGE" \
+    "$CASE_EXPECT_LLM_STATUS" \
+    "$CASE_OUTPUT_MODE" \
+    "$CASE_EXPECT_QUESTION"
+done < "$GKP_DEBUG_CASES_FILE"
+
+[ "$case_count" -gt 0 ] || fail "no GKP debug cases found in ${GKP_DEBUG_CASES_FILE}"
 
 info "OK android_avd_smoke completed"

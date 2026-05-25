@@ -11,6 +11,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.nio.file.Files
@@ -150,7 +151,18 @@ class GkpV0FixtureLintTest {
                 "alias entity_id must exist: ${obj.string("entity_id")}",
                 entityIds.contains(obj.string("entity_id"))
             )
+            obj.stringOrNull("kind")?.let { assertIn(it, ALIAS_KINDS, "alias.kind") }
+            obj.stringOrNull("source")?.let { assertIn(it, ALIAS_SOURCES, "alias.source") }
+            if (obj.stringOrNull("kind") in ASR_ALIAS_KINDS || obj.stringOrNull("source") == "observed_asr") {
+                assertNonBlank(obj.string("canonical_term"), "alias.canonical_term")
+                assertNotEquals(obj.string("term"), obj.string("canonical_term"))
+            }
         }
+        val asrAliases = aliases.count { alias ->
+            val obj = alias.jsonObject
+            obj.stringOrNull("kind") in ASR_ALIAS_KINDS || obj.stringOrNull("source") == "observed_asr"
+        }
+        assertTrue("$packDir must include scoped ASR alias metadata", asrAliases >= 3)
 
         val goldens = readJsonl(goldensPath)
         assertTrue(
@@ -248,6 +260,9 @@ class GkpV0FixtureLintTest {
         val ID_PATTERN = Regex("[a-z0-9][a-z0-9._-]*")
 
         val TRUST_LEVELS = setOf("official", "community", "personal", "sample")
+        val ALIAS_KINDS = setOf("display_alias", "asr_variant", "observed_asr")
+        val ASR_ALIAS_KINDS = setOf("asr_variant", "observed_asr")
+        val ALIAS_SOURCES = setOf("official", "community", "generated_phonetic", "observed_asr", "manual_review")
         val SOURCE_KINDS = setOf(
             "manual",
             "official_site",

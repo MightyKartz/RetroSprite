@@ -14,6 +14,7 @@ import com.retrosprite.app.llm.LlmAdapter
 import com.retrosprite.app.llm.MockLlmAdapter
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -22,7 +23,7 @@ class AnswerComposerTest {
     private val composer = AnswerComposer()
 
     @Test
-    fun `direct answers append traceable source ids`() = runTest {
+    fun `direct answers keep source ids structured without exposing raw ids in visible text`() = runTest {
         val answer = composer.composeDetailed(
             decision = AnswerDecision.DirectAnswer(
                 text = "两个相同数字滑到一起会合并。",
@@ -35,7 +36,9 @@ class AnswerComposerTest {
             llm = MockLlmAdapter(),
         )
 
-        assertEquals("两个相同数字滑到一起会合并。\n来源：sample.2048.rules", answer.text)
+        assertEquals("两个相同数字滑到一起会合并。\n来源：本地知识", answer.text)
+        assertTrue(answer.text.contains("来源："))
+        assertFalse(answer.text.contains("sample.2048.rules"))
         assertEquals("两个相同数字滑到一起会合并。", answer.answerResult.answerShort)
         assertEquals("两个相同数字滑到一起会合并。", answer.answerResult.answerDetail)
         assertEquals(listOf("sample.2048.rules"), answer.answerResult.sources)
@@ -111,7 +114,8 @@ class AnswerComposerTest {
         assertEquals(1, llm.callCount)
         assertTrue(llm.lastRequest!!.userPrompt.contains("玩家问题：怎么合并？"))
         assertTrue(llm.lastRequest!!.userPrompt.contains("sample.2048.rules"))
-        assertEquals("综合答案。\n来源：sample.2048.rules, sample.2048.strategy", answer.text)
+        assertEquals("综合答案。\n来源：本地知识", answer.text)
+        assertEquals(listOf("sample.2048.rules", "sample.2048.strategy"), answer.answerResult.sources)
         assertEquals("综合答案。", answer.answerResult.answerShort)
         assertEquals(AnswerType.Mechanic, answer.answerResult.answerType)
         assertEquals(AnswerConfidence.Medium, answer.answerResult.confidence)
@@ -146,7 +150,8 @@ class AnswerComposerTest {
         assertEquals(0, llm.callCount)
         assertEquals("skipped", answer.llmTrace.status)
         assertTrue(answer.text.contains("低等级角色"))
-        assertTrue(answer.text.contains("来源：sf2.rules, sf2.tactics"))
+        assertTrue(answer.text.contains("来源：本地知识"))
+        assertEquals(listOf("sf2.rules", "sf2.tactics"), answer.answerResult.sources)
         assertEquals(AnswerType.Leveling, answer.answerResult.answerType)
     }
 
@@ -212,7 +217,8 @@ class AnswerComposerTest {
         )
 
         assertTrue(answer.text.contains("LLM 调用失败"))
-        assertTrue(answer.text.contains("来源：sample.2048.rules"))
+        assertTrue(answer.text.contains("来源：本地知识"))
+        assertEquals(listOf("sample.2048.rules"), answer.answerResult.sources)
         assertEquals("failed", answer.llmTrace.status)
         assertEquals("capturing", answer.llmTrace.providerName)
         assertEquals("capturing-model", answer.llmTrace.modelName)

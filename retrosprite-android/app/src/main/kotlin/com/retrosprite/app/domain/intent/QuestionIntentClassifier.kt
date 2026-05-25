@@ -17,7 +17,13 @@ object QuestionIntentClassifier {
         if (question.isNameMappingQuestion()) {
             return AnswerType.NameMapping
         }
-        if (question.containsAny("这游戏怎么玩", "这个游戏怎么玩", "游戏怎么玩", "这游戏要怎么玩", "这个游戏要怎么玩", "游戏要怎么玩", "这游戏该怎么玩", "要怎么玩", "该怎么玩", "到底要怎么玩", "这游戏玩什么", "这个游戏玩什么", "游戏玩什么", "主要玩什么", "玩法是什么", "主要干什么", "主要是干嘛", "干嘛的", "玩点是什么", "好玩在哪", "好玩在哪里", "乐趣", "核心玩法", "适合什么玩家")) {
+        if (question.contains("角色指令") ||
+            (question.contains("职业") && question.containsAny("为什么", "突然", "变了", "变化", "系统", "乱了")) ||
+            (question.contains("召唤") && question.containsAny("什么时候", "怎么", "用", "比较好"))
+        ) {
+            return AnswerType.Mechanic
+        }
+        if (question.containsAny("这是什么游戏", "这个是什么游戏", "这个游戏是什么", "是什么游戏", "游戏是什么", "这游戏怎么玩", "这个游戏怎么玩", "游戏怎么玩", "这游戏要怎么玩", "这个游戏要怎么玩", "游戏要怎么玩", "这游戏该怎么玩", "要怎么玩", "该怎么玩", "到底要怎么玩", "这游戏玩什么", "这个游戏玩什么", "游戏玩什么", "主要玩什么", "玩法是什么", "主要干什么", "主要是干嘛", "这个游戏是干嘛的", "这游戏是干嘛的", "游戏是干嘛的", "玩点是什么", "好玩在哪", "好玩在哪里", "乐趣", "核心玩法", "适合什么玩家")) {
             return AnswerType.GameOverview
         }
         if (question.isLocationQuestion()) {
@@ -46,7 +52,7 @@ object QuestionIntentClassifier {
         if (question.containsAny("怎么复活", "为什么不能", "怎么转职", "几级转职", "转职", "复活", "机制")) {
             return AnswerType.Mechanic
         }
-        if (question.containsAny("打不过", "敌人怎么办", "怎么打", "打法", "策略", "培养", "站位", "稳吗", "怎么才能赢", "怎样才能赢", "如何才能赢", "怎么赢", "有什么技巧", "技巧")) {
+        if (question.containsAny("打不过", "敌人怎么办", "怎么处理", "怎么打", "怎么过", "打法", "策略", "培养", "站位", "稳吗", "怎么才能赢", "怎样才能赢", "如何才能赢", "怎么赢", "有什么技巧", "技巧")) {
             return AnswerType.Strategy
         }
         return AnswerType.UnknownOrOutOfScope

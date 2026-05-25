@@ -34,6 +34,7 @@ data class RequestLogEntry(
     val answerType: String? = null,
     val answerConfidence: String? = null,
     val spoilerLevelUsed: String? = null,
+    val diagnosticSourceIds: List<String> = emptyList(),
     val nextActions: List<String> = emptyList(),
     val suggestedQuestions: List<String> = emptyList(),
     val responseText: String,
@@ -55,7 +56,7 @@ data class RequestLogEntry(
         get() = outputMode.startsWith(DEBUG_OUTPUT_PREFIX)
 
     val sourceIds: List<String>
-        get() = extractSourceIds(responseText)
+        get() = diagnosticSourceIds.cleanSourceIds().ifEmpty { extractSourceIds(responseText) }
 
     val pipelineStage: String
         get() = when {
@@ -77,6 +78,7 @@ data class RequestLogEntry(
 
 private const val DEBUG_OUTPUT_PREFIX = "debug:"
 private const val SOURCE_PREFIX = "来源："
+private const val LOCAL_SOURCE_NOTICE_LABEL = "本地知识"
 private const val GKP_DISABLED_MARKER = "知识包已禁用"
 private const val NO_EVIDENCE_MARKER = "没有足够证据"
 
@@ -88,9 +90,14 @@ private fun extractSourceIds(responseText: String): List<String> {
     return sourceLine.substringAfter(SOURCE_PREFIX)
         .split(',', '，')
         .map { it.trim() }
-        .filter { it.isNotEmpty() }
+        .filter { it.isNotEmpty() && it != LOCAL_SOURCE_NOTICE_LABEL }
         .distinct()
 }
+
+private fun List<String>.cleanSourceIds(): List<String> =
+    map { it.trim() }
+        .filter { it.isNotEmpty() && it != LOCAL_SOURCE_NOTICE_LABEL }
+        .distinct()
 
 /**
  * Persistence strategy for log entries.
@@ -173,6 +180,7 @@ class RequestLogger(
             answerType = diagnostics.answerType,
             answerConfidence = diagnostics.answerConfidence,
             spoilerLevelUsed = diagnostics.spoilerLevelUsed,
+            diagnosticSourceIds = diagnostics.sourceIds,
             nextActions = diagnostics.nextActions,
             suggestedQuestions = diagnostics.suggestedQuestions,
             responseText = responseText,

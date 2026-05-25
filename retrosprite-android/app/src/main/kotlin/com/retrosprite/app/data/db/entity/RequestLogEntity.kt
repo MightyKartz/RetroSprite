@@ -83,6 +83,9 @@ data class RequestLogEntity(
     @ColumnInfo(name = "spoiler_level_used")
     val spoilerLevelUsed: String? = null,
 
+    @ColumnInfo(name = "source_ids")
+    val sourceIds: String? = null,
+
     @ColumnInfo(name = "next_actions")
     val nextActions: String? = null,
 

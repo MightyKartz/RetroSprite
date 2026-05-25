@@ -82,7 +82,11 @@ PORT=8081 STRESS=200 ./scripts/test_endpoint.sh
 | `ui.overlay.HotkeyVoiceQuestionControllerTest` | M10.3 | Hotkey voice loop orchestrator：热键触发后启动一次语音输入，最终转写进入 `ResponseGenerator`，答案写入 `hotkey_voice:text` / `question_source=hotkey_voice` request log 并调用 TTS；缺少 overlay 权限时不会启动录音；活动 session 中重复热键请求会被忽略；无 final transcript 超时会取消录音并隐藏 overlay。 |
 | `ui.screens.settings.SettingsViewModelTest` | M10.1 | Settings overlay onboarding：刷新 overlay 权限状态、打开系统授权页动作都委托到 `OverlayPermissionProvider`。 |
 | `ui.integration.SpeechOutputTextTest` | M8.1 | App 内 TTS 文本裁剪：短答案朗读只取第一句、移除 `来源：` 后的引用段，并对过长答案做长度上限截断。 |
-| `ui.integration.SherpaOnnxAsrModelTest` | M8.2 | sherpa-onnx 本地 ASR 资源契约：默认模型使用中文 14M int8 streaming Zipformer assets，模型缺失时返回明确的本地模型缺失错误，且不提示系统语音或云 ASR fallback。 |
+| `ui.integration.SherpaOnnxAsrModelTest` | M8.2 | sherpa-onnx 本地 ASR 资源契约：默认模型使用 `sherpa-onnx-streaming-paraformer-bilingual-zh-en` Paraformer int8 assets，模型缺失时返回明确的本地模型缺失错误，且不提示系统语音或云 ASR fallback。 |
+| `ui.integration.SherpaOnnxRecognizerFactoryTest` | M8.2/M16 | sherpa-onnx Paraformer recognizer config contract: default decoding is `greedy_search`, native hotword fields stay empty, Paraformer encoder/decoder/tokens point at the bundled model, Transducer paths stay empty, endpoint trailing silence is explicit, and final flush silence remains enabled. |
+| `ui.integration.SherpaEndpointCommitGateTest` | M16 | Hotkey voice endpoint commit strategy: waits for sherpa endpoint detection, voice inactivity, and stable partial text before submitting; continued speech and growing partial text delay commit; blank/non-endpoint audio does not commit; incomplete question tails receive a small extra wait without inventing missing words. |
+| `ui.integration.SherpaFinalTranscriptSelectorTest` | M16 | Final/partial transcript selection: keeps complete final text, prefers a longer compatible question-shaped partial when the final drops a tail character, rejects unrelated partials, and deliberately does not complete clipped text such as `是什` or `玩什`. |
+| `ui.integration.VoiceSampleFanOutTest` | M10/M16 | Voice sample fan-out contract for the shared ASR/waveform path: multiple consumers receive the same sample stream without coupling the live waveform display to ASR capture behavior. |
 | `ui.integration.RealLlmConfigTestProviderTest` | M4.8 | Settings-only LLM smoke tester: blank API key fails without creating an adapter, successful smoke uses configured timeout/max token, and provider errors redact API keys. |
 | `ui.settings.UiLlmConfigMapperTest` | M1.5/M4.7/M6.9 | Settings → runtime mapper: blank key disables real provider, DeepSeek/custom defaults are normalized, timeout seconds are passed through with conservative clamp bounds, and UI spoiler levels map to domain `LIGHT/CLEAR/FULL`. |
 
@@ -121,6 +125,9 @@ unit/integration tests listed above.
 - **2026-05-20, M10.1/M10.3 Hotkey voice loop scaffold:** Settings now exposes overlay permission onboarding; hotkey voice orchestration is covered by JVM tests for ASR transcript → GKP pipeline call → `hotkey_voice` log → TTS. True-device acceptance still needs loading Shining Force II in RetroArch, pressing the physical hotkey, speaking a question, and confirming `sf2.promotion` in Diagnostics.
 - **2026-05-20, RG 476H M10.3 hotkey overlay bugfix smoke:** pressing AI Service hotkey previously showed the waveform but did not answer and stayed visible. Logcat root cause: background `AudioRecord` was silenced by foreground-only `RECORD_AUDIO` AppOps, and the timeout path waited forever on an uncancelled final-transcript coroutine. Debug APK now declares/uses foreground-service `microphone` type when record-audio is granted, ignores repeated wake requests while a session is active, and cancels the final-transcript waiter on timeout. Host-side background POST smoke confirmed zero `silencing record` / `Operation not started RECORD_AUDIO` lines and zero RetroSprite overlay windows after the timeout. Full spoken-answer acceptance still needs the user to press the physical RetroArch hotkey and speak a Shining Force II question.
 - **2026-05-20, RG 476H M10.2 hotkey voice true-device pass #1:** in RetroArch with MD/Genesis Shining Force II loaded, the user pressed the configured AI Service hotkey and said “什么时候转职？”. The top-right waveform appeared, the voice loop completed, and TTS spoke the result. `/debug/latest-request` confirmed a real `hotkey_voice:text` request with `label="mega_drive__光明力量2"` and `question_source="hotkey_voice"`. The latest ASR transcript was “接受他几部这个角色”, so the pipeline correctly returned `no_evidence`; this validates the hotkey/overlay/ASR/TTS mechanics but leaves the `sf2.promotion` evidence-hit acceptance open for one clearer repeat phrase.
+- **2026-05-24, RG 476H M12.8 six-pack runtime smoke:** ran `BUILD=1 INSTALL=1 STRESS=1 ./scripts/android_avd_smoke.sh`, then reran `BUILD=0 INSTALL=0 STRESS=1 ./scripts/android_avd_smoke.sh` after correcting the Chrono Trigger expected source. The final pass validated `/health`, endpoint POST/malformed/stress checks, and all six real GKP `/debug/ask` cases from `scripts/gkp_debug_cases.tsv`: Shining Force II, Golden Sun, Phantasy Star IV, Langrisser II, Chrono Trigger, and Final Fantasy VI all reported `pipeline_stage=evidence`, `llm_status=skipped`, and the expected source id in `/debug/latest-request`.
+- **2026-05-24, M16 multi-pack hotkey voice QA tooling:** added `scripts/hotkey_voice_qa_cases.tsv` and `scripts/hotkey_voice_qa_batch.sh` for a reusable Shining Force II / Golden Sun / Chrono Trigger voice matrix. Initial `DRY_RUN=1` and script/unit checks passed; later 2026-05-25 runs added real MacBook-speaker evidence.
+- **2026-05-25, all-GKP Paraformer ASR variant voice QA:** MacBook-speaker runs under `build/hotkey-voice-qa/20260525-*` covered all six bundled GKP packs with Tingting. Current strict evidence includes successful Golden Sun, Chrono Trigger, Langrisser II, Phantasy Star IV, Final Fantasy VI, and several Shining Force II rows after scoped `observed_asr` fixes. The latest capture/commit retest at `build/hotkey-voice-qa/20260525-113514/results.tsv` was 3/4: Golden Sun, Chrono Trigger, and Langrisser II passed with overlay `finished`; Shining Force II `气合之玉怎么用？` was heard as `气河之欲怎么用` and returned `sf2.characters` instead of expected `sf2.promotion`, so it remains an ASR variant/source-ranking issue rather than a lifecycle failure.
 
 ## End-to-end shell scripts (`scripts/`)
 
@@ -128,8 +135,44 @@ unit/integration tests listed above.
 |---|---|---|
 | `test_endpoint.sh` | bash 3.2+ (macOS-safe) | 4 checks: `/health` probe, happy POST asserting `text` and no `error`, malformed JSON expects HTTP 200 + error, 100-shot stress test reporting avg latency. Colored PASS/FAIL summary. Exit `0` (all pass) / `1` (any fail) / `2` (curl missing). |
 | `test_endpoint.fish` | fish | Functional equivalent of `.sh` version. |
-| `android_avd_smoke.sh` | bash 3.2+ (macOS-safe) | Device/AVD smoke: verifies adb online, optionally builds, auto-installs missing Debug APK, starts `com.retrosprite.app`, forwards host/device ports, runs `test_endpoint.sh`, posts real GKP `/debug/ask` probes for Shining Force II and Golden Sun, then checks `/debug/latest-request` after each probe for `pipeline_stage=evidence`, `llm_status=skipped`, and the expected source id. This is the host-side counterpart to Home's generated debug curl path. |
+| `android_avd_smoke.sh` | bash 3.2+ (macOS-safe) | Device/AVD smoke: verifies adb online, optionally builds, auto-installs missing Debug APK, starts `com.retrosprite.app`, forwards host/device ports, runs `test_endpoint.sh`, then reads `scripts/gkp_debug_cases.tsv` and posts real GKP `/debug/ask` probes for all six bundled real packs. Each case checks `/debug/latest-request` for the expected label, question, `pipeline_stage=evidence`, `llm_status=skipped`, and source id. This is the host-side counterpart to Home's generated debug curl path. |
+| `gkp_debug_cases.tsv` | TSV | Data-driven real-GKP smoke matrix for Shining Force II, Golden Sun, Phantasy Star IV, Langrisser II, Chrono Trigger, and Final Fantasy VI. Each row declares the label, low-spoiler question, expected source id, expected pipeline stage, and expected LLM status used by `android_avd_smoke.sh`. |
+| `hotkey_voice_qa_batch.sh` | bash 3.2+ (macOS-safe) | Multi-pack hotkey voice QA runner. Safe default is dry-run; actual MacBook speaker playback requires `RUN_PLAYBACK=1 CONFIRM_PLAYBACK=1`. Captures `/debug/hotkey-voice-overlay` and `/debug/latest-request`, records raw/normalized transcript, matched term/entity, answer type, pipeline stage, LLM status, source ids, overlay phase, and finish reason. It supports `TTS_BACKEND=sherpa_onnx` for a reproducible local Mandarin wav source via `scripts/sherpa_zh_tts.py`. |
+| `hotkey_voice_qa_cases.tsv` | TSV | Data-driven M16 voice QA matrix for all six bundled GKP packs. Shining Force II, Golden Sun, and Chrono Trigger retain core/localized/no-evidence lanes; all six packs also include all-GKP Paraformer voice smoke or observed-ASR lanes. |
 | `sample_payload.json` | n/a | Reference request body for manual `curl`. |
+
+All-GKP ASR variant validation:
+
+```bash
+JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home" ./gradlew :app:testDebugUnitTest \
+  --tests com.retrosprite.app.gkp.GkpV0FixtureLintTest \
+  --tests com.retrosprite.app.gkp.GkpV0ParserTest \
+  --tests com.retrosprite.app.gkp.GkpV0PreflightValidatorTest \
+  --tests com.retrosprite.app.gkp.RetroJrpgSrpgPackCoverageTest \
+  --tests com.retrosprite.app.data.retrieval.RetroJrpgSrpgPackRetrievalGoldenTest \
+  --tests com.retrosprite.app.domain.normalization.GkpAsrVariantIndexTest \
+  --tests com.retrosprite.app.domain.normalization.GameTermNormalizerTest \
+  --tests com.retrosprite.app.endpoint.QueryPipelineResponseGeneratorTest
+```
+
+ASR capture/commit gate regression:
+
+```bash
+JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home" ./gradlew :app:testDebugUnitTest \
+  --tests com.retrosprite.app.ui.integration.SherpaEndpointCommitGateTest \
+  --tests com.retrosprite.app.ui.integration.SherpaFinalTranscriptSelectorTest \
+  --tests com.retrosprite.app.ui.integration.SherpaOnnxRecognizerFactoryTest \
+  --tests com.retrosprite.app.ui.integration.VoiceSampleFanOutTest
+```
+
+All-GKP MacBook-speaker voice batch:
+
+```bash
+RUN_PLAYBACK=1 CONFIRM_PLAYBACK=1 \
+CASE_FILTER=sf2_vigor_ball_observed,golden_sun_ivan_observed,chrono_marle_observed,chrono_atb_observed,ff6_magicite_observed,langrisser_commander_smoke,phantasy_star_tech_skill_smoke \
+VOICE=Tingting SAY_RATE=96 PRE_SPEAK_SECONDS=3 POST_CASE_SECONDS=10 POLL_ATTEMPTS=40 POLL_INTERVAL_SECONDS=2 READY_ATTEMPTS=20 READY_INTERVAL_SECONDS=1 STRICT=0 \
+./scripts/hotkey_voice_qa_batch.sh
+```
 
 ## CI placeholder (`.github/workflows/ci.yml`)
 

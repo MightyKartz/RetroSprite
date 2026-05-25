@@ -55,10 +55,11 @@ class AndroidVoiceInputProvider(
             it.copy(
                 isAvailable = true,
                 isListening = true,
+                transcript = null,
+                amplitude = 0f,
                 engineLabel = engineLabel(),
+                statusMessage = null,
                 errorMessage = null,
-                asrBiasingProfileId = context?.biasingProfile?.fingerprint,
-                asrHotwordCount = context?.biasingProfile?.normalizedEntries?.size ?: 0,
             )
         }
         speechRecognizer.startListening(recognizerIntent())

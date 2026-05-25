@@ -1,7 +1,8 @@
 {
   "schema_version": "gkp.v0",
   "pack_id": "community.shining-force-ii-md",
-  "pack_version": "0.3.1",
+  "pack_version": "0.3.4",
+  "coverage_tier": "expanded",
   "default_language": "zh",
   "game": {
     "game_id": "shining_force_ii_md",
@@ -14,8 +15,17 @@
       "md__Shining Force II",
       "genesis__Shining Force II",
       "megadrive__Shining Force II",
+      "md__Shining_Force_II",
+      "md__Shining Force 2",
+      "md__Shining Force II (USA)",
+      "genesis__Shining Force II (USA)",
+      "md__Shining Force II (Japan)",
+      "md__Shining Force II (Rev 1)",
+      "md__Shining Force II [!]",
       "md__光明力量2",
       "mega_drive__光明力量2",
+      "md__光明力量2 古代的封印",
+      "mega_drive__光明力量2 古代的封印",
       "Sega - Mega Drive - Genesis__光明力量2",
       "md__光明與黑暗續戰篇Ⅱ 古代的封印"
     ],

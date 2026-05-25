@@ -2,9 +2,7 @@ profile_id: gkp-lite
 coverage_tier: lite
 minimums:
   knowledge_rows_min: 20
-  knowledge_rows_max: 60
   golden_rows_min: 20
-  golden_rows_max: 40
   source_rows_min: 5
   localized_aliases_min: 40
   source_backed_localized_aliases_min: 25
@@ -12,6 +10,9 @@ minimums:
   pure_localized_goldens_min: 12
   core_gameplay_goldens_min: 4
   no_evidence_goldens_min: 3
+recommended_maximums:
+  knowledge_rows_max: 60
+  golden_rows_max: 40
 required_lanes:
   - identity
   - core_gameplay

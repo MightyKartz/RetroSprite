@@ -23,11 +23,12 @@ class GkpV0PreflightValidatorTest {
         assertTrue(report.issues.joinToString("\n") { it.toString() }, report.ok)
         assertEquals("community.golden-sun-gba-zh", report.packId)
         assertEquals("Golden Sun / 黄金太阳", report.gameTitle)
-        assertEquals("0.1.1", report.packVersion)
+        assertEquals("0.1.2", report.packVersion)
+        assertEquals("lite", report.coverageTier)
         assertEquals("gkp.v0", report.schemaVersion)
         assertEquals(42, report.knowledgeRows)
         assertEquals(6, report.sourceCount)
-        assertEquals(34, report.goldenRows)
+        assertEquals(50, report.goldenRows)
         assertEquals("已声明", report.licenseStatus)
         assertEquals(GkpSignatureStatus.Unsigned.id, report.signatureStatus)
         assertTrue(report.contentDigest.orEmpty().matches(Regex("[a-f0-9]{64}")))
@@ -77,6 +78,58 @@ class GkpV0PreflightValidatorTest {
 
         assertFalse(report.ok)
         assertTrue(report.issues.any { it.code == "unknown_source_ref" })
+    }
+
+    @Test
+    fun `scaffold placeholders block external preflight`() {
+        val input = readPack("golden-sun-gba-zh")
+        val files = input.files.toMutableMap()
+        files["knowledge/items.jsonl"] = files.getValue("knowledge/items.jsonl")
+            .replace("药草是基础回复道具", "__REPLACE_WITH_REVIEWED_GKP_DATA__")
+
+        val report = validator.validate(input.copy(files = files))
+
+        assertFalse(report.ok)
+        assertTrue(report.issues.any { it.code == "scaffold_placeholder" })
+    }
+
+    @Test
+    fun `invalid coverage tier fails preflight`() {
+        val input = readPack("golden-sun-gba-zh")
+        val files = input.files.toMutableMap()
+        files["manifest.json"] = files.getValue("manifest.json")
+            .replace("\"coverage_tier\": \"lite\"", "\"coverage_tier\": \"complete\"")
+
+        val report = validator.validate(input.copy(files = files))
+
+        assertFalse(report.ok)
+        assertTrue(report.issues.any { it.code == "invalid_coverage_tier" })
+    }
+
+    @Test
+    fun `invalid alias metadata fails preflight`() {
+        val input = readPack("golden-sun-gba-zh")
+        val files = input.files.toMutableMap()
+        files["aliases.json"] = files.getValue("aliases.json")
+            .replaceFirst("\"source\": \"generated_phonetic\"", "\"source\": \"global_dictionary\"")
+
+        val report = validator.validate(input.copy(files = files))
+
+        assertFalse(report.ok)
+        assertTrue(report.issues.any { it.code == "invalid_value" && it.message.contains("alias.source") })
+    }
+
+    @Test
+    fun `asr alias with unchanged canonical term fails preflight`() {
+        val input = readPack("golden-sun-gba-zh")
+        val files = input.files.toMutableMap()
+        files["aliases.json"] = files.getValue("aliases.json")
+            .replaceFirst("\"canonical_term\": \"精神力\"", "\"canonical_term\": \"精神利\"")
+
+        val report = validator.validate(input.copy(files = files))
+
+        assertFalse(report.ok)
+        assertTrue(report.issues.any { it.code == "invalid_value" && it.message.contains("alias.canonical_term") })
     }
 
     private fun readPack(packName: String): GkpPreflightInput {

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Minimal GKP Lite scaffold generator.
+"""Minimal GKP scaffold generator.
 
 This intentionally stays small and dependency-free. The broader RAG-Anything
 builder can grow around the same templates later.
@@ -17,14 +17,22 @@ from pathlib import Path
 SCRIPT_PATH = Path(__file__).resolve()
 BUILDER_ROOT = SCRIPT_PATH.parents[1]
 TEMPLATE_ROOT = BUILDER_ROOT / "templates" / "gkp-lite"
+SYSTEM_ALIASES = {
+    "md": ["md", "genesis", "mega_drive"],
+    "genesis": ["genesis", "md", "mega_drive"],
+    "mega_drive": ["mega_drive", "md", "genesis"],
+    "gba": ["gba", "game_boy_advance"],
+    "snes": ["snes", "sfc", "super_nintendo"],
+    "sfc": ["sfc", "snes", "super_nintendo"],
+}
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(prog="gkp-builder")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    new_parser = subparsers.add_parser("new", help="Create a GKP Lite pack from the standard scaffold")
-    new_parser.add_argument("--profile", required=True, choices=["lite"])
+    new_parser = subparsers.add_parser("new", help="Create a GKP pack from the standard scaffold")
+    new_parser.add_argument("--profile", required=True, choices=["lite", "expanded", "deep"])
     new_parser.add_argument("--game-id", required=True)
     new_parser.add_argument("--pack-id", required=True)
     new_parser.add_argument("--game", required=True, dest="display_title")
@@ -64,7 +72,13 @@ def build_replacements(args: argparse.Namespace) -> dict[str, str]:
     generated_at = args.generated_at or datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
     game_slug = args.out.name
     display_title = args.display_title
-    label = f"{args.platform}__{display_title}"
+    system_ids = SYSTEM_ALIASES.get(args.platform, [args.platform])
+    labels = [f"{system_ids[0]}__{display_title}"]
+    underscored = display_title.replace(" ", "_")
+    if underscored != display_title:
+        labels.append(f"{system_ids[0]}__{underscored}")
+    for system_id in system_ids[1:]:
+        labels.append(f"{system_id}__{display_title}")
 
     replacements = {
         "game_slug": json_string(game_slug),
@@ -74,11 +88,12 @@ def build_replacements(args: argparse.Namespace) -> dict[str, str]:
         "platform": json_string(args.platform),
         "region": json_string(args.region),
         "language": json_string(args.language),
-        "coverage_tier": "lite",
+        "coverage_tier": args.profile,
         "generated_at": json_string(generated_at),
         "generated_date": json_string(generated_at[:10]),
         "region_json": json.dumps(args.region or None, ensure_ascii=False),
-        "retroarch_labels_json": json.dumps([label], ensure_ascii=False),
+        "retroarch_system_ids_json": json.dumps(system_ids, ensure_ascii=False),
+        "retroarch_labels_json": json.dumps(labels, ensure_ascii=False),
     }
     return replacements
 
@@ -109,7 +124,7 @@ def create_pack(args: argparse.Namespace) -> None:
         text = template_path.read_text(encoding="utf-8")
         dest.write_text(render_text(text, replacements), encoding="utf-8")
 
-    print(f"Generated GKP Lite scaffold at {out_dir}")
+    print(f"Generated GKP {args.profile} scaffold at {out_dir}")
 
 
 def main() -> None:

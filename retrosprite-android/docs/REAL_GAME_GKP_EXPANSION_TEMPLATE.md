@@ -55,14 +55,89 @@ GKP Lite is the minimum useful support package for a game. It should contain:
 
 Suggested coverage tiers:
 
-| Tier | Meaning | Typical Size |
-| --- | --- | --- |
-| `lite` | first supported package, focused on common safe questions | 20 to 60 rows, 20 to 40 goldens |
-| `expanded` | broader characters/items/routes for active users | 60 to 150 rows, 40 to 100 goldens |
-| `deep` | mature pack with many progress gates and detailed optional content | 150+ rows, 100+ goldens |
+| Tier | User-facing label | Meaning | Typical Size |
+| --- | --- | --- | --- |
+| `lite` | GKP Lite | first supported package, focused on common safe questions | 20 to 60 rows, 20 to 40 goldens |
+| `expanded` | GKP Expanded | broader characters/items/routes for active users | 60 to 150 rows, 40 to 100 goldens |
+| `deep` | GKP Deep | mature pack with many progress gates and detailed optional content | 150+ rows, 100+ goldens |
 
 Mark first support as `lite` unless the pack has already passed expanded/deep
 review. Do not imply that a Lite pack is a complete walkthrough.
+Use `expanded` in `coverage_tier`; do not use `plus` or `pro` as coverage
+values. Pro is reserved for the paid product tier.
+
+## 3.1 Game-Specific Terms And ASR Variants
+
+Game-specific names are produced with the GKP, not hard-coded into a global ASR
+dictionary. Each pack should carry the small, high-value vocabulary needed to
+repair speech transcripts after the current game has been resolved.
+
+The production target is not "map every possible wrong transcript." The target
+is:
+
+```text
+raw ASR transcript
+  -> resolved current game
+  -> current GKP term index
+  -> scoped ASR variant candidates
+  -> confidence and ambiguity guard
+  -> normalized question
+  -> local retrieval/template answer
+```
+
+For each real-game slice, include these term groups:
+
+| Group | Examples | Required For Lite |
+| --- | --- | --- |
+| Game identity | localized title, English title, abbreviations, numerals | yes |
+| Characters/NPCs | protagonist, early companions, recruitable units, named NPCs | yes for common/early names |
+| Items/equipment | key items, special class items, permanent upgrades, signature equipment | yes for key terms |
+| Systems/mechanics | magic systems, job/class systems, route systems, battle terms | yes |
+| Locations/routes | early hubs, route labels, named dungeons, secret areas | yes for low-spoiler terms |
+| Bosses/enemies | early bosses and named recurring enemies | yes when covered |
+
+For every high-value term, collect:
+
+- official/localized name;
+- common Chinese fan name;
+- English or romanized name when players may say it;
+- common abbreviation or number variant, such as `二`, `2`, `II`;
+- 1 to 3 generated phonetic variants when they are plausible;
+- observed microphone variants only after QA or user feedback proves them.
+
+Example `aliases.json` entries:
+
+```json
+{"term":"秘银","entity_id":"item.mithril","weight":1.0,"kind":"display_alias","source":"community"}
+{"term":"Mithril","entity_id":"item.mithril","weight":1.0,"kind":"display_alias","source":"official"}
+{"term":"米斯里鲁","entity_id":"item.mithril","weight":0.95,"kind":"display_alias","source":"community"}
+{"term":"密营","entity_id":"item.mithril","weight":0.72,"kind":"asr_variant","source":"observed_asr","canonical_term":"秘银"}
+{"term":"米斯林鲁","entity_id":"item.mithril","weight":0.70,"kind":"asr_variant","source":"observed_asr","canonical_term":"米斯里鲁"}
+```
+
+Risk rules:
+
+- Keep ASR variants game-scoped. A term from one GKP must not rewrite questions
+  for another game.
+- Keep generic question scaffolding out of high-confidence aliases. Phrases such
+  as `在哪里`, `怎么用`, `角色`, and `道具` belong in templates or intent rules,
+  not in proper-name correction.
+- Treat high-frequency everyday words as risky. For example, `你的 -> 彼得`
+  should not be a global alias; it can only be a low-confidence candidate when
+  the current game has `npc.peter` and the question looks like a character query.
+- Prefer source-backed display aliases for retrieval. Use generated or observed
+  ASR variants as a normalization hint, then retrieve by the canonical/display
+  term.
+
+Each slice should add at least three ASR goldens for name-heavy questions when
+voice support is in scope:
+
+```json
+{"qa_id":"qa.<game>.asr-item-name.zh","question":"密营武器怎么打造？","expected_normalized_question":"秘银武器怎么打造","expected_entity_ids":["item.mithril"],"source_refs":["<game>.community.items"],"notes":"Observed or generated ASR variant for 秘银."}
+```
+
+Goldens should capture both raw and normalized wording so regressions can tell
+the difference between a model error, a normalizer miss, and a retrieval miss.
 
 ## 4. Standardized Template And Scaffold
 
@@ -129,10 +204,13 @@ Minimum scaffolded files must include:
 - core gameplay/fun hook starter row;
 - beginner direction starter row;
 - key-term/name-mapping starter rows;
+- a game-scoped ASR variants checklist for high-value proper nouns;
 - source inventory placeholders;
 - coarse spoiler graph;
 - at least one no-evidence golden;
 - at least one spoiler-downgrade golden;
+- at least three name-heavy ASR normalization golden templates when voice is in
+  scope;
 - at least four core gameplay/fun hook golden templates;
 - changelog section with `Coverage tier: lite`.
 

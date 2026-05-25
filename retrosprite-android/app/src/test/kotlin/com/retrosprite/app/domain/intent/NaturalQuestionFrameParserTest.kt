@@ -44,4 +44,20 @@ class NaturalQuestionFrameParserTest {
         assertEquals(AnswerType.Location, frame.answerType)
         assertTrue(frame.asksSpoilerEscalation)
     }
+
+    @Test
+    fun `detects item purpose without treating it as game overview`() {
+        val frame = NaturalQuestionFrameParser.parse("妖精粉是干嘛的？")
+
+        assertEquals(AnswerType.Usage, frame.answerType)
+        assertEquals("usage", frame.intentDetail)
+    }
+
+    @Test
+    fun `detects mechanic and enemy handling variants from real qa`() {
+        assertEquals(AnswerType.Mechanic, NaturalQuestionFrameParser.parse("职业为什么突然变了？").answerType)
+        assertEquals(AnswerType.Mechanic, NaturalQuestionFrameParser.parse("召唤什么时候用比较好？").answerType)
+        assertEquals(AnswerType.Mechanic, NaturalQuestionFrameParser.parse("角色指令有什么区别？").answerType)
+        assertEquals(AnswerType.Strategy, NaturalQuestionFrameParser.parse("生化怪物怎么处理？").answerType)
+    }
 }

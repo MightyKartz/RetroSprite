@@ -10,7 +10,7 @@
     "platform": "{{platform}}",
     "region": {{region_json}},
     "languages": ["{{language}}"],
-    "retroarch_system_ids": ["{{platform}}"],
+    "retroarch_system_ids": {{retroarch_system_ids_json}},
     "retroarch_labels": {{retroarch_labels_json}},
     "rom_identity": {
       "crc32": null,

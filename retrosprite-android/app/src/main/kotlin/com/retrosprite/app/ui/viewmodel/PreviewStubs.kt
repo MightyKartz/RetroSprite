@@ -122,6 +122,7 @@ private class FakeGkpPreflightProvider : GkpPreflightProvider {
                 gameId = "golden_sun_gba",
                 gameTitle = "Golden Sun / 黄金太阳",
                 packVersion = "0.1.0",
+                coverageTierLabel = "GKP Lite",
                 schemaVersion = "gkp.v0",
                 knowledgeRows = 41,
                 sourceCount = 6,
@@ -149,6 +150,7 @@ private class FakeGkpPreflightProvider : GkpPreflightProvider {
                 gameTitle = "Golden Sun / 黄金太阳",
                 currentPackVersion = "0.1.0",
                 newPackVersion = "0.1.0",
+                coverageTierLabel = "GKP Lite",
                 currentKnowledgeRows = 41,
                 newKnowledgeRows = 41,
                 sourceCount = 6,
@@ -208,6 +210,7 @@ private class FakeGkpLibraryProvider : GkpLibraryProvider {
                     region = null,
                     languages = listOf("zh", "en"),
                     packVersion = "0.3.0",
+                    coverageTierLabel = "GKP Expanded",
                     schemaVersion = "gkp.v0",
                     trustLabel = "社区",
                     provenanceLabel = "内置",
@@ -229,6 +232,7 @@ private class FakeGkpLibraryProvider : GkpLibraryProvider {
                     region = null,
                     languages = listOf("zh"),
                     packVersion = "0.1.0",
+                    coverageTierLabel = "GKP Lite",
                     schemaVersion = "gkp.v0",
                     trustLabel = "社区",
                     provenanceLabel = "内置",
@@ -434,8 +438,6 @@ private class FakeVoiceInputProvider : VoiceInputProvider {
             it.copy(
                 isListening = true,
                 errorMessage = null,
-                asrBiasingProfileId = context?.biasingProfile?.fingerprint,
-                asrHotwordCount = context?.biasingProfile?.normalizedEntries?.size ?: 0,
             )
         }
         delay(120)
@@ -446,8 +448,6 @@ private class FakeVoiceInputProvider : VoiceInputProvider {
             transcript = "什么时候转职？",
             transcriptEventId = eventId,
             engineLabel = "预览语音",
-            asrBiasingProfileId = context?.biasingProfile?.fingerprint,
-            asrHotwordCount = context?.biasingProfile?.normalizedEntries?.size ?: 0,
         )
     }
 
@@ -610,5 +610,9 @@ private class FakeSettingsStore(initial: UiSettings) : SettingsStore {
 
     override suspend fun updateSpoilerLevel(level: UiSpoilerLevel) {
         _settings.update { it.copy(spoilerLevel = level) }
+    }
+
+    override suspend fun updateHotkeyVoiceTranscriptHudEnabled(enabled: Boolean) {
+        _settings.update { it.copy(hotkeyVoiceTranscriptHudEnabled = enabled) }
     }
 }

@@ -3,6 +3,7 @@ package com.retrosprite.app.gkp
 import com.retrosprite.app.data.gkp.GkpV0Parser
 import com.retrosprite.app.data.gkp.GkpPackProvenance
 import com.retrosprite.app.data.gkp.GkpSignatureStatus
+import com.retrosprite.app.data.models.KnowledgeAliasDomain
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -26,7 +27,8 @@ class GkpV0ParserTest {
         assertEquals(listOf("zh", "en"), parsed.game.languages)
         assertEquals(listOf("md", "genesis", "megadrive", "mega_drive"), parsed.game.retroarchSystemIds)
         assertTrue(parsed.game.retroarchLabels.contains("mega_drive__光明力量2"))
-        assertEquals("0.3.1", parsed.game.packVersion)
+        assertEquals("expanded", parsed.game.coverageTier)
+        assertEquals("0.3.4", parsed.game.packVersion)
         assertEquals("gkp.v0", parsed.game.schemaVersion)
         assertEquals("community", parsed.game.trustLevel)
         assertEquals(GkpPackProvenance.Unknown.id, parsed.game.provenance)
@@ -58,7 +60,8 @@ class GkpV0ParserTest {
         assertEquals(listOf("zh"), parsed.game.languages)
         assertEquals(listOf("gba", "game_boy_advance"), parsed.game.retroarchSystemIds)
         assertTrue(parsed.game.retroarchLabels.contains("gba__黄金太阳"))
-        assertEquals("0.1.1", parsed.game.packVersion)
+        assertEquals("lite", parsed.game.coverageTier)
+        assertEquals("0.1.2", parsed.game.packVersion)
         assertEquals("gkp.v0", parsed.game.schemaVersion)
         assertEquals("community", parsed.game.trustLevel)
         assertEquals(1234L, parsed.game.installedAt)
@@ -107,6 +110,7 @@ class GkpV0ParserTest {
               "language": "zh",
               "aliases": [
                 {"term": "战士之傲", "entity_id": "item.warrior-pride", "weight": 1.0}
+                ,{"term": "勇者之政", "entity_id": "item.warrior-pride", "weight": 0.72, "kind": "observed_asr", "source": "observed_asr", "canonical_term": "勇者之证", "notes": "Observed mic result."}
               ]
             }
         """.trimIndent()
@@ -121,6 +125,19 @@ class GkpV0ParserTest {
         assertTrue(item.aliases.contains("Warrior Pride"))
         assertTrue(item.aliases.contains("勇者之证"))
         assertTrue(item.aliases.contains("战士之傲"))
+        assertTrue(item.aliases.contains("勇者之政"))
+        assertEquals(
+            KnowledgeAliasDomain(
+                term = "勇者之政",
+                entityId = "item.warrior-pride",
+                kind = "observed_asr",
+                source = "observed_asr",
+                weight = 0.72,
+                canonicalTerm = "勇者之证",
+                notes = "Observed mic result.",
+            ),
+            item.aliasMetadata.single { it.term == "勇者之政" },
+        )
     }
 
     @Test(expected = IllegalArgumentException::class)

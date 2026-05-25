@@ -1,11 +1,32 @@
 package com.retrosprite.app.ui.overlay
 
+import android.graphics.Color
 import com.retrosprite.app.endpoint.RetroArchHotkeyEvent
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class HotkeyVoiceOverlayRendererTest {
+
+    @Test
+    fun `status label color is explicit for each hotkey voice phase`() {
+        assertEquals(Color.rgb(56, 189, 248), HotkeyVoiceOverlayPhase.Wake.statusTextColor())
+        assertEquals(Color.rgb(245, 158, 11), HotkeyVoiceOverlayPhase.Preparing.statusTextColor())
+        assertEquals(Color.rgb(34, 197, 94), HotkeyVoiceOverlayPhase.Listening.statusTextColor())
+        assertEquals(Color.rgb(110, 176, 181), HotkeyVoiceOverlayPhase.Muted.statusTextColor())
+        assertEquals(Color.rgb(96, 165, 250), HotkeyVoiceOverlayPhase.Thinking.statusTextColor())
+        assertEquals(Color.rgb(45, 212, 191), HotkeyVoiceOverlayPhase.Speaking.statusTextColor())
+        assertEquals(Color.rgb(248, 181, 0), HotkeyVoiceOverlayPhase.NoEvidence.statusTextColor())
+        assertEquals(Color.rgb(255, 107, 107), HotkeyVoiceOverlayPhase.Error.statusTextColor())
+    }
+
+    @Test
+    fun `core voice status labels are english and keep mic readiness explicit`() {
+        assertEquals("Preparing - mic off", HotkeyVoiceOverlayPhase.Preparing.statusLabel())
+        assertEquals("Mic live", HotkeyVoiceOverlayPhase.Listening.statusLabel())
+        assertEquals("Thinking", HotkeyVoiceOverlayPhase.Thinking.statusLabel())
+        assertEquals("Answering", HotkeyVoiceOverlayPhase.Speaking.statusLabel())
+    }
 
     @Test
     fun `no evidence answer card has room for suggested questions`() {
@@ -311,6 +332,30 @@ class HotkeyVoiceOverlayRendererTest {
             event = event(),
             phase = HotkeyVoiceOverlayPhase.Listening,
             transcript = "角色如何搭配",
+        )
+
+        assertEquals("听到：角色如何搭配", state.transcriptHudText())
+    }
+
+    @Test
+    fun `transcript hud text is hidden when render state disables it`() {
+        val state = HotkeyVoiceOverlayRenderState(
+            event = event(),
+            phase = HotkeyVoiceOverlayPhase.Listening,
+            transcript = "角色如何搭配",
+            showTranscriptHud = false,
+        )
+
+        assertEquals(null, state.transcriptHudText())
+    }
+
+    @Test
+    fun `transcript hud text remains available when render state enables it`() {
+        val state = HotkeyVoiceOverlayRenderState(
+            event = event(),
+            phase = HotkeyVoiceOverlayPhase.Listening,
+            transcript = "角色如何搭配",
+            showTranscriptHud = true,
         )
 
         assertEquals("听到：角色如何搭配", state.transcriptHudText())

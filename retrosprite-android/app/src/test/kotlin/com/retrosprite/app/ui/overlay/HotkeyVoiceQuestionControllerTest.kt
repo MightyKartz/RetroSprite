@@ -204,12 +204,12 @@ class HotkeyVoiceQuestionControllerTest {
         val mutedState = renderer.renderedStates.last {
             it.phase == HotkeyVoiceOverlayPhase.Muted
         }
-        assertEquals("Muted", mutedState.message)
+        assertEquals("No speech", mutedState.message)
         assertEquals("没有听到问题，请再按一次热键。", mutedState.answerText)
         assertEquals(emptyList<String>(), mutedState.sourceIds)
         assertEquals(
             listOf(
-                HotkeyVoiceOverlayPhase.Wake,
+                HotkeyVoiceOverlayPhase.Preparing,
                 HotkeyVoiceOverlayPhase.Listening,
                 HotkeyVoiceOverlayPhase.Muted,
             ),
@@ -243,9 +243,70 @@ class HotkeyVoiceQuestionControllerTest {
         val mutedState = renderer.renderedStates.last {
             it.phase == HotkeyVoiceOverlayPhase.Muted
         }
-        assertEquals("Muted", mutedState.message)
+        assertEquals("No speech", mutedState.message)
         assertEquals("没有听到问题，请再按一次热键。", mutedState.answerText)
         assertEquals(null, generator.request)
+    }
+
+    @Test
+    fun `pathological short asr fragments render muted recovery and skip pipeline`() = runTest {
+        for (fragment in listOf("是什", "关是", "是不")) {
+            val renderer = FakeRenderer()
+            val coordinator = HotkeyVoiceOverlayCoordinator(
+                renderer = renderer,
+                canDrawOverlays = { true },
+                scheduleAutoHide = {},
+                cancelAutoHide = {},
+            )
+            val voice = FakeVoiceInputProvider(fragment)
+            val generator = CapturingGenerator("answer")
+            val controller = HotkeyVoiceQuestionController(
+                coordinator = coordinator,
+                voiceInput = voice,
+                responseGenerator = generator,
+                speechOutput = FakeSpeechOutputProvider(),
+                loggerProvider = { RequestLogger() },
+                scope = this,
+            )
+
+            controller.onHotkey(event())
+            advanceUntilIdle()
+
+            val mutedState = renderer.renderedStates.last {
+                it.phase == HotkeyVoiceOverlayPhase.Muted
+            }
+            assertEquals("No speech", mutedState.message)
+            assertEquals("没有听到问题，请再按一次热键。", mutedState.answerText)
+            assertEquals(null, generator.request)
+        }
+    }
+
+    @Test
+    fun `short useful voice questions still reach pipeline`() = runTest {
+        for (question in listOf("这游戏", "气合之玉", "玛尔是谁")) {
+            val renderer = FakeRenderer()
+            val coordinator = HotkeyVoiceOverlayCoordinator(
+                renderer = renderer,
+                canDrawOverlays = { true },
+                scheduleAutoHide = {},
+                cancelAutoHide = {},
+            )
+            val voice = FakeVoiceInputProvider(question)
+            val generator = CapturingGenerator("answer")
+            val controller = HotkeyVoiceQuestionController(
+                coordinator = coordinator,
+                voiceInput = voice,
+                responseGenerator = generator,
+                speechOutput = FakeSpeechOutputProvider(),
+                loggerProvider = { RequestLogger() },
+                scope = this,
+            )
+
+            controller.onHotkey(event())
+            advanceUntilIdle()
+
+            assertEquals(question, generator.request?.question)
+        }
     }
 
     @Test
@@ -273,7 +334,7 @@ class HotkeyVoiceQuestionControllerTest {
 
         assertEquals(
             listOf(
-                HotkeyVoiceOverlayPhase.Wake,
+                HotkeyVoiceOverlayPhase.Preparing,
                 HotkeyVoiceOverlayPhase.Listening,
                 HotkeyVoiceOverlayPhase.Thinking,
                 HotkeyVoiceOverlayPhase.NoEvidence,
@@ -325,7 +386,7 @@ class HotkeyVoiceQuestionControllerTest {
             it.phase == HotkeyVoiceOverlayPhase.NoEvidence
         }
         assertEquals(HotkeyVoiceOverlayPhase.NoEvidence, noEvidenceState.phase)
-        assertEquals("NO RELIABLE EVIDENCE", noEvidenceState.message)
+        assertEquals("No evidence", noEvidenceState.message)
         assertEquals(noEvidenceDetail, noEvidenceState.answerText)
         assertEquals(emptyList<String>(), noEvidenceState.sourceIds)
         assertEquals("这个人物厉害吗？", noEvidenceState.transcript)
@@ -369,6 +430,50 @@ class HotkeyVoiceQuestionControllerTest {
         assertEquals("角色如何搭配", listeningState.transcript)
         assertEquals("角色如何搭配", thinkingState.transcript)
         assertEquals("角色如何搭配", speakingState.transcript)
+    }
+
+    @Test
+    fun `hotkey voice keeps hud preparing until microphone is actually listening`() = runTest {
+        val renderer = FakeRenderer()
+        val coordinator = HotkeyVoiceOverlayCoordinator(
+            renderer = renderer,
+            canDrawOverlays = { true },
+            scheduleAutoHide = {},
+            cancelAutoHide = {},
+        )
+        val voice = PreparingThenHangingVoiceInputProvider()
+        val controller = HotkeyVoiceQuestionController(
+            coordinator = coordinator,
+            voiceInput = voice,
+            responseGenerator = CapturingGenerator("answer"),
+            speechOutput = FakeSpeechOutputProvider(),
+            loggerProvider = { RequestLogger() },
+            scope = this,
+        )
+
+        controller.onHotkey(event())
+        runCurrent()
+
+        assertTrue(
+            renderer.renderedStates.any {
+                it.phase == HotkeyVoiceOverlayPhase.Preparing &&
+                    it.message == "Preparing - mic off"
+            }
+        )
+        val preparingState = renderer.renderedStates.last {
+            it.phase == HotkeyVoiceOverlayPhase.Preparing
+        }
+        val listeningState = renderer.renderedStates.first {
+            it.phase == HotkeyVoiceOverlayPhase.Listening
+        }
+        assertEquals("首次加载本地 ASR 模型，可能需要几秒钟…", preparingState.message)
+        assertEquals("Mic live", listeningState.message)
+        assertEquals("listening", coordinator.debugSnapshot().lifecycle_phase)
+        assertEquals("listening", coordinator.debugSnapshot().render_phase)
+        assertEquals(true, coordinator.debugSnapshot().mic_live)
+
+        voice.finish("什么时候转职？")
+        advanceUntilIdle()
     }
 
     @Test
@@ -614,6 +719,35 @@ class HotkeyVoiceQuestionControllerTest {
         assertEquals(false, coordinator.debugSnapshot().is_visible)
     }
 
+    @Test
+    fun `new hotkey voice session does not render stale transcript before fresh ASR starts`() = runTest {
+        val renderer = FakeRenderer()
+        val coordinator = HotkeyVoiceOverlayCoordinator(
+            renderer = renderer,
+            canDrawOverlays = { true },
+            scheduleAutoHide = {},
+            cancelAutoHide = {},
+        )
+        val voice = StaleThenFreshVoiceInputProvider(
+            staleTranscript = "上一轮的问题",
+            freshTranscript = "什么时候转职？",
+        )
+        val controller = HotkeyVoiceQuestionController(
+            coordinator = coordinator,
+            voiceInput = voice,
+            responseGenerator = CapturingGenerator("角色至少 20 级才能转职。\n来源：sf2.promotion"),
+            speechOutput = FakeSpeechOutputProvider(),
+            loggerProvider = { RequestLogger() },
+            scope = this,
+        )
+
+        controller.onHotkey(event())
+        advanceUntilIdle()
+
+        assertEquals(false, renderer.renderedStates.any { it.transcript == "上一轮的问题" })
+        assertEquals(true, renderer.renderedStates.any { it.transcript == "什么时候转职？" })
+    }
+
     private fun event(): RetroArchHotkeyEvent =
         RetroArchHotkeyEvent(
             label = "mega_drive__光明力量2",
@@ -660,8 +794,6 @@ class HotkeyVoiceQuestionControllerTest {
                 isListening = true,
                 transcript = partialTranscript,
                 engineLabel = "fake",
-                asrBiasingProfileId = context?.biasingProfile?.fingerprint,
-                asrHotwordCount = context?.biasingProfile?.normalizedEntries?.size ?: 0,
             )
             kotlinx.coroutines.yield()
             _state.value = UiVoiceInputState(
@@ -670,8 +802,47 @@ class HotkeyVoiceQuestionControllerTest {
                 transcript = finalTranscript,
                 transcriptEventId = startCount.toLong(),
                 engineLabel = "fake",
-                asrBiasingProfileId = context?.biasingProfile?.fingerprint,
-                asrHotwordCount = context?.biasingProfile?.normalizedEntries?.size ?: 0,
+            )
+        }
+
+        override suspend fun stopListening() = Unit
+        override suspend fun cancelListening() = Unit
+    }
+
+    private class StaleThenFreshVoiceInputProvider(
+        staleTranscript: String,
+        private val freshTranscript: String,
+    ) : VoiceInputProvider {
+        private val _state = MutableStateFlow(
+            UiVoiceInputState(
+                isAvailable = true,
+                isListening = false,
+                transcript = staleTranscript,
+                transcriptEventId = 7L,
+                engineLabel = "fake",
+            )
+        )
+        override val state: StateFlow<UiVoiceInputState> = _state
+        override val requiresRecordAudioPermission: Boolean = false
+        var startCount: Int = 0
+
+        override suspend fun startListening(context: AsrRecognitionContext?) {
+            startCount += 1
+            kotlinx.coroutines.yield()
+            _state.value = UiVoiceInputState(
+                isAvailable = true,
+                isListening = true,
+                transcript = null,
+                transcriptEventId = 7L,
+                engineLabel = "fake",
+            )
+            kotlinx.coroutines.yield()
+            _state.value = UiVoiceInputState(
+                isAvailable = true,
+                isListening = false,
+                transcript = freshTranscript,
+                transcriptEventId = 8L,
+                engineLabel = "fake",
             )
         }
 
@@ -694,8 +865,6 @@ class HotkeyVoiceQuestionControllerTest {
                 isAvailable = true,
                 isListening = true,
                 engineLabel = "fake",
-                asrBiasingProfileId = context?.biasingProfile?.fingerprint,
-                asrHotwordCount = context?.biasingProfile?.normalizedEntries?.size ?: 0,
             )
         }
 
@@ -703,6 +872,45 @@ class HotkeyVoiceQuestionControllerTest {
 
         override suspend fun cancelListening() {
             cancelCount += 1
+            _state.value = _state.value.copy(isListening = false)
+        }
+
+        fun finish(transcript: String) {
+            _state.value = UiVoiceInputState(
+                isAvailable = true,
+                isListening = false,
+                transcript = transcript,
+                transcriptEventId = startCount.toLong(),
+                engineLabel = "fake",
+            )
+        }
+    }
+
+    private class PreparingThenHangingVoiceInputProvider : VoiceInputProvider {
+        private val _state = MutableStateFlow(UiVoiceInputState(engineLabel = "fake"))
+        override val state: StateFlow<UiVoiceInputState> = _state
+        override val requiresRecordAudioPermission: Boolean = false
+        var startCount: Int = 0
+
+        override suspend fun startListening(context: AsrRecognitionContext?) {
+            startCount += 1
+            _state.value = UiVoiceInputState(
+                isAvailable = true,
+                isListening = false,
+                engineLabel = "fake",
+                statusMessage = "首次加载本地 ASR 模型，可能需要几秒钟…",
+            )
+            kotlinx.coroutines.yield()
+            _state.value = UiVoiceInputState(
+                isAvailable = true,
+                isListening = true,
+                engineLabel = "fake",
+            )
+        }
+
+        override suspend fun stopListening() = Unit
+
+        override suspend fun cancelListening() {
             _state.value = _state.value.copy(isListening = false)
         }
 

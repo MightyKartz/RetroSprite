@@ -63,6 +63,10 @@ class SettingsViewModel(
         viewModelScope.launch { store.updateSpoilerLevel(level) }
     }
 
+    fun applyHotkeyVoiceTranscriptHudEnabled(enabled: Boolean) {
+        viewModelScope.launch { store.updateHotkeyVoiceTranscriptHudEnabled(enabled) }
+    }
+
     fun refreshOverlayPermission() {
         viewModelScope.launch { overlayPermission.refresh() }
     }

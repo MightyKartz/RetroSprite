@@ -1,5 +1,6 @@
 package com.retrosprite.app.ui.viewmodel
 
+import com.retrosprite.app.BuildConfig
 import com.retrosprite.app.llm.LlmConfig
 import com.retrosprite.app.voice.asr.AsrRecognitionContext
 import kotlinx.coroutines.flow.Flow
@@ -132,15 +133,18 @@ data class UiVoiceInputState(
     val engineLabel: String = "系统语音",
     val statusMessage: String? = null,
     val errorMessage: String? = null,
-    val asrBiasingProfileId: String? = null,
-    val asrHotwordCount: Int = 0,
-    val asrArchitecture: String? = null,
-    val asrDecodingMethod: String? = null,
+    val asrArchitecture: String? = "paraformer",
+    val asrDecodingMethod: String? = "greedy_search",
     val asrModelingUnit: String? = null,
-    val asrNativeHotwordsEnabled: Boolean = false,
-    val asrNativeHotwordsReason: String? = null,
-    val asrHotwordMode: String? = null,
-    val asrHotwordPreview: String? = null,
+    val asrCommitReason: String? = null,
+    val asrLastPartial: String? = null,
+    val asrFinalText: String? = null,
+    val asrSelectedTranscript: String? = null,
+    val asrPostVoiceSilenceMillis: Long? = null,
+    val asrPartialStableMillis: Long? = null,
+    val asrRequiredStableMillis: Long? = null,
+    val asrEndpointArmed: Boolean? = null,
+    val asrFinalFlushMillis: Long? = null,
 )
 
 /** App-side short-answer speech output state. */
@@ -197,6 +201,7 @@ const val MAX_LLM_TIMEOUT_SECONDS: Int = 120
 const val DEFAULT_LLM_MAX_TOKENS: Int = 256
 const val MIN_LLM_MAX_TOKENS: Int = 32
 const val MAX_LLM_MAX_TOKENS: Int = 2048
+val DEFAULT_HOTKEY_VOICE_TRANSCRIPT_HUD_ENABLED: Boolean = BuildConfig.DEBUG
 
 /** A flat snapshot of all user-tunable settings. */
 data class UiSettings(
@@ -207,7 +212,8 @@ data class UiSettings(
     val llmModel: String = UiLlmProvider.OpenAI.defaultModel,
     val llmTimeoutSeconds: Int = DEFAULT_LLM_TIMEOUT_SECONDS,
     val llmMaxTokens: Int = DEFAULT_LLM_MAX_TOKENS,
-    val spoilerLevel: UiSpoilerLevel = UiSpoilerLevel.Light
+    val spoilerLevel: UiSpoilerLevel = UiSpoilerLevel.Light,
+    val hotkeyVoiceTranscriptHudEnabled: Boolean = DEFAULT_HOTKEY_VOICE_TRANSCRIPT_HUD_ENABLED,
 )
 
 /** Header info for the "About" section. Static for Phase 0. */
@@ -239,6 +245,7 @@ data class UiGkpPackItem(
     val region: String?,
     val languages: List<String>,
     val packVersion: String,
+    val coverageTierLabel: String = "GKP Legacy",
     val schemaVersion: String,
     val trustLabel: String,
     val provenanceLabel: String,
@@ -302,6 +309,7 @@ data class UiGkpPreflightResult(
     val gameId: String?,
     val gameTitle: String?,
     val packVersion: String?,
+    val coverageTierLabel: String = "GKP Legacy",
     val schemaVersion: String?,
     val knowledgeRows: Int,
     val sourceCount: Int,
@@ -325,6 +333,7 @@ data class UiGkpInstallPlan(
     val gameTitle: String?,
     val currentPackVersion: String?,
     val newPackVersion: String?,
+    val coverageTierLabel: String = "GKP Legacy",
     val currentKnowledgeRows: Int,
     val newKnowledgeRows: Int,
     val sourceCount: Int,
@@ -443,4 +452,5 @@ interface SettingsStore {
         maxTokens: Int = DEFAULT_LLM_MAX_TOKENS,
     )
     suspend fun updateSpoilerLevel(level: UiSpoilerLevel)
+    suspend fun updateHotkeyVoiceTranscriptHudEnabled(enabled: Boolean)
 }

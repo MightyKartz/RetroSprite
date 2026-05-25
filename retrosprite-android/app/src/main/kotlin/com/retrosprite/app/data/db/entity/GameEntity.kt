@@ -57,6 +57,10 @@ data class GameEntity(
     @ColumnInfo(name = "retroarch_labels", defaultValue = "'[]'")
     val retroarchLabels: String,
 
+    /** "lite" | "expanded" | "deep"; nullable for legacy/imported packs. */
+    @ColumnInfo(name = "coverage_tier")
+    val coverageTier: String?,
+
     @ColumnInfo(name = "pack_version")
     val packVersion: String,
 

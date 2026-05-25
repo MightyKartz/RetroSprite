@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Added scoped `observed_asr` aliases from MacBook-speaker Paraformer QA for 魔石系统 and related 魔石/幻兽 phrasing.
+- Added `何石系统是什么 -> 魔石系统是什么` from the 2026-05-25 real-device voice retry.
+- Added voice-like golden questions covering current-game ASR normalization.
+
 ## 0.1.0 - 2026-05-24
 
 - Coverage tier: `lite`.

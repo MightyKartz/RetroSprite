@@ -163,6 +163,7 @@ class RealGkpPreflightProvider(
             gameId = gameId,
             gameTitle = gameTitle,
             packVersion = packVersion,
+            coverageTierLabel = coverageTier.toCoverageTierLabel(),
             schemaVersion = schemaVersion,
             knowledgeRows = knowledgeRows,
             sourceCount = sourceCount,
@@ -188,6 +189,7 @@ class RealGkpPreflightProvider(
             gameTitle = gameTitle,
             currentPackVersion = currentPackVersion,
             newPackVersion = newPackVersion,
+            coverageTierLabel = coverageTier.toCoverageTierLabel(),
             currentKnowledgeRows = currentKnowledgeRows,
             newKnowledgeRows = newKnowledgeRows,
             sourceCount = sourceCount,
@@ -227,6 +229,7 @@ class RealGkpPreflightProvider(
             gameId = null,
             gameTitle = null,
             packVersion = null,
+            coverageTierLabel = "GKP Legacy",
             schemaVersion = null,
             knowledgeRows = 0,
             sourceCount = 0,
@@ -267,6 +270,13 @@ class RealGkpPreflightProvider(
         GkpSignatureStatus.Verified -> keyId?.let { "已验证 $it" } ?: "已验证"
         GkpSignatureStatus.Failed -> "签名失败"
         GkpSignatureStatus.Unknown -> "签名未知"
+    }
+
+    private fun String?.toCoverageTierLabel(): String = when (this?.lowercase()) {
+        "lite" -> "GKP Lite"
+        "expanded" -> "GKP Expanded"
+        "deep" -> "GKP Deep"
+        else -> "GKP Legacy"
     }
 
     private companion object {

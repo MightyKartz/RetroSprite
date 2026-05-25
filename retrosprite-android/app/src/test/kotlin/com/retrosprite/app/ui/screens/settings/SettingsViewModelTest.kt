@@ -62,6 +62,26 @@ class SettingsViewModelTest {
         assertEquals(1, overlay.openSettingsCount)
     }
 
+    @Test
+    fun `applyHotkeyVoiceTranscriptHudEnabled delegates to settings store`() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val store = FakeSettingsStore()
+            val viewModel = SettingsViewModel(
+                store = store,
+                endpoint = FakeEndpointStatusProvider(),
+                llmConfigTest = FakeLlmConfigTestProvider(),
+                overlayPermission = FakeOverlayPermissionProvider(
+                    UiOverlayPermissionState(isGranted = true),
+                ),
+                about = UiAboutInfo(),
+            )
+
+            viewModel.applyHotkeyVoiceTranscriptHudEnabled(false)
+            advanceUntilIdle()
+
+            assertEquals(false, store.state.value.hotkeyVoiceTranscriptHudEnabled)
+        }
+
     private fun viewModel(
         overlay: OverlayPermissionProvider,
     ): SettingsViewModel =
@@ -92,7 +112,7 @@ class SettingsViewModelTest {
     }
 
     private class FakeSettingsStore : SettingsStore {
-        private val state = MutableStateFlow(UiSettings())
+        val state = MutableStateFlow(UiSettings())
         override val settings: Flow<UiSettings> = state
 
         override suspend fun updatePort(port: Int) {
@@ -119,6 +139,10 @@ class SettingsViewModelTest {
 
         override suspend fun updateSpoilerLevel(level: UiSpoilerLevel) {
             state.value = state.value.copy(spoilerLevel = level)
+        }
+
+        override suspend fun updateHotkeyVoiceTranscriptHudEnabled(enabled: Boolean) {
+            state.value = state.value.copy(hotkeyVoiceTranscriptHudEnabled = enabled)
         }
     }
 

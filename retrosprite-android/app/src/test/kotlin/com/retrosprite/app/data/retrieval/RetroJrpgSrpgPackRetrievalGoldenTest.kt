@@ -115,8 +115,49 @@ class RetroJrpgSrpgPackRetrievalGoldenTest {
         assertTrue(failures.joinToString(separator = "\n"), failures.isEmpty())
     }
 
+    @Test
+    fun `runtime wording variants resolve without explicit progress gate when low spoiler`() = runTest {
+        val failures = mutableListOf<String>()
+
+        RUNTIME_WORDING_CASES.forEach { case ->
+            val fixture = loadPack(case.packSlug)
+            val pipeline = LocalKnowledgeRetrievalPipeline(FixtureKnowledgeRepository(fixture.knowledge))
+            val normalizedQuestion = GameTermNormalizer()
+                .normalize(pipeline.normalizeQuestion(case.question, "zh"), fixture.knowledge)
+                .normalizedQuestion
+            val results = pipeline.retrieve(
+                RetrievalQuery(
+                    gameId = case.gameId,
+                    normalizedQuery = normalizedQuestion,
+                    language = "zh",
+                    progressGate = null,
+                    spoilerLevel = SpoilerLevel.LIGHT,
+                    limit = 5,
+                )
+            )
+            val hit = results.firstOrNull { it.entityId == case.expectedEntityId }
+            if (hit == null) {
+                failures += "${case.packSlug}/${case.question} expected ${case.expectedEntityId}; " +
+                    "got ${results.map { it.entityId }}"
+            } else if (hit.answerType != case.expectedType) {
+                failures += "${case.packSlug}/${case.question} expected type ${case.expectedType}; " +
+                    "got ${hit.answerType}"
+            }
+        }
+
+        assertTrue(failures.joinToString(separator = "\n"), failures.isEmpty())
+    }
+
     private data class Pack(
         val slug: String,
+    )
+
+    private data class RuntimeWordingCase(
+        val packSlug: String,
+        val gameId: String,
+        val question: String,
+        val expectedEntityId: String,
+        val expectedType: AnswerType,
     )
 
     private data class PackFixture(
@@ -270,6 +311,43 @@ class RetroJrpgSrpgPackRetrievalGoldenTest {
             Pack("final-fantasy-vi-snes-zh"),
         )
         val STAT_GUARD_PACKS = PACKS + Pack("shining-force-ii-md")
+        val RUNTIME_WORDING_CASES = listOf(
+            RuntimeWordingCase(
+                packSlug = "chrono-trigger-snes-zh",
+                gameId = "chrono_trigger_snes",
+                question = "三人技要不要背全？",
+                expectedEntityId = "mechanic.dual-triple-techs",
+                expectedType = AnswerType.Mechanic,
+            ),
+            RuntimeWordingCase(
+                packSlug = "phantasy-star-iv-md-zh",
+                gameId = "phantasy_star_iv_md",
+                question = "组合技要不要一开始研究？",
+                expectedEntityId = "mechanic.combo-attacks",
+                expectedType = AnswerType.Mechanic,
+            ),
+            RuntimeWordingCase(
+                packSlug = "shining-force-ii-md",
+                gameId = "shining_force_ii_md",
+                question = "帕卡隆是什么地方？",
+                expectedEntityId = "location.pacalon",
+                expectedType = AnswerType.Location,
+            ),
+            RuntimeWordingCase(
+                packSlug = "shining-force-ii-md",
+                gameId = "shining_force_ii_md",
+                question = "克拉肯怎么过？",
+                expectedEntityId = "boss.kraken",
+                expectedType = AnswerType.Strategy,
+            ),
+            RuntimeWordingCase(
+                packSlug = "shining-force-ii-md",
+                gameId = "shining_force_ii_md",
+                question = "红男爵是谁？",
+                expectedEntityId = "boss.red-baron",
+                expectedType = AnswerType.NameMapping,
+            ),
+        )
 
         fun normalizeForSearch(value: String): String =
             value.lowercase()

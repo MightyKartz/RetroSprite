@@ -211,16 +211,6 @@ private class HotkeyVoiceWaveView(context: Context) : View(context) {
     private val barPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val dotPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val roundedRect = RectF()
-    private val waveformPalette = intArrayOf(
-        Color.rgb(45, 212, 191),
-        Color.rgb(34, 214, 128),
-        Color.rgb(56, 189, 248),
-        Color.rgb(59, 130, 246),
-        Color.rgb(99, 102, 241),
-        Color.rgb(168, 85, 247),
-        Color.rgb(244, 114, 182),
-        Color.rgb(251, 146, 60),
-    )
     private val waveformProfile = floatArrayOf(
         0.36f, 0.46f, 0.42f, 0.50f, 0.58f,
         0.68f, 0.54f, 0.74f, 0.50f, 0.66f,
@@ -300,9 +290,17 @@ private class HotkeyVoiceWaveView(context: Context) : View(context) {
         val labelAlpha = phase.labelAlpha()
         labelPaint.color = Color.argb(labelAlpha, 195, 255, 247)
         canvas.drawText("RETROSPRITE", context.dp(28f), context.dp(36f), labelPaint)
-        statusPaint.color = Color.argb(labelAlpha, Color.red(accent), Color.green(accent), Color.blue(accent))
+        val statusColor = phase.statusTextColor()
+        statusPaint.color = Color.argb(
+            labelAlpha,
+            Color.red(statusColor),
+            Color.green(statusColor),
+            Color.blue(statusColor),
+        )
         val status = phase.statusLabel()
-        val rightInset = if (phase == HotkeyVoiceOverlayPhase.Wake) {
+        val rightInset = if (phase == HotkeyVoiceOverlayPhase.Wake ||
+            phase == HotkeyVoiceOverlayPhase.Preparing
+        ) {
             context.dp(28f)
         } else {
             context.dp(72f)
@@ -313,7 +311,9 @@ private class HotkeyVoiceWaveView(context: Context) : View(context) {
     }
 
     private fun drawMicrophoneGlyph(canvas: Canvas, phase: HotkeyVoiceOverlayPhase, accent: Int) {
-        if (phase == HotkeyVoiceOverlayPhase.Wake) return
+        if (phase == HotkeyVoiceOverlayPhase.Wake ||
+            phase == HotkeyVoiceOverlayPhase.Preparing
+        ) return
         val labelAlpha = phase.labelAlpha()
         micPaint.color = Color.argb(labelAlpha, Color.red(accent), Color.green(accent), Color.blue(accent))
         val iconSize = context.dp(25f).toInt()
@@ -393,6 +393,7 @@ private class HotkeyVoiceWaveView(context: Context) : View(context) {
             return
         }
         if (phase == HotkeyVoiceOverlayPhase.Wake ||
+            phase == HotkeyVoiceOverlayPhase.Preparing ||
             phase == HotkeyVoiceOverlayPhase.Muted
         ) {
             drawQuietWaveformLine(canvas, phase, w, centerY)
@@ -554,9 +555,9 @@ private class HotkeyVoiceWaveView(context: Context) : View(context) {
             val leftAlpha = (42 + index * 16 + pulse * 18).toInt().coerceAtMost(214)
             val rightAlpha = (42 + index * 15 + pulse * 18).toInt().coerceAtMost(208)
             val yNudge = if (phase == HotkeyVoiceOverlayPhase.Thinking) 0f else (pulse - 0.5f) * context.dp(1.6f)
-            dotPaint.color = withAlpha(Color.rgb(45, 212, 191), leftAlpha)
+            dotPaint.color = withAlpha(phase.accentColor(), leftAlpha)
             canvas.drawCircle(leftStart + index * dotGap, centerY + yNudge, dotRadius, dotPaint)
-            dotPaint.color = withAlpha(Color.rgb(251, 146, 60), rightAlpha)
+            dotPaint.color = withAlpha(phase.secondaryAccentColor(), rightAlpha)
             canvas.drawCircle(rightStart - index * dotGap, centerY - yNudge, dotRadius, dotPaint)
         }
     }
@@ -572,21 +573,19 @@ private class HotkeyVoiceWaveView(context: Context) : View(context) {
     private fun HotkeyVoiceOverlayPhase.waveformColorAt(progress: Float, alpha: Int): Int = when (this) {
         HotkeyVoiceOverlayPhase.Listening,
         HotkeyVoiceOverlayPhase.Speaking,
-        HotkeyVoiceOverlayPhase.NoEvidence -> colorAt(progress, alpha = alpha)
-        HotkeyVoiceOverlayPhase.Wake -> withAlpha(Color.rgb(45, 235, 235), (alpha * 0.72f).toInt())
-        HotkeyVoiceOverlayPhase.Muted -> withAlpha(Color.rgb(45, 235, 235), (alpha * 0.46f).toInt())
+        HotkeyVoiceOverlayPhase.NoEvidence -> blend(
+            accentColor(),
+            secondaryAccentColor(),
+            progress,
+            alpha = alpha,
+        )
+        HotkeyVoiceOverlayPhase.Wake -> withAlpha(Color.rgb(56, 189, 248), (alpha * 0.72f).toInt())
+        HotkeyVoiceOverlayPhase.Preparing -> withAlpha(Color.rgb(245, 158, 11), (alpha * 0.78f).toInt())
+        HotkeyVoiceOverlayPhase.Muted -> withAlpha(Color.rgb(110, 176, 181), (alpha * 0.46f).toInt())
         HotkeyVoiceOverlayPhase.Thinking -> withAlpha(Color.rgb(96, 165, 250), (alpha * 0.76f).toInt())
         HotkeyVoiceOverlayPhase.Error -> withAlpha(Color.rgb(255, 107, 107), (alpha * 0.76f).toInt())
     }
 
-    private fun colorAt(progress: Float, alpha: Int): Int {
-        val clamped = progress.coerceIn(0f, 1f)
-        val scaled = clamped * (waveformPalette.size - 1)
-        val lower = scaled.toInt().coerceIn(0, waveformPalette.lastIndex)
-        val upper = (lower + 1).coerceAtMost(waveformPalette.lastIndex)
-        val local = scaled - lower
-        return blend(waveformPalette[lower], waveformPalette[upper], local, alpha)
-    }
 }
 
 private class HotkeyVoiceAnswerView(
@@ -785,7 +784,12 @@ private class HotkeyVoiceAnswerView(
                     Color.green(accent),
                     Color.blue(accent),
                 )
-                else -> brandWaveColor(index / (heights.size - 1f), alpha)
+                else -> blend(
+                    accent,
+                    phase.secondaryAccentColor(),
+                    index / (heights.size - 1f),
+                    alpha,
+                )
             }
             canvas.drawRoundRect(
                 left,
@@ -869,6 +873,7 @@ private fun Context.sp(value: Int): Float =
 internal fun HotkeyVoiceOverlayRenderState.transcriptHudText(
     maxChars: Int = TRANSCRIPT_HUD_MAX_CHARS,
 ): String? {
+    if (!showTranscriptHud) return null
     val heard = transcript?.trim()?.takeIf { it.isNotEmpty() } ?: return null
     val normalized = normalizedTranscript?.trim()?.takeIf { it.isNotEmpty() }
     val matched = transcriptMatchedTerm?.trim()?.takeIf { it.isNotEmpty() }
@@ -1037,6 +1042,7 @@ internal fun HotkeyVoiceOverlayPhase.answerCardSpec(
         )
 
         HotkeyVoiceOverlayPhase.Wake,
+        HotkeyVoiceOverlayPhase.Preparing,
         HotkeyVoiceOverlayPhase.Listening,
         HotkeyVoiceOverlayPhase.Muted -> HotkeyVoiceAnswerCardSpec(
             heightDp = 112,
@@ -1143,19 +1149,21 @@ private fun blend(start: Int, end: Int, amount: Float, alpha: Int): Int {
     )
 }
 
-private fun HotkeyVoiceOverlayPhase.statusLabel(): String = when (this) {
-    HotkeyVoiceOverlayPhase.Wake -> "Mic starting"
-    HotkeyVoiceOverlayPhase.Listening -> "Listening..."
-    HotkeyVoiceOverlayPhase.Muted -> "Muted"
+internal fun HotkeyVoiceOverlayPhase.statusLabel(): String = when (this) {
+    HotkeyVoiceOverlayPhase.Wake -> "Starting"
+    HotkeyVoiceOverlayPhase.Preparing -> "Preparing - mic off"
+    HotkeyVoiceOverlayPhase.Listening -> "Mic live"
+    HotkeyVoiceOverlayPhase.Muted -> "No speech"
     HotkeyVoiceOverlayPhase.Thinking -> "Thinking"
-    HotkeyVoiceOverlayPhase.Speaking -> "Speaking"
+    HotkeyVoiceOverlayPhase.Speaking -> "Answering"
     HotkeyVoiceOverlayPhase.NoEvidence -> "No evidence"
     HotkeyVoiceOverlayPhase.Error -> "Error"
 }
 
-private fun HotkeyVoiceOverlayPhase.accentColor(): Int = when (this) {
-    HotkeyVoiceOverlayPhase.Wake,
-    HotkeyVoiceOverlayPhase.Listening -> Color.rgb(45, 235, 235)
+internal fun HotkeyVoiceOverlayPhase.statusTextColor(): Int = when (this) {
+    HotkeyVoiceOverlayPhase.Wake -> Color.rgb(56, 189, 248)
+    HotkeyVoiceOverlayPhase.Preparing -> Color.rgb(245, 158, 11)
+    HotkeyVoiceOverlayPhase.Listening -> Color.rgb(34, 197, 94)
     HotkeyVoiceOverlayPhase.Muted -> Color.rgb(110, 176, 181)
     HotkeyVoiceOverlayPhase.Thinking -> Color.rgb(96, 165, 250)
     HotkeyVoiceOverlayPhase.Speaking -> Color.rgb(45, 212, 191)
@@ -1163,8 +1171,31 @@ private fun HotkeyVoiceOverlayPhase.accentColor(): Int = when (this) {
     HotkeyVoiceOverlayPhase.Error -> Color.rgb(255, 107, 107)
 }
 
+private fun HotkeyVoiceOverlayPhase.accentColor(): Int = when (this) {
+    HotkeyVoiceOverlayPhase.Wake -> Color.rgb(56, 189, 248)
+    HotkeyVoiceOverlayPhase.Preparing -> Color.rgb(245, 158, 11)
+    HotkeyVoiceOverlayPhase.Listening -> Color.rgb(34, 197, 94)
+    HotkeyVoiceOverlayPhase.Muted -> Color.rgb(110, 176, 181)
+    HotkeyVoiceOverlayPhase.Thinking -> Color.rgb(96, 165, 250)
+    HotkeyVoiceOverlayPhase.Speaking -> Color.rgb(45, 212, 191)
+    HotkeyVoiceOverlayPhase.NoEvidence -> Color.rgb(248, 181, 0)
+    HotkeyVoiceOverlayPhase.Error -> Color.rgb(255, 107, 107)
+}
+
+private fun HotkeyVoiceOverlayPhase.secondaryAccentColor(): Int = when (this) {
+    HotkeyVoiceOverlayPhase.Wake -> Color.rgb(45, 212, 191)
+    HotkeyVoiceOverlayPhase.Preparing -> Color.rgb(251, 191, 36)
+    HotkeyVoiceOverlayPhase.Listening -> Color.rgb(16, 185, 129)
+    HotkeyVoiceOverlayPhase.Muted -> Color.rgb(110, 176, 181)
+    HotkeyVoiceOverlayPhase.Thinking -> Color.rgb(147, 197, 253)
+    HotkeyVoiceOverlayPhase.Speaking -> Color.rgb(20, 184, 166)
+    HotkeyVoiceOverlayPhase.NoEvidence -> Color.rgb(251, 146, 60)
+    HotkeyVoiceOverlayPhase.Error -> Color.rgb(248, 113, 113)
+}
+
 private fun HotkeyVoiceOverlayPhase.glowAlpha(): Int = when (this) {
     HotkeyVoiceOverlayPhase.Wake -> 82
+    HotkeyVoiceOverlayPhase.Preparing -> 96
     HotkeyVoiceOverlayPhase.Listening -> 74
     HotkeyVoiceOverlayPhase.Muted -> 32
     HotkeyVoiceOverlayPhase.Thinking -> 54
@@ -1175,6 +1206,7 @@ private fun HotkeyVoiceOverlayPhase.glowAlpha(): Int = when (this) {
 
 private fun HotkeyVoiceOverlayPhase.waveformActivity(wave: Float, voiceEnergy: Float): Float = when (this) {
     HotkeyVoiceOverlayPhase.Wake -> 0f
+    HotkeyVoiceOverlayPhase.Preparing -> 0f
     HotkeyVoiceOverlayPhase.Listening -> voiceEnergy
     HotkeyVoiceOverlayPhase.Muted -> 0f
     HotkeyVoiceOverlayPhase.Thinking -> 0.22f + wave * 0.24f
@@ -1197,7 +1229,8 @@ private fun HotkeyVoiceOverlayPhase.answerSurfaceAlpha(): Int = when (this) {
 
 private fun HotkeyVoiceOverlayPhase.borderAlpha(): Int = when (this) {
     HotkeyVoiceOverlayPhase.Muted -> 116
-    HotkeyVoiceOverlayPhase.Wake -> 166
+    HotkeyVoiceOverlayPhase.Wake,
+    HotkeyVoiceOverlayPhase.Preparing -> 166
     else -> 188
 }
 
@@ -1210,6 +1243,7 @@ private fun HotkeyVoiceOverlayPhase.labelAlpha(): Int = when (this) {
 
 private fun HotkeyVoiceOverlayPhase.waveformScale(): Float = when (this) {
     HotkeyVoiceOverlayPhase.Wake -> 0.68f
+    HotkeyVoiceOverlayPhase.Preparing -> 0.68f
     HotkeyVoiceOverlayPhase.Listening -> 1f
     HotkeyVoiceOverlayPhase.Muted -> 0.28f
     HotkeyVoiceOverlayPhase.Thinking -> 0.70f
@@ -1223,6 +1257,7 @@ private fun HotkeyVoiceOverlayPhase.isAnswerWaveAnimated(): Boolean = when (this
     HotkeyVoiceOverlayPhase.Speaking,
     HotkeyVoiceOverlayPhase.NoEvidence -> true
     HotkeyVoiceOverlayPhase.Wake,
+    HotkeyVoiceOverlayPhase.Preparing,
     HotkeyVoiceOverlayPhase.Listening,
     HotkeyVoiceOverlayPhase.Muted,
     HotkeyVoiceOverlayPhase.Error -> false
@@ -1232,6 +1267,7 @@ private fun HotkeyVoiceOverlayPhase.isTypewriterAnimated(): Boolean = when (this
     HotkeyVoiceOverlayPhase.Speaking,
     HotkeyVoiceOverlayPhase.NoEvidence -> true
     HotkeyVoiceOverlayPhase.Wake,
+    HotkeyVoiceOverlayPhase.Preparing,
     HotkeyVoiceOverlayPhase.Listening,
     HotkeyVoiceOverlayPhase.Muted,
     HotkeyVoiceOverlayPhase.Thinking,
@@ -1350,21 +1386,6 @@ internal fun Float.toListeningVisibleBarEnergy(): Float {
     return (LISTENING_MIN_ACTIVE_BAR + sqrt(this) * (1f - LISTENING_MIN_ACTIVE_BAR))
         .coerceIn(0f, 1f)
 }
-
-private fun brandWaveColor(progress: Float, alpha: Int): Int {
-    val clamped = progress.coerceIn(0f, 1f)
-    val scaled = clamped * (BRAND_WAVE_COLORS.size - 1)
-    val lower = scaled.toInt().coerceIn(0, BRAND_WAVE_COLORS.lastIndex)
-    val upper = (lower + 1).coerceAtMost(BRAND_WAVE_COLORS.lastIndex)
-    return blend(BRAND_WAVE_COLORS[lower], BRAND_WAVE_COLORS[upper], scaled - lower, alpha)
-}
-
-private val BRAND_WAVE_COLORS = intArrayOf(
-    Color.rgb(45, 212, 191),
-    Color.rgb(56, 189, 248),
-    Color.rgb(99, 102, 241),
-    Color.rgb(168, 85, 247),
-)
 
 private const val VOICE_NOISE_GATE = 0.006f
 private const val VOICE_SATURATION = 0.18f

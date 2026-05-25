@@ -140,6 +140,7 @@ class RealGkpLibraryProvider(
             region = region,
             languages = languages,
             packVersion = packVersion,
+            coverageTierLabel = coverageTier.toCoverageTierLabel(),
             schemaVersion = schemaVersion,
             trustLabel = trustLevel.toTrustLabel(),
             provenanceLabel = provenance.toProvenanceLabel(),
@@ -222,5 +223,12 @@ class RealGkpLibraryProvider(
         "community" -> "社区来源"
         "personal" -> "个人本地包"
         else -> "本地知识包"
+    }
+
+    private fun String?.toCoverageTierLabel(): String = when (this?.lowercase()) {
+        "lite" -> "GKP Lite"
+        "expanded" -> "GKP Expanded"
+        "deep" -> "GKP Deep"
+        else -> "GKP Legacy"
     }
 }

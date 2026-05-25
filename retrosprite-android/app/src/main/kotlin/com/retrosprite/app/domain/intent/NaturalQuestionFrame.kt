@@ -82,6 +82,8 @@ internal fun String.normalizeNaturalQuestion(): String =
 
 internal fun String.normalizeObservedAsrConfusions(): String =
     replace("轉職", "转职")
+        .replace("完什么", "玩什么")
+        .replace("完成什么", "玩什么")
         .replace("转直", "转职")
         .replace("软直", "转职")
         .replace("专职", "转职")

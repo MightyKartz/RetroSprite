@@ -1,5 +1,25 @@
 # Changelog
 
+## Unreleased
+
+## 0.3.4 - 2026-05-25
+
+- Added the repeated Tingting-observed `克拉盆怎么 -> 克拉肯怎么过` variant so Kraken boss questions route to `sf2.enemy_boss_notes`.
+- Added scoped `observed_asr` aliases from MacBook-speaker Paraformer QA for Vigor Ball / 气合之玉.
+- Added the Tingting-observed `气河之欲怎么用 -> 气合之玉怎么用` variant so Vigor Ball questions stay on `sf2.promotion`.
+- Added scoped prefix-dropped gameplay variants so `怎么玩` and `气怎么玩` normalize to `这游戏怎么玩`.
+- Added voice-like golden questions covering current-game ASR normalization.
+
+## 0.3.3 - 2026-05-24
+
+- Added low-spoiler runtime templates for progress-gated names Pacalon / 帕卡隆, Kraken / 克拉肯, and Red Baron / 红男爵 so `/debug/ask` can answer safely when RetroSprite has no explicit progress gate.
+- Added a Fairy Powder / 妖精粉 usage template and tightened item-purpose typing for questions like “妖精粉是干嘛的？”.
+
+## 0.3.2 - 2026-05-24
+
+- Marked the Shining Force II identity template as `game_overview` and added contextual identity phrasings such as “这是什么游戏？” and “这个游戏是什么？”.
+- Added identity golden rows so generic in-game title questions keep resolving to `note.game-identity` instead of drifting to unknown metadata or no evidence.
+
 ## 0.3.1 - 2026-05-24
 
 - Added the ASR/player wording alias “气合玉” for Vigor Ball / 气合之玉 so questions like “气合玉给谁用” stay entity-anchored after stricter template retrieval.

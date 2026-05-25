@@ -47,7 +47,7 @@ class SampleShiningForceIIQuestionPipelineTest {
 
         assertTrue("answer=<$text>", text.contains("20"))
         assertTrue("answer=<$text>", text.contains("转职"))
-        assertTrue("answer=<$text>", text.contains("来源：sf2.promotion"))
+        assertTrue("answer=<$text>", text.contains("来源：本地知识"))
         assertEquals(0, llm.callCount)
     }
 
@@ -64,7 +64,7 @@ class SampleShiningForceIIQuestionPipelineTest {
         )
 
         assertTrue("answer=<$text>", text.contains("20"))
-        assertTrue("answer=<$text>", text.contains("来源：sf2.promotion"))
+        assertTrue("answer=<$text>", text.contains("来源：本地知识"))
         assertEquals(0, llm.callCount)
     }
 
@@ -81,7 +81,7 @@ class SampleShiningForceIIQuestionPipelineTest {
         )
 
         assertTrue("answer=<$text>", text.contains("20"))
-        assertTrue("answer=<$text>", text.contains("来源：sf2.promotion"))
+        assertTrue("answer=<$text>", text.contains("来源：本地知识"))
         assertEquals(0, llm.callCount)
     }
 
@@ -99,7 +99,7 @@ class SampleShiningForceIIQuestionPipelineTest {
 
         assertTrue("answer=<$text>", text.contains("城堡"))
         assertTrue("answer=<$text>", text.contains("周边"))
-        assertTrue("answer=<$text>", text.contains("来源：sf2.early_route"))
+        assertTrue("answer=<$text>", text.contains("来源：本地知识"))
         assertEquals(0, llm.callCount)
     }
 
@@ -131,9 +131,11 @@ class SampleShiningForceIIQuestionPipelineTest {
             spoilerLevel = SpoilerLevel.LIGHT,
         )
 
-        assertTrue("answer=<$text>", text.contains("SEGA"))
-        assertTrue("answer=<$text>", text.contains("Sonic"))
-        assertTrue("answer=<$text>", text.contains("来源：sf2.production"))
+        assertTrue("answer=<$text>", text.contains("世嘉"))
+        assertTrue("answer=<$text>", text.contains("索尼克"))
+        assertFalse("answer=<$text>", text.contains("SEGA"))
+        assertFalse("answer=<$text>", text.contains("Sonic"))
+        assertTrue("answer=<$text>", text.contains("来源：本地知识"))
         assertEquals(0, llm.callCount)
     }
 
@@ -150,7 +152,7 @@ class SampleShiningForceIIQuestionPipelineTest {
         )
 
         assertTrue("answer=<$text>", text.contains("治疗"))
-        assertTrue("answer=<$text>", text.contains("来源：sf2.manual_translation"))
+        assertTrue("answer=<$text>", text.contains("来源：本地知识"))
         assertEquals(0, llm.callCount)
     }
 
@@ -166,8 +168,8 @@ class SampleShiningForceIIQuestionPipelineTest {
             spoilerLevel = SpoilerLevel.LIGHT,
         )
 
-        assertTrue("answer=<$text>", text.contains("10 HP"))
-        assertTrue("answer=<$text>", text.contains("来源：sf2.items"))
+        assertTrue("answer=<$text>", text.contains("10 生命值"))
+        assertTrue("answer=<$text>", text.contains("来源：本地知识"))
         assertEquals(0, llm.callCount)
     }
 
@@ -185,7 +187,25 @@ class SampleShiningForceIIQuestionPipelineTest {
 
         assertTrue("answer=<${result.text}>", result.answerResult.answerDetail.contains("气合之玉"))
         assertTrue("answer=<${result.text}>", result.text.contains("气合之玉"))
-        assertTrue("answer=<${result.text}>", result.text.contains("来源：sf2.promotion"))
+        assertTrue("answer=<${result.text}>", result.text.contains("来源：本地知识"))
+        assertEquals(AnswerType.Usage, result.answerResult.answerType)
+        assertEquals(0, llm.callCount)
+    }
+
+    @Test
+    fun `shining force ii observed qi he river asr variant resolves vigor ball usage`() = runTest {
+        val fixture = loadSamplePack()
+        val llm = CountingLlmAdapter()
+        val pipeline = newPipeline(fixture, llm)
+
+        val result = pipeline.answerDetailed(
+            label = "mega_drive__光明力量2",
+            question = "气河之欲怎么用",
+            spoilerLevel = SpoilerLevel.LIGHT,
+        )
+
+        assertTrue("answer=<${result.text}>", result.answerResult.answerDetail.contains("气合之玉"))
+        assertTrue("answer=<${result.text}>", result.text.contains("来源：本地知识"))
         assertEquals(AnswerType.Usage, result.answerResult.answerType)
         assertEquals(0, llm.callCount)
     }
@@ -242,7 +262,7 @@ class SampleShiningForceIIQuestionPipelineTest {
 
         assertTrue("answer=<${result.text}>", result.text.contains("低剧透"))
         assertTrue("answer=<${result.text}>", result.text.contains("位置清单"))
-        assertTrue("answer=<${result.text}>", result.text.contains("来源：sf2.items"))
+        assertTrue("answer=<${result.text}>", result.text.contains("来源：本地知识"))
         assertEquals(AnswerType.Location, result.answerResult.answerType)
         assertEquals(AnswerConfidence.High, result.answerResult.confidence)
         assertEquals(0, llm.callCount)
@@ -261,7 +281,7 @@ class SampleShiningForceIIQuestionPipelineTest {
         )
 
         assertTrue("answer=<$text>", text.contains("不直接列清单"))
-        assertTrue("answer=<$text>", text.contains("来源：sf2.secrets"))
+        assertTrue("answer=<$text>", text.contains("来源：本地知识"))
         assertEquals(0, llm.callCount)
     }
 
@@ -278,7 +298,7 @@ class SampleShiningForceIIQuestionPipelineTest {
         )
 
         assertTrue("answer=<$text>", text.contains("20"))
-        assertTrue("answer=<$text>", text.contains("来源：sf2.promotion"))
+        assertTrue("answer=<$text>", text.contains("来源：本地知识"))
         assertEquals(0, llm.callCount)
     }
 
@@ -300,7 +320,7 @@ class SampleShiningForceIIQuestionPipelineTest {
             )
 
             assertTrue("question=<$question> answer=<$text>", text.contains("20"))
-            assertTrue("question=<$question> answer=<$text>", text.contains("来源：sf2.promotion"))
+            assertTrue("question=<$question> answer=<$text>", text.contains("来源：本地知识"))
         }
         assertEquals(0, llm.callCount)
     }
@@ -342,7 +362,7 @@ class SampleShiningForceIIQuestionPipelineTest {
 
         assertTrue("answer=<$text>", text.contains("网格"))
         assertTrue("answer=<$text>", text.contains("队伍"))
-        assertTrue("answer=<$text>", text.contains("来源：sf2.official_overview"))
+        assertTrue("answer=<$text>", text.contains("来源：本地知识"))
         assertEquals(0, llm.callCount)
     }
 
@@ -365,7 +385,7 @@ class SampleShiningForceIIQuestionPipelineTest {
 
             assertTrue("question=<$question> answer=<$text>", text.contains("队伍"))
             assertTrue("question=<$question> answer=<$text>", text.contains("隐藏"))
-            assertTrue("question=<$question> answer=<$text>", text.contains("来源：sf2.official_overview"))
+            assertTrue("question=<$question> answer=<$text>", text.contains("来源：本地知识"))
         }
         assertEquals(0, llm.callCount)
     }
@@ -382,7 +402,7 @@ class SampleShiningForceIIQuestionPipelineTest {
             spoilerLevel = SpoilerLevel.LIGHT,
         )
         assertTrue("answer=<$intro>", intro.contains("网格"))
-        assertTrue("answer=<$intro>", intro.contains("来源：sf2.official_overview"))
+        assertTrue("answer=<$intro>", intro.contains("来源：本地知识"))
 
         val basics = pipeline.answer(
             label = "mega_drive__光明力量2",
@@ -390,7 +410,7 @@ class SampleShiningForceIIQuestionPipelineTest {
             spoilerLevel = SpoilerLevel.LIGHT,
         )
         assertTrue("answer=<$basics>", basics.contains("队伍"))
-        assertTrue("answer=<$basics>", basics.contains("来源：sf2.official_overview"))
+        assertTrue("answer=<$basics>", basics.contains("来源：本地知识"))
 
         val items = pipeline.answer(
             label = "mega_drive__光明力量2",
@@ -398,7 +418,7 @@ class SampleShiningForceIIQuestionPipelineTest {
             spoilerLevel = SpoilerLevel.LIGHT,
         )
         assertTrue("answer=<$items>", items.contains("回复"))
-        assertTrue("answer=<$items>", items.contains("来源：sf2.items"))
+        assertTrue("answer=<$items>", items.contains("来源：本地知识"))
 
         assertEquals(0, llm.callCount)
     }
@@ -417,7 +437,7 @@ class SampleShiningForceIIQuestionPipelineTest {
         val text = result.text
 
         assertTrue("answer=<$text>", text.contains("莎拉对应英文名是 Sarah"))
-        assertTrue("answer=<$text>", text.contains("来源：sf2.manual_translation"))
+        assertTrue("answer=<$text>", text.contains("来源：本地知识"))
         assertFalse(
             "suggestions=<${result.answerResult.suggestedQuestions}>",
             result.answerResult.suggestedQuestions.any { question -> question.contains("Sarah") },
@@ -456,7 +476,7 @@ class SampleShiningForceIIQuestionPipelineTest {
             )
             assertTrue(
                 "question=<${case.question}> answer=<${result.text}>",
-                result.text.contains("来源：${case.expectedSource}"),
+                result.text.contains("来源：本地知识"),
             )
             assertEquals("question=<${case.question}>", "skipped", result.llmTrace.status)
         }
@@ -500,7 +520,7 @@ class SampleShiningForceIIQuestionPipelineTest {
         assertEquals("homophone", response.diagnostics.questionNormalizationReason)
         assertEquals("修伊", response.diagnostics.normalizedQuestionMatchedTerm)
         assertTrue("answer=<$text>", text.contains("修伊"))
-        assertTrue("answer=<$text>", text.contains("来源：sf2.manual_translation"))
+        assertTrue("answer=<$text>", text.contains("来源：本地知识"))
         assertEquals("skipped", response.diagnostics.llmStatus)
         assertEquals(0, llm.callCount)
     }
@@ -519,7 +539,7 @@ class SampleShiningForceIIQuestionPipelineTest {
 
         val text = result.text
         assertTrue("answer=<$text>", text.contains("勇者之证对应英文名是 Warrior Pride"))
-        assertTrue("answer=<$text>", text.contains("来源：sf2.promotion"))
+        assertTrue("answer=<$text>", text.contains("来源：本地知识"))
         assertEquals("勇者之证对应英文名是 Warrior Pride。", result.answerResult.answerShort)
         assertEquals(AnswerType.NameMapping, result.answerResult.answerType)
         assertEquals(AnswerConfidence.High, result.answerResult.confidence)
@@ -540,7 +560,7 @@ class SampleShiningForceIIQuestionPipelineTest {
 
         assertTrue("answer=<${result.text}>", result.text.contains("队伍"))
         assertTrue("answer=<${result.text}>", result.text.contains("网格"))
-        assertTrue("answer=<${result.text}>", result.text.contains("来源：sf2.official_overview"))
+        assertTrue("answer=<${result.text}>", result.text.contains("来源：本地知识"))
         assertEquals(AnswerType.GameOverview, result.answerResult.answerType)
         assertEquals("skipped", result.llmTrace.status)
         assertEquals(0, llm.callCount)
@@ -563,7 +583,7 @@ class SampleShiningForceIIQuestionPipelineTest {
         assertTrue("answer=<${result.text}>", result.text.contains("莎拉"))
         assertTrue("answer=<${result.text}>", result.text.contains("修伊"))
         assertTrue("answer=<${result.text}>", result.text.contains("到哪一章"))
-        assertTrue("answer=<${result.text}>", result.text.contains("来源：sf2.project_mechanics"))
+        assertTrue("answer=<${result.text}>", result.text.contains("来源：本地知识"))
         assertTrue("answerShort=<${result.answerResult.answerShort}>", result.answerResult.answerShort.contains("卡森"))
         assertFalse("answerShort=<${result.answerResult.answerShort}>", result.answerResult.answerShort.contains("..."))
         assertEquals(AnswerType.TeamBuild, result.answerResult.answerType)
@@ -587,7 +607,7 @@ class SampleShiningForceIIQuestionPipelineTest {
             assertTrue("answer=<${result.text}> missing=<$name>", result.text.contains(name))
         }
         assertTrue("answer=<${result.text}>", result.text.contains("不展开后期"))
-        assertTrue("answer=<${result.text}>", result.text.contains("来源：sf2.project_mechanics"))
+        assertTrue("answer=<${result.text}>", result.text.contains("来源：本地知识"))
         assertEquals(AnswerType.TeamBuild, result.answerResult.answerType)
         assertEquals("skipped", result.llmTrace.status)
         assertEquals(0, llm.callCount)
@@ -607,7 +627,7 @@ class SampleShiningForceIIQuestionPipelineTest {
 
         assertTrue("answer=<${result.text}>", result.text.contains("会涉及后期加入角色"))
         assertTrue("answer=<${result.text}>", result.text.contains("确认要高剧透名单"))
-        assertTrue("answer=<${result.text}>", result.text.contains("来源：sf2.project_mechanics"))
+        assertTrue("answer=<${result.text}>", result.text.contains("来源：本地知识"))
         assertEquals(AnswerType.TeamBuild, result.answerResult.answerType)
         assertEquals("skipped", result.llmTrace.status)
         assertEquals(0, llm.callCount)
@@ -627,7 +647,7 @@ class SampleShiningForceIIQuestionPipelineTest {
 
         assertTrue("answer=<${result.text}>", result.text.contains("低等级"))
         assertTrue("answer=<${result.text}>", result.text.contains("补刀"))
-        assertTrue("answer=<${result.text}>", result.text.contains("来源：sf2.project_mechanics"))
+        assertTrue("answer=<${result.text}>", result.text.contains("来源：本地知识"))
         assertEquals(AnswerType.Leveling, result.answerResult.answerType)
         assertEquals("skipped", result.llmTrace.status)
         assertEquals(0, llm.callCount)
@@ -760,6 +780,12 @@ class SampleShiningForceIIQuestionPipelineTest {
                 sourceId = "sf2.items",
                 phrase = "低剧透",
             ),
+            NaturalVariantCase(
+                question = "妖精粉是干嘛的？",
+                type = AnswerType.Usage,
+                sourceId = "sf2.items",
+                phrase = "妖精粉",
+            ),
         )
 
         cases.forEach { case ->
@@ -775,11 +801,100 @@ class SampleShiningForceIIQuestionPipelineTest {
             )
             assertTrue(
                 "question=<${case.question}> answer=<${result.text}>",
-                result.text.contains("来源：${case.sourceId}"),
+                result.text.contains("来源：本地知识"),
             )
             assertEquals("question=<${case.question}>", case.type, result.answerResult.answerType)
             assertEquals("question=<${case.question}>", "skipped", result.llmTrace.status)
         }
+        assertEquals(0, llm.callCount)
+    }
+
+    @Test
+    fun `shining force ii gated names return low spoiler hints without runtime progress gate`() = runTest {
+        val fixture = loadSamplePack()
+        val llm = CountingLlmAdapter()
+        val pipeline = newPipeline(fixture, llm)
+
+        val cases = listOf(
+            NaturalVariantCase(
+                question = "帕卡隆是什么地方？",
+                type = AnswerType.Location,
+                sourceId = "sf2.promotion",
+                phrase = "帕卡隆",
+            ),
+            NaturalVariantCase(
+                question = "克拉肯怎么过？",
+                type = AnswerType.Strategy,
+                sourceId = "sf2.enemy_boss_notes",
+                phrase = "克拉肯",
+            ),
+            NaturalVariantCase(
+                question = "红男爵是谁？",
+                type = AnswerType.NameMapping,
+                sourceId = "sf2.enemy_boss_notes",
+                phrase = "红男爵",
+            ),
+        )
+
+        cases.forEach { case ->
+            val result = pipeline.answerDetailed(
+                label = "mega_drive__光明力量2",
+                question = case.question,
+                spoilerLevel = SpoilerLevel.LIGHT,
+            )
+
+            assertTrue(
+                "question=<${case.question}> answer=<${result.text}>",
+                result.text.contains(case.phrase),
+            )
+            assertTrue(
+                "question=<${case.question}> answer=<${result.text}>",
+                result.text.contains("来源：本地知识"),
+            )
+            assertEquals("question=<${case.question}>", case.type, result.answerResult.answerType)
+            assertEquals("question=<${case.question}>", "skipped", result.llmTrace.status)
+        }
+        assertEquals(0, llm.callCount)
+    }
+
+    @Test
+    fun `shining force ii observed kraken pan asr variant returns local boss strategy`() = runTest {
+        val fixture = loadSamplePack()
+        val llm = CountingLlmAdapter()
+        val games = FakeGameRepository(listOf(fixture.game))
+        val knowledge = FakeKnowledgeRepository(fixture.knowledge)
+        val generator = QueryPipelineResponseGenerator(
+            pipeline = DefaultQueryPipeline(
+                resolver = RepositoryGameResolver(games),
+                retrieval = LocalKnowledgeRetrievalPipeline(knowledge),
+                policy = EvidenceAnswerPolicy(),
+                composer = AnswerComposer(),
+                llm = llm,
+            ),
+            gameResolver = RepositoryGameResolver(games),
+            knowledgeRepository = knowledge,
+        )
+
+        val response = generator.generate(
+            request = RetroArchRequest(
+                image = "",
+                label = "mega_drive__光明力量2",
+                question = "克拉盆怎么",
+                state = RetroArchState(paused = 1),
+            ),
+            outputMode = "hotkey_voice:text",
+        )
+        val text = response.text.orEmpty()
+
+        assertEquals("克拉肯怎么过", response.diagnostics.question)
+        assertEquals("克拉盆怎么", response.diagnostics.rawQuestion)
+        assertEquals("克拉肯怎么过", response.diagnostics.normalizedQuestion)
+        assertEquals("gkp_observed_asr_variant", response.diagnostics.questionNormalizationReason)
+        assertEquals("克拉肯怎么过", response.diagnostics.normalizedQuestionMatchedTerm)
+        assertEquals("boss.kraken", response.diagnostics.normalizedQuestionMatchedEntityId)
+        assertTrue("answer=<$text>", text.contains("克拉肯"))
+        assertTrue("answer=<$text>", text.contains("来源：本地知识"))
+        assertEquals("skipped", response.diagnostics.llmStatus)
         assertEquals(0, llm.callCount)
     }
 
@@ -809,7 +924,7 @@ class SampleShiningForceIIQuestionPipelineTest {
             )
             assertTrue(
                 "question=<$question> answer=<${result.text}>",
-                result.text.contains("来源：sf2.project_mechanics"),
+                result.text.contains("来源：本地知识"),
             )
             assertEquals("question=<$question>", AnswerType.TeamBuild, result.answerResult.answerType)
             assertEquals("question=<$question>", "skipped", result.llmTrace.status)

@@ -1,7 +1,7 @@
 {
   "schema_version": "gkp.v0",
   "pack_id": "community.chrono-trigger-snes-zh",
-  "pack_version": "0.1.0",
+  "pack_version": "0.1.1",
   "coverage_tier": "lite",
   "default_language": "zh",
   "game": {
@@ -11,7 +11,19 @@
     "region": null,
     "languages": ["zh"],
     "retroarch_system_ids": ["snes", "sfc", "super_nintendo"],
-    "retroarch_labels": ["snes__Chrono Trigger", "snes__时空之轮"],
+    "retroarch_labels": [
+      "snes__Chrono Trigger",
+      "sfc__Chrono Trigger",
+      "super_nintendo__Chrono Trigger",
+      "snes__Chrono_Trigger",
+      "snes__Chrono Trigger (USA)",
+      "sfc__Chrono Trigger (Japan)",
+      "snes__Chrono Trigger (Rev 1)",
+      "snes__Chrono Trigger [!]",
+      "snes__时空之轮",
+      "sfc__时空之轮",
+      "snes__超时空之钥"
+    ],
     "rom_identity": {
       "crc32": null,
       "sha1": null

@@ -49,7 +49,7 @@ data class AnswerResult(
                 append(answerDetail)
                 if (cleanSources.isNotEmpty()) {
                     appendLine()
-                    append("来源：${cleanSources.joinToString(", ")}")
+                    append(LOCAL_SOURCE_NOTICE)
                 }
                 suggestedQuestions.cleanSuggestedQuestions()
                     .takeIf { it.isNotEmpty() && !answerDetail.containsSuggestedQuestionBlock() }
@@ -127,3 +127,5 @@ private fun String.ensureQuestionMark(): String {
     if (isBlank()) return ""
     return if (endsWith("？") || endsWith("?")) this else "$this？"
 }
+
+private const val LOCAL_SOURCE_NOTICE = "来源：本地知识"

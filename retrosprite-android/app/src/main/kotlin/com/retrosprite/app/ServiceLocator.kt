@@ -56,7 +56,6 @@ import com.retrosprite.app.ui.viewmodel.SpeechOutputProvider
 import com.retrosprite.app.ui.viewmodel.UiDependencies
 import com.retrosprite.app.ui.viewmodel.UiSettings
 import com.retrosprite.app.ui.viewmodel.VoiceInputProvider
-import com.retrosprite.app.voice.asr.AsrBiasingProfileProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -276,12 +275,6 @@ object ServiceLocator {
             scope = ServiceLocator.applicationScope,
         )
 
-        val asrBiasingProfileProvider: AsrBiasingProfileProvider = AsrBiasingProfileProvider(
-            resolver = gameResolver,
-            gameRepository = gameRepository,
-            knowledgeRepository = knowledgeRepository,
-        )
-
         val speechOutputProvider: SpeechOutputProvider = AndroidSpeechOutputProvider(appContext)
 
         val hotkeyVoiceOverlayController: AndroidHotkeyVoiceOverlayController =
@@ -291,7 +284,9 @@ object ServiceLocator {
                 responseGenerator = queryPipelineResponseGenerator,
                 speechOutput = speechOutputProvider,
                 loggerProvider = { com.retrosprite.app.endpoint.EndpointController.requestLogger },
-                asrBiasingProfileProvider = asrBiasingProfileProvider,
+                showTranscriptHudProvider = {
+                    settingsState.value.hotkeyVoiceTranscriptHudEnabled
+                },
             )
 
         val overlayPermissionProvider: OverlayPermissionProvider =

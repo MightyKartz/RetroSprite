@@ -27,6 +27,8 @@ class QuestionIntentClassifierTest {
             "这个游戏到底要怎么玩" to AnswerType.GameOverview,
             "这游戏玩什么" to AnswerType.GameOverview,
             "这个游戏玩什么" to AnswerType.GameOverview,
+            "金太阳主要完什么" to AnswerType.GameOverview,
+            "在养主要完成什么" to AnswerType.GameOverview,
             "玩法是什么" to AnswerType.GameOverview,
             "主要干什么" to AnswerType.GameOverview,
             "这个游戏主要是干嘛的" to AnswerType.GameOverview,

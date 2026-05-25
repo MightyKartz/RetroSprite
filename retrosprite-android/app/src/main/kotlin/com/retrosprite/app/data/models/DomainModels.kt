@@ -29,6 +29,7 @@ data class RequestLogDomain(
     val answerType: String? = null,
     val answerConfidence: String? = null,
     val spoilerLevelUsed: String? = null,
+    val sourceIds: List<String> = emptyList(),
     val nextActions: List<String> = emptyList(),
     val suggestedQuestions: List<String> = emptyList(),
     val responseText: String,
@@ -59,6 +60,7 @@ data class GameDomain(
     val romSha1: String?,
     val retroarchSystemIds: List<String> = emptyList(),
     val retroarchLabels: List<String> = emptyList(),
+    val coverageTier: String? = null,
     val packVersion: String,
     val schemaVersion: String,
     val trustLevel: String,
@@ -85,5 +87,16 @@ data class KnowledgeChunkDomain(
     val spoilerLevel: String,
     val sourceRefs: List<String>,
     val confidence: String,
-    val answerTemplates: List<String>
+    val answerTemplates: List<String>,
+    val aliasMetadata: List<KnowledgeAliasDomain> = emptyList(),
+)
+
+data class KnowledgeAliasDomain(
+    val term: String,
+    val entityId: String,
+    val kind: String = "display_alias",
+    val source: String? = null,
+    val weight: Double? = null,
+    val canonicalTerm: String? = null,
+    val notes: String? = null,
 )

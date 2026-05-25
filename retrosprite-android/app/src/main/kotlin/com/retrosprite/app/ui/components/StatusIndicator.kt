@@ -96,10 +96,10 @@ private fun StatusIndicatorPreview() {
             modifier = Modifier.padding(16.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            StatusIndicator(UiEndpointPhase.Running, "RUNNING : 4404")
-            StatusIndicator(UiEndpointPhase.Stopped, "STOPPED")
-            StatusIndicator(UiEndpointPhase.Starting, "STARTING")
-            StatusIndicator(UiEndpointPhase.Error, "ERROR")
+            StatusIndicator(UiEndpointPhase.Running, "运行中 : 4404")
+            StatusIndicator(UiEndpointPhase.Stopped, "已停止")
+            StatusIndicator(UiEndpointPhase.Starting, "启动中")
+            StatusIndicator(UiEndpointPhase.Error, "错误")
         }
     }
 }

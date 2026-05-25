@@ -1,6 +1,7 @@
 package com.retrosprite.app.data.gkp
 
 import com.retrosprite.app.data.models.GameDomain
+import com.retrosprite.app.data.models.KnowledgeAliasDomain
 import com.retrosprite.app.data.models.KnowledgeChunkDomain
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -65,6 +66,7 @@ class GkpV0Parser(
             romSha1 = romIdentity?.stringOrNull("sha1"),
             retroarchSystemIds = gameObject.arrayOrEmpty("retroarch_system_ids").map { it.jsonPrimitive.content },
             retroarchLabels = gameObject.arrayOrEmpty("retroarch_labels").map { it.jsonPrimitive.content },
+            coverageTier = manifest.stringOrNull("coverage_tier"),
             packVersion = manifest.string("pack_version"),
             schemaVersion = schemaVersion,
             trustLevel = manifest.string("trust_level"),
@@ -80,7 +82,7 @@ class GkpV0Parser(
             "Missing GKP knowledge files: ${expectedPaths - knowledgeFiles.keys}"
         }
 
-        val aliasesByEntity = aliasTermsByEntity(manifest, aliasFiles)
+        val aliasesByEntity = aliasMetadataByEntity(manifest, aliasFiles)
         val knowledge = expectedPaths.flatMap { path ->
             parseJsonl(knowledgeFiles.getValue(path)).map { row ->
                 row.toKnowledgeChunk(gameId)
@@ -122,6 +124,7 @@ class GkpV0Parser(
             entityType = string("entity_type"),
             canonicalName = string("canonical_name"),
             aliases = array("aliases").map { it.jsonPrimitive.content },
+            aliasMetadata = inlineAliasMetadata(),
             descriptionShort = string("description_short"),
             descriptionLong = stringOrNull("description_long"),
             progressGate = stringOrNull("progress_gate"),
@@ -141,10 +144,10 @@ class GkpV0Parser(
             .map { JSON.parseToJsonElement(it).jsonObject }
             .toList()
 
-    private fun aliasTermsByEntity(
+    private fun aliasMetadataByEntity(
         manifest: JsonObject,
         aliasFiles: Map<String, String>,
-    ): Map<String, List<String>> {
+    ): Map<String, List<KnowledgeAliasDomain>> {
         val aliasPath = manifest.obj("contents").stringOrNull("aliases") ?: return emptyMap()
         val aliasText = aliasFiles[aliasPath] ?: return emptyMap()
         return parseObject(aliasText)
@@ -153,21 +156,53 @@ class GkpV0Parser(
                 val obj = alias as? JsonObject ?: return@mapNotNull null
                 val entityId = obj.stringOrNull("entity_id")?.trim().orEmpty()
                 val term = obj.stringOrNull("term")?.trim().orEmpty()
-                if (entityId.isEmpty() || term.isEmpty()) null else entityId to term
+                if (entityId.isEmpty() || term.isEmpty()) {
+                    null
+                } else {
+                    entityId to KnowledgeAliasDomain(
+                        term = term,
+                        entityId = entityId,
+                        kind = obj.stringOrNull("kind")?.trim()?.takeIf { it.isNotEmpty() } ?: "display_alias",
+                        source = obj.stringOrNull("source")?.trim()?.takeIf { it.isNotEmpty() },
+                        weight = obj.doubleOrNull("weight"),
+                        canonicalTerm = obj.stringOrNull("canonical_term")?.trim()?.takeIf { it.isNotEmpty() },
+                        notes = obj.stringOrNull("notes")?.trim()?.takeIf { it.isNotEmpty() },
+                    )
+                }
             }
             .groupBy(
                 keySelector = { (entityId, _) -> entityId },
-                valueTransform = { (_, term) -> term },
+                valueTransform = { (_, aliasMetadata) -> aliasMetadata },
             )
     }
 
-    private fun KnowledgeChunkDomain.withMergedAliases(extraAliases: List<String>): KnowledgeChunkDomain {
+    private fun JsonObject.inlineAliasMetadata(): List<KnowledgeAliasDomain> {
+        val entityId = string("entity_id")
+        return array("aliases")
+            .mapNotNull { alias ->
+                val term = alias.jsonPrimitive.content.trim()
+                term.takeIf { it.isNotEmpty() }?.let {
+                    KnowledgeAliasDomain(
+                        term = it,
+                        entityId = entityId,
+                        kind = "display_alias",
+                    )
+                }
+            }
+    }
+
+    private fun KnowledgeChunkDomain.withMergedAliases(
+        extraAliases: List<KnowledgeAliasDomain>,
+    ): KnowledgeChunkDomain {
         if (extraAliases.isEmpty()) return this
-        val merged = (aliases + extraAliases)
+        val merged = (aliases + extraAliases.map { it.term })
             .map { it.trim() }
             .filter { it.isNotEmpty() }
             .distinct()
-        return copy(aliases = merged)
+        val metadata = (aliasMetadata + extraAliases)
+            .filter { it.entityId == entityId && it.term.isNotBlank() }
+            .distinctBy { "${it.term}\u0000${it.kind}\u0000${it.canonicalTerm.orEmpty()}" }
+        return copy(aliases = merged, aliasMetadata = metadata)
     }
 
     private fun JsonObject.obj(name: String): JsonObject =
@@ -189,6 +224,12 @@ class GkpV0Parser(
         val value = this[name] ?: return null
         if (value is JsonNull) return null
         return (value as? JsonPrimitive)?.contentOrNull
+    }
+
+    private fun JsonObject.doubleOrNull(name: String): Double? {
+        val value = this[name] ?: return null
+        if (value is JsonNull) return null
+        return (value as? JsonPrimitive)?.contentOrNull?.toDoubleOrNull()
     }
 
     private companion object {

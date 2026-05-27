@@ -372,7 +372,7 @@ private class FakeLlmConfigTestProvider : LlmConfigTestProvider {
             tokensIn = if (settings.llmApiKey.isNotBlank()) 9 else 0,
             tokensOut = if (settings.llmApiKey.isNotBlank()) 1 else 0,
             responsePreview = if (settings.llmApiKey.isNotBlank()) "OK" else null,
-            errorMessage = if (settings.llmApiKey.isBlank()) "\u8bf7\u5148\u586b\u5199 API Key" else null,
+            errorMessage = if (settings.llmApiKey.isBlank()) "请先填写问答 API Key" else null,
         )
     }
 }

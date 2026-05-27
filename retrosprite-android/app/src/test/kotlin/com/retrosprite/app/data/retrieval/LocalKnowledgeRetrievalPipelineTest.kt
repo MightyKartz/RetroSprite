@@ -224,6 +224,84 @@ class LocalKnowledgeRetrievalPipelineTest {
     }
 
     @Test
+    fun `known low spoiler entity outside progress gate returns scoped fallback`() = runTest {
+        val pipeline = LocalKnowledgeRetrievalPipeline(
+            FakeKnowledgeRepository(
+                listOf(
+                    chunk(
+                        entityId = "mechanic.magicite",
+                        entityType = "mechanic",
+                        canonicalName = "Magicite / 魔石",
+                        aliases = listOf("魔石", "魔石系统"),
+                        descriptionShort = "魔石会影响魔法学习和成长，是中前期后角色培养的关键系统。",
+                        spoilerLevel = "light",
+                        progressGate = "early_game",
+                        sourceRefs = listOf("ff6.magicite_wiki"),
+                    ),
+                )
+            )
+        )
+
+        val results = pipeline.retrieve(query("怎么获得魔石"))
+
+        assertFalse("known low-spoiler entity should produce a scoped fallback", results.isEmpty())
+        assertEquals("mechanic.magicite", results.first().entityId)
+        assertTrue(results.first().evidence.first().snippet.contains("我找到你提到的"))
+        assertTrue(results.first().evidence.first().snippet.contains("Magicite / 魔石"))
+        assertTrue(results.first().evidence.first().snippet.contains("魔石会影响魔法学习和成长"))
+        assertEquals("ff6.magicite_wiki", results.first().evidence.first().sourceId)
+    }
+
+    @Test
+    fun `known medium spoiler entity outside progress gate stays hidden under light tolerance`() =
+        runTest {
+            val pipeline = LocalKnowledgeRetrievalPipeline(
+                FakeKnowledgeRepository(
+                    listOf(
+                        chunk(
+                            entityId = "location.secret-route",
+                            entityType = "location",
+                            canonicalName = "隐藏路线",
+                            aliases = listOf("隐藏路线", "秘密路线"),
+                            descriptionShort = "隐藏路线需要到中期后再提示。",
+                            spoilerLevel = "medium",
+                            progressGate = "mid_game",
+                            sourceRefs = listOf("sample.secret"),
+                        ),
+                    )
+                )
+            )
+
+            val results = pipeline.retrieve(query("隐藏路线怎么走", spoilerLevel = SpoilerLevel.LIGHT))
+
+            assertTrue(results.isEmpty())
+        }
+
+    @Test
+    fun `exhaustive list request does not use scoped entity fallback`() = runTest {
+        val pipeline = LocalKnowledgeRetrievalPipeline(
+            FakeKnowledgeRepository(
+                listOf(
+                    chunk(
+                        entityId = "mechanic.combo-attacks",
+                        entityType = "mechanic",
+                        canonicalName = "Combination attacks / 组合技",
+                        aliases = listOf("组合技", "组合攻击", "连携"),
+                        descriptionShort = "组合技由特定行动组合触发，不必开局就背完整表。",
+                        spoilerLevel = "light",
+                        progressGate = "early_game",
+                        sourceRefs = listOf("ps4.project_notes"),
+                    ),
+                )
+            )
+        )
+
+        val results = pipeline.retrieve(query("列出全部组合技表"))
+
+        assertTrue(results.isEmpty())
+    }
+
+    @Test
     fun `intent boost can outrank generic alias matches when template is absent`() = runTest {
         val pipeline = LocalKnowledgeRetrievalPipeline(
             FakeKnowledgeRepository(

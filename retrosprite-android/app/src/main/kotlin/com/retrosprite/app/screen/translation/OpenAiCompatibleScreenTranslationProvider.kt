@@ -30,9 +30,9 @@ class OpenAiCompatibleScreenTranslationProvider(
         imageBase64: String,
         context: ScreenTranslationContext,
     ): String {
-        require(baseUrl.isNotBlank()) { "请先在 Settings 配置画面翻译 API Base URL。" }
-        require(apiKey.isNotBlank()) { "请先在 Settings 配置画面翻译 API Key。" }
-        require(model.isNotBlank()) { "请先在 Settings 配置画面翻译模型名。" }
+        require(baseUrl.isNotBlank()) { "请先在设置页填写翻译 Base URL。" }
+        require(apiKey.isNotBlank()) { "请先在设置页填写翻译 API Key。" }
+        require(model.isNotBlank()) { "请先在设置页填写翻译模型。" }
 
         val payload = ChatCompletionRequest(
             model = model,

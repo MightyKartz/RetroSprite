@@ -83,6 +83,24 @@ class EvidenceAnswerPolicyTest {
     }
 
     @Test
+    fun `no evidence for incomplete question fragment asks player to repeat complete question`() =
+        runTest {
+            val decision = policy.decide(
+                results = emptyList(),
+                context = ctx(
+                    question = "怎么获",
+                    questionIntent = AnswerType.UnknownOrOutOfScope,
+                    suggestedQuestions = listOf("这个道具怎么获得？", "这个道具有什么用？"),
+                ),
+            )
+
+            val answer = decision as AnswerDecision.DirectAnswer
+            assertTrue(answer.text.contains("没听清完整问题"))
+            assertFalse(answer.text.contains("没有足够证据"))
+            assertTrue(answer.text.contains("这个道具怎么获得？"))
+        }
+
+    @Test
     fun `successful answers carry follow up suggestions`() = runTest {
         val decision = policy.decide(
             results = listOf(

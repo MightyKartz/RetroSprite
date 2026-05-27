@@ -5,6 +5,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,6 +19,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -27,14 +30,26 @@ import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -118,6 +133,20 @@ private fun PacksContent(
     onCancelDeletePack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    var searchQuery by rememberSaveable { mutableStateOf("") }
+    var selectedFilterName by rememberSaveable { mutableStateOf(PackFilter.All.name) }
+    val selectedFilter = PackFilter.fromName(selectedFilterName)
+    val visiblePacks = state.packs
+        .asSequence()
+        .filter { selectedFilter.matches(it) }
+        .filter { it.matchesSearch(searchQuery) }
+        .sortedWith(
+            compareByDescending<UiGkpPackItem> { it.isEnabled }
+                .thenBy { it.title.lowercase() }
+                .thenBy { it.platform.lowercase() }
+        )
+        .toList()
+
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
@@ -158,31 +187,86 @@ private fun PacksContent(
             }
         }
         item {
-            SectionCard(title = "已安装", accent = true) {
-                if (state.packs.isEmpty()) {
-                    EmptyPackList(status = state.importStatus)
-                } else {
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        state.packs.forEach { pack ->
-                            PackRow(
-                                pack = pack,
-                                onDisablePack = onDisablePack,
-                                onEnablePack = onEnablePack,
-                                onRequestDeletePack = onRequestDeletePack,
-                            )
-                        }
-                    }
-                }
+            PackLibraryControls(
+                state = state,
+                visibleCount = visiblePacks.size,
+                searchQuery = searchQuery,
+                selectedFilter = selectedFilter,
+                onSearchQueryChange = { searchQuery = it },
+                onFilterChange = { selectedFilterName = it.name },
+            )
+        }
+        if (state.packs.isEmpty() || visiblePacks.isEmpty()) {
+            item {
+                EmptyPackList(
+                    status = state.importStatus,
+                    hasInstalledPacks = state.packs.isNotEmpty(),
+                    hasActiveSearch = searchQuery.isNotBlank() || selectedFilter != PackFilter.All,
+                )
+            }
+        } else {
+            items(
+                items = visiblePacks,
+                key = { it.gameId },
+            ) { pack ->
+                PackRow(
+                    pack = pack,
+                    onDisablePack = onDisablePack,
+                    onEnablePack = onEnablePack,
+                    onRequestDeletePack = onRequestDeletePack,
+                )
             }
         }
-        if (state.packs.isNotEmpty()) {
-            item {
-                SectionCard(title = "来源") {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        state.packs.forEach { pack ->
-                            SourceLine(pack)
-                        }
-                    }
+    }
+}
+
+@Composable
+private fun PackLibraryControls(
+    state: UiGkpLibraryState,
+    visibleCount: Int,
+    searchQuery: String,
+    selectedFilter: PackFilter,
+    onSearchQueryChange: (String) -> Unit,
+    onFilterChange: (PackFilter) -> Unit,
+) {
+    SectionCard(
+        title = "知识包库",
+        accent = state.enabledPackCount > 0,
+        trailing = {
+            InfoChip(text = if (state.packs.isEmpty()) "空" else "显示 $visibleCount/${state.packs.size}")
+        },
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(
+                text = "按游戏名、平台、版本或语言查找。已启用的知识包会参与游戏识别和本地问答。",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = onSearchQueryChange,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("packs_search_field"),
+                singleLine = true,
+                label = { Text("搜索知识包") },
+                placeholder = { Text("例如 Final Fantasy / ps1 / zh") },
+                leadingIcon = {
+                    Icon(Icons.Filled.Search, contentDescription = null)
+                },
+            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                PackFilter.values().forEach { filter ->
+                    FilterChip(
+                        selected = selectedFilter == filter,
+                        onClick = { onFilterChange(filter) },
+                        label = { Text("${filter.label} ${filter.count(state)}") },
+                    )
                 }
             }
         }
@@ -196,7 +280,7 @@ private fun PreflightCard(
     onClearPreflight: () -> Unit,
 ) {
     SectionCard(
-        title = "外部预检",
+        title = "导入外部知识包",
         trailing = {
             PreflightStatusChip(state)
         },
@@ -216,7 +300,7 @@ private fun PreflightCard(
                     Text("选择文件夹")
                 }
                 if (state.result != null) {
-                    OutlinedButton(
+                    TextButton(
                         onClick = onClearPreflight,
                         enabled = !state.isRunning,
                         modifier = Modifier.testTag("packs_preflight_clear_button"),
@@ -226,18 +310,20 @@ private fun PreflightCard(
                             contentDescription = "清除预检结果",
                             modifier = Modifier.size(16.dp),
                         )
+                        Spacer(Modifier.width(6.dp))
+                        Text("清除")
                     }
                 }
             }
 
             when {
                 state.isRunning -> Text(
-                    text = "正在预检外部 GKP。",
+                    text = "正在检查文件夹。",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 state.result == null -> Text(
-                    text = "只读检查，不会安装或覆盖现有知识包。",
+                    text = "选择本机文件夹后，RetroSprite 会先检查格式和来源；确认后才会安装。",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -277,17 +363,17 @@ private fun PreflightResultBlock(result: UiGkpPreflightResult) {
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             MetricTile(label = "知识", value = result.knowledgeRows.toString(), modifier = Modifier.weight(1f))
             MetricTile(label = "来源", value = result.sourceCount.toString(), modifier = Modifier.weight(1f))
-            MetricTile(label = "Golden", value = result.goldenRows.toString(), modifier = Modifier.weight(1f))
+            MetricTile(label = "测试", value = result.goldenRows.toString(), modifier = Modifier.weight(1f))
         }
 
         Text(
-            text = "${result.coverageTierLabel} · License：${result.licenseStatus} · 签名：${result.signatureStatus} · game_id ${result.gameId ?: "未知"}",
+            text = "${result.coverageTierLabel} · 许可：${result.licenseStatus} · 签名：${result.signatureStatus} · 游戏 ID ${result.gameId ?: "未知"}",
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         result.contentDigest?.let { digest ->
             Text(
-                text = "SHA-256：${digest.take(12)}… · Errors ${result.errorCount} · Warnings ${result.warningCount}",
+                text = "SHA-256：${digest.take(12)}… · 错误 ${result.errorCount} · 警告 ${result.warningCount}",
                 style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
@@ -350,7 +436,7 @@ private fun InstallPlanCard(
             }
 
             Text(
-                text = "${plan.coverageTierLabel} · ${plan.provenanceLabel} · ${plan.signatureLabel} · ${plan.sourceCount} 个来源 · ${plan.goldenRows} 条 Golden",
+                text = "${plan.coverageTierLabel} · ${plan.provenanceLabel} · ${plan.signatureLabel} · ${plan.sourceCount} 个来源 · ${plan.goldenRows} 条测试题",
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -443,7 +529,7 @@ private fun HeaderBlock(state: UiGkpLibraryState) {
             }
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                 Text(
-                    text = "GKP · 游戏策略包",
+                    text = "游戏知识包",
                     style = MaterialTheme.typography.displaySmall,
                     color = MaterialTheme.colorScheme.primary,
                 )
@@ -453,7 +539,7 @@ private fun HeaderBlock(state: UiGkpLibraryState) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
-                    text = "知识包会匹配 RetroArch 当前游戏上下文；禁用仅退出解析，删除才会移除本地数据。",
+                    text = "RetroSprite 会优先用已启用的本地知识包回答游戏问题；停用只是不参与问答，删除才会移除本机数据。",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -472,10 +558,10 @@ private fun PreflightStatusChip(state: UiGkpPreflightState) {
         else -> StatusError
     }
     val label = when {
-        state.isRunning -> "CHECKING"
-        result == null -> "READONLY"
-        result.ok -> "PASS"
-        else -> "FAIL"
+        state.isRunning -> "检查中"
+        result == null -> "未选择"
+        result.ok -> "可安装"
+        else -> "需修复"
     }
     Row(
         modifier = Modifier
@@ -494,7 +580,7 @@ private fun PreflightStatusChip(state: UiGkpPreflightState) {
         Spacer(Modifier.width(6.dp))
         Text(
             text = label,
-            style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace),
+            style = MaterialTheme.typography.labelSmall,
             color = color,
         )
     }
@@ -503,7 +589,7 @@ private fun PreflightStatusChip(state: UiGkpPreflightState) {
 @Composable
 private fun ImportStatusCard(status: UiGkpImportStatus) {
     SectionCard(
-        title = "导入状态",
+        title = "内置知识包扫描",
         trailing = {
             StatusChip(status)
         },
@@ -564,16 +650,23 @@ private fun MetricTile(
 }
 
 @Composable
-private fun EmptyPackList(status: UiGkpImportStatus) {
-    Text(
-        text = if (status.phase == UiGkpImportPhase.Importing) {
-            "正在扫描内置知识包。"
-        } else {
-            "还没有可用知识包。"
-        },
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
+private fun EmptyPackList(
+    status: UiGkpImportStatus,
+    hasInstalledPacks: Boolean,
+    hasActiveSearch: Boolean,
+) {
+    val message = when {
+        status.phase == UiGkpImportPhase.Importing -> "正在扫描内置知识包，完成后会自动出现在这里。"
+        hasInstalledPacks && hasActiveSearch -> "没有找到符合条件的知识包。可以换一个游戏名、平台或切回“全部”。"
+        else -> "还没有可用知识包。内置包会自动扫描；也可以用“导入外部知识包”选择本机文件夹。"
+    }
+    SectionCard(title = if (hasInstalledPacks) "没有匹配结果" else "还没有知识包") {
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
 }
 
 @Composable
@@ -583,107 +676,109 @@ private fun PackRow(
     onEnablePack: (String) -> Unit,
     onRequestDeletePack: (String) -> Unit,
 ) {
+    var actionsExpanded by remember { mutableStateOf(false) }
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(8.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.24f))
             .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(8.dp))
-            .padding(12.dp)
+            .padding(horizontal = 12.dp, vertical = 10.dp)
             .testTag("packs_item_${pack.gameId}"),
-        verticalArrangement = Arrangement.spacedBy(9.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Row(verticalAlignment = Alignment.Top) {
-            Column(modifier = Modifier.weight(1f)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(
                     text = pack.title,
-                    style = MaterialTheme.typography.titleLarge,
+                    style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = pack.packId,
+                    text = pack.compactMeta(),
                     style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
             Spacer(Modifier.width(10.dp))
-            InfoChip(text = pack.trustLabel)
+            InfoChip(text = if (pack.isEnabled) "已启用" else "已停用")
+            Box {
+                IconButton(
+                    onClick = { actionsExpanded = true },
+                    modifier = Modifier.testTag("packs_more_${pack.gameId}"),
+                ) {
+                    Icon(Icons.Filled.MoreVert, contentDescription = "更多操作")
+                }
+                DropdownMenu(
+                    expanded = actionsExpanded,
+                    onDismissRequest = { actionsExpanded = false },
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("删除本机数据") },
+                        leadingIcon = {
+                            Icon(Icons.Filled.Delete, contentDescription = null)
+                        },
+                        onClick = {
+                            actionsExpanded = false
+                            onRequestDeletePack(pack.gameId)
+                        },
+                        modifier = Modifier.testTag("packs_delete_request_${pack.gameId}"),
+                    )
+                }
+            }
         }
 
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            InfoChip(text = "v${pack.packVersion}")
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
             InfoChip(text = pack.coverageTierLabel)
-            InfoChip(text = pack.schemaVersion)
-            InfoChip(text = pack.platform)
-        }
-
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            InfoChip(text = pack.trustLabel)
             InfoChip(text = pack.provenanceLabel)
             InfoChip(text = pack.signatureLabel)
-            InfoChip(text = pack.availabilityLabel)
         }
 
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = "${pack.knowledgeCount} 条知识",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Text(
-                text = "${pack.sourceCount} 个来源",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Text(
-                text = pack.languages.joinToString("/"),
+                text = "${pack.knowledgeCount} 条知识 · ${pack.sourceCount} 个来源",
+                modifier = Modifier.weight(1f),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-        }
-
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             if (pack.isEnabled) {
-                OutlinedButton(
+                TextButton(
                     onClick = { onDisablePack(pack.gameId) },
                     modifier = Modifier.testTag("packs_disable_${pack.gameId}"),
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
                 ) {
                     Icon(Icons.Filled.Block, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("禁用")
+                    Spacer(Modifier.width(6.dp))
+                    Text("停用")
                 }
             } else {
                 Button(
                     onClick = { onEnablePack(pack.gameId) },
                     modifier = Modifier.testTag("packs_enable_${pack.gameId}"),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                 ) {
                     Icon(Icons.Filled.CheckCircle, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(8.dp))
+                    Spacer(Modifier.width(6.dp))
                     Text("启用")
                 }
             }
-            OutlinedButton(
-                onClick = { onRequestDeletePack(pack.gameId) },
-                modifier = Modifier.testTag("packs_delete_request_${pack.gameId}"),
-            ) {
-                Icon(Icons.Filled.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
-                Spacer(Modifier.width(8.dp))
-                Text("删除")
-            }
         }
+
         if (!pack.isEnabled && pack.disabledAtMillis != null) {
             Text(
-                text = "禁用时间：${relativeTime(pack.disabledAtMillis)}",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Text(
-                text = "此包保留在本机，但不会参与游戏识别、检索或 LLM 综合；重新启用后立即恢复。",
+                text = "停用时间：${relativeTime(pack.disabledAtMillis)}。此包保留在本机，但不会参与游戏识别或问答。",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.error,
             )
@@ -774,7 +869,7 @@ private fun DeletePlanDetails(plan: UiGkpDeletePlan) {
             overflow = TextOverflow.Ellipsis,
         )
         Text(
-            text = "${plan.packId} · game_id ${plan.gameId} · v${plan.packVersion}",
+            text = "${plan.packId} · 游戏 ID ${plan.gameId} · v${plan.packVersion}",
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
@@ -784,29 +879,6 @@ private fun DeletePlanDetails(plan: UiGkpDeletePlan) {
             MetricTile(label = "知识", value = plan.knowledgeCount.toString(), modifier = Modifier.weight(1f))
             MetricTile(label = "来源", value = plan.sourceCount.toString(), modifier = Modifier.weight(1f))
         }
-    }
-}
-
-@Composable
-private fun SourceLine(pack: UiGkpPackItem) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            text = pack.title,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.weight(1f),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-        Spacer(Modifier.width(12.dp))
-        Text(
-            text = pack.licenseSummary,
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
     }
 }
 
@@ -824,6 +896,7 @@ private fun InfoChip(text: String) {
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }
@@ -854,6 +927,51 @@ private fun StatusChip(status: UiGkpImportStatus) {
     }
 }
 
+private enum class PackFilter(val label: String) {
+    All("全部"),
+    Enabled("已启用"),
+    Disabled("已停用");
+
+    fun matches(pack: UiGkpPackItem): Boolean = when (this) {
+        All -> true
+        Enabled -> pack.isEnabled
+        Disabled -> !pack.isEnabled
+    }
+
+    fun count(state: UiGkpLibraryState): Int = state.packs.count { matches(it) }
+
+    companion object {
+        fun fromName(name: String): PackFilter = values().firstOrNull { it.name == name } ?: All
+    }
+}
+
+private fun UiGkpPackItem.matchesSearch(query: String): Boolean {
+    val normalizedQuery = query.trim().lowercase()
+    if (normalizedQuery.isEmpty()) return true
+    val searchableText = listOfNotNull(
+        title,
+        packId,
+        gameId,
+        platform,
+        region,
+        packVersion,
+        coverageTierLabel,
+        schemaVersion,
+        trustLabel,
+        provenanceLabel,
+        signatureLabel,
+        availabilityLabel,
+        licenseSummary,
+        languages.joinToString(" "),
+    ).joinToString(" ").lowercase()
+    return searchableText.contains(normalizedQuery)
+}
+
+private fun UiGkpPackItem.compactMeta(): String {
+    val regionPart = region?.takeIf { it.isNotBlank() }?.let { " · $it" }.orEmpty()
+    return "${platform.uppercase()}$regionPart · v$packVersion · ${languages.joinToString("/")}"
+}
+
 private fun UiGkpImportPhase.statusColor(): Color = when (this) {
     UiGkpImportPhase.Idle -> StatusStopped
     UiGkpImportPhase.Importing -> StatusStarting
@@ -870,18 +988,18 @@ private fun UiGkpInstallPhase.statusColor(): Color = when (this) {
 }
 
 private fun UiGkpImportPhase.label(): String = when (this) {
-    UiGkpImportPhase.Idle -> "IDLE"
-    UiGkpImportPhase.Importing -> "IMPORTING"
-    UiGkpImportPhase.Ready -> "READY"
-    UiGkpImportPhase.Error -> "ERROR"
+    UiGkpImportPhase.Idle -> "待扫描"
+    UiGkpImportPhase.Importing -> "扫描中"
+    UiGkpImportPhase.Ready -> "已就绪"
+    UiGkpImportPhase.Error -> "有错误"
 }
 
 private fun UiGkpDeletePhase.label(): String = when (this) {
-    UiGkpDeletePhase.Idle -> "IDLE"
-    UiGkpDeletePhase.AwaitingConfirmation -> "CONFIRM"
-    UiGkpDeletePhase.Deleting -> "DELETING"
-    UiGkpDeletePhase.Deleted -> "DELETED"
-    UiGkpDeletePhase.Error -> "ERROR"
+    UiGkpDeletePhase.Idle -> "待选择"
+    UiGkpDeletePhase.AwaitingConfirmation -> "待确认"
+    UiGkpDeletePhase.Deleting -> "删除中"
+    UiGkpDeletePhase.Deleted -> "已删除"
+    UiGkpDeletePhase.Error -> "有错误"
 }
 
 @Composable
@@ -905,8 +1023,8 @@ private fun UiGkpInstallMode.title(): String = when (this) {
 }
 
 private fun UiGkpInstallMode.chipLabel(): String = when (this) {
-    UiGkpInstallMode.NewInstall -> "NEW"
-    UiGkpInstallMode.ReplaceExisting -> "OVERWRITE"
+    UiGkpInstallMode.NewInstall -> "新安装"
+    UiGkpInstallMode.ReplaceExisting -> "覆盖"
 }
 
 private fun UiGkpInstallMode.buttonLabel(phase: UiGkpInstallPhase): String = when {

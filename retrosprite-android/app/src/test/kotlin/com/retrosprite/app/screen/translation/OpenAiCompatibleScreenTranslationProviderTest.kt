@@ -124,6 +124,6 @@ class OpenAiCompatibleScreenTranslationProviderTest {
             provider.translateScreenshotToChinese("abc123")
         }.exceptionOrNull()
 
-        assertEquals("请先在 Settings 配置画面翻译 API Key。", error?.message)
+        assertEquals("请先在设置页填写翻译 API Key。", error?.message)
     }
 }

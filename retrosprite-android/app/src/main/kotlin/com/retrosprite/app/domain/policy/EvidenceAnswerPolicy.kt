@@ -115,6 +115,9 @@ class EvidenceAnswerPolicy(
 
     private fun noEvidenceTextFor(context: SessionContext, suggestions: List<String>): String =
         when {
+            context.playerQuestion.orEmpty().isLikelyIncompleteQuestionFragment() ->
+                INCOMPLETE_QUESTION_FRAGMENT_TEXT
+
             context.questionIntent == AnswerType.RouteHint &&
                 context.naturalQuestionFrame.needsProgressContext ->
                 ROUTE_NEEDS_PROGRESS_TEXT
@@ -218,6 +221,9 @@ class EvidenceAnswerPolicy(
         const val NO_EVIDENCE_TEXT: String =
             "我还没有足够证据回答这个问题。请补充版本、位置或换个更具体的问法。"
 
+        const val INCOMPLETE_QUESTION_FRAGMENT_TEXT: String =
+            "我没听清完整问题。请再说一遍，尽量带上角色、道具、地点或目标。"
+
         const val ROUTE_NEEDS_PROGRESS_TEXT: String =
             "我还不知道你的当前进度。你现在在哪个城镇、刚打完哪场战斗，或刚收到哪个角色？"
 
@@ -303,3 +309,62 @@ private fun String.withSuggestedQuestions(suggestions: List<String>): String {
 
 private fun String.containsAny(vararg terms: String): Boolean =
     terms.any { contains(it.lowercase()) }
+
+private fun String.isLikelyIncompleteQuestionFragment(): Boolean {
+    val compact = trim()
+        .lowercase()
+        .replace(Regex("[\\p{Punct}，。？！、；：\\s]+"), "")
+    if (compact.length < 2) return false
+    if (compact in COMPLETE_SHORT_QUESTIONS) return false
+    if (compact in INCOMPLETE_QUESTION_FRAGMENTS) return true
+    if (compact.length <= 4 &&
+        compact.startsWith("怎么") &&
+        compact.lastOrNull() in INCOMPLETE_ACTION_TAILS
+    ) {
+        return true
+    }
+    if (compact.length <= 8 &&
+        INCOMPLETE_QUESTION_SUFFIXES.any { compact.endsWith(it) }
+    ) {
+        return true
+    }
+    return false
+}
+
+private val COMPLETE_SHORT_QUESTIONS = setOf(
+    "去哪",
+    "在哪",
+    "怎么用",
+    "怎么打",
+    "怎么过",
+    "是什么",
+)
+
+private val INCOMPLETE_QUESTION_FRAGMENTS = setOf(
+    "怎么",
+    "怎么获",
+    "怎么获得",
+    "怎么找",
+    "怎么去",
+    "怎么拿",
+    "是什",
+    "为什",
+    "玩什",
+    "做什",
+    "干什",
+)
+
+private val INCOMPLETE_ACTION_TAILS = setOf(
+    '获',
+    '找',
+    '去',
+    '拿',
+)
+
+private val INCOMPLETE_QUESTION_SUFFIXES = listOf(
+    "是什",
+    "为什",
+    "玩什",
+    "做什",
+    "干什",
+)

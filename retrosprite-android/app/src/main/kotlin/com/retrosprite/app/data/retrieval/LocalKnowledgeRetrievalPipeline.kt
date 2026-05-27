@@ -49,6 +49,7 @@ class LocalKnowledgeRetrievalPipeline(
             addAll(templateDocumentMatches(rows, normalizedQuery, query, queryIntent))
             addAll(aliasAndEntityMatches(allRows, normalizedQuery, queryIntent))
             addAll(ftsMatches(gameId, normalizedQuery, query, queryIntent))
+            addAll(scopedEntityFallbackMatches(rows, normalizedQuery, query))
         }
 
         return candidates
@@ -256,6 +257,29 @@ class LocalKnowledgeRetrievalPipeline(
             }
             .toList()
 
+    private fun scopedEntityFallbackMatches(
+        rows: List<KnowledgeChunkDomain>,
+        normalizedQuery: String,
+        query: RetrievalQuery,
+    ): List<RetrievalResult> {
+        if (normalizedQuery.isExhaustiveListRequest()) return emptyList()
+        return rows.mapNotNull { row ->
+            if (!gkpSpoilerAllowed(row.spoilerLevel, query.spoilerLevel)) return@mapNotNull null
+            if (row.allowedFor(query)) return@mapNotNull null
+            val matchedTerm = row.fallbackMatchingTerm(normalizedQuery) ?: return@mapNotNull null
+            val termBoost = (matchedTerm.length.toDouble() / normalizedQuery.length.coerceAtLeast(1))
+                .coerceIn(0.10, 1.0)
+            row.toResult(
+                snippet = row.scopedEntityFallbackSnippet(matchedTerm),
+                matchScore = ENTITY_FALLBACK_MATCH_SCORE + termBoost * 0.08,
+                sourceId = row.sourceRefs.firstOrNull(),
+                spoilerOverride = row.spoilerLevel.toDomainSpoiler(),
+                progressGateOverride = null,
+                answerType = null,
+            )
+        }
+    }
+
     private fun KnowledgeChunkDomain.toResult(
         snippet: String,
         matchScore: Double,
@@ -335,6 +359,22 @@ class LocalKnowledgeRetrievalPipeline(
             .firstOrNull { term ->
                 normalizedQuery.contains(term) || term.contains(normalizedQuery)
             }
+
+    private fun KnowledgeChunkDomain.fallbackMatchingTerm(normalizedQuery: String): String? =
+        entityTerms()
+            .filterNot { it in BROAD_NATURAL_TERMS }
+            .filter { it.length >= MIN_FALLBACK_ENTITY_TERM_LENGTH }
+            .firstOrNull { term -> normalizedQuery.contains(term) }
+
+    private fun KnowledgeChunkDomain.scopedEntityFallbackSnippet(matchedTerm: String): String {
+        val displayName = canonicalName.ifBlank { matchedTerm }
+        val known = descriptionShort.trim().trimEnd('。', '.', '；', ';')
+        return if (known.isBlank()) {
+            "我找到你提到的「$displayName」，但当前低剧透知识还不能可靠回答这个具体问法。"
+        } else {
+            "我找到你提到的「$displayName」，但当前低剧透知识还不能可靠回答这个具体问法。已知：$known。"
+        }
+    }
 
     private fun KnowledgeChunkDomain.entityTerms(): List<String> =
         buildList {
@@ -487,6 +527,12 @@ class LocalKnowledgeRetrievalPipeline(
             normalized.containsAny("怎么玩", "主要玩什么", "核心玩法", "介绍") -> "overview"
             else -> normalized
         }
+    }
+
+    private fun String.isExhaustiveListRequest(): Boolean {
+        val asksList = containsAny("列出", "列表", "清单", "表", "图鉴", "全收集")
+        val asksAll = containsAny("全部", "所有", "完整", "全")
+        return asksList && asksAll
     }
 
     private fun String.isNearDuplicateOf(other: String): Boolean {
@@ -653,10 +699,12 @@ class LocalKnowledgeRetrievalPipeline(
         const val NAME_MAPPING_MATCH_SCORE = 1.0
         const val ALIAS_MATCH_SCORE = 0.82
         const val FTS_MATCH_SCORE = 0.66
+        const val ENTITY_FALLBACK_MATCH_SCORE = 0.74
         const val FTS_OVERFETCH_FACTOR = 3
         const val INTENT_STRONG_BOOST = 0.25
         const val INTENT_MEDIUM_BOOST = 0.16
         const val BROAD_TERM_PENALTY = 0.10
+        const val MIN_FALLBACK_ENTITY_TERM_LENGTH = 2
         const val MAX_SUGGESTED_QUESTIONS = 3
         const val SAME_ENTITY_SUGGESTION_BOOST = 0.35
         const val ENTITY_SUGGESTION_BOOST = 0.20

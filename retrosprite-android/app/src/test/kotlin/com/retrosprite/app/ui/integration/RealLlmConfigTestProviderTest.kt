@@ -41,7 +41,7 @@ class RealLlmConfigTestProviderTest {
         assertEquals("deepseek-v4-pro", result.model)
         assertEquals(64, result.maxTokens)
         assertEquals(7_000L, result.timeoutMs)
-        assertEquals("请先填写 API Key", result.errorMessage)
+        assertEquals("请先填写问答 API Key", result.errorMessage)
     }
 
     @Test

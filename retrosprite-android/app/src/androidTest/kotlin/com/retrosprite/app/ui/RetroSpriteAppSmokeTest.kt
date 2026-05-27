@@ -107,10 +107,10 @@ class RetroSpriteAppSmokeTest {
         composeRule.onNodeWithTag("settings_microphone_permission_section")
             .performScrollTo()
             .assertIsDisplayed()
-        composeRule.onNodeWithText("连接状态")
+        composeRule.onNodeWithText("RetroArch 连接设置")
             .performScrollTo()
             .assertIsDisplayed()
-        composeRule.onNodeWithText("旁白模式（Narrator Mode）")
+        composeRule.onNodeWithText("Narrator Mode（旁白模式）")
             .performScrollTo()
             .assertIsDisplayed()
         composeRule.onNodeWithText("RetroArch -> Settings -> AI Service -> Pause During Translation -> ON")
@@ -685,8 +685,8 @@ class RetroSpriteAppSmokeTest {
             .assertIsDisplayed()
         assertTrue(composeRule.onAllNodesWithText("模型连接正常").fetchSemanticsNodes().isNotEmpty())
         assertTrue(composeRule.onAllNodesWithText("模型：deepseek / deepseek-v4-pro").fetchSemanticsNodes().isNotEmpty())
-        assertTrue(composeRule.onAllNodesWithText("预算：32 tok · timeout 5000ms · latency 42ms").fetchSemanticsNodes().isNotEmpty())
-        assertTrue(composeRule.onAllNodesWithText("Token：in 9 / out 1").fetchSemanticsNodes().isNotEmpty())
+        assertTrue(composeRule.onAllNodesWithText("长度上限：32 token · 超时 5000ms · 耗时 42ms").fetchSemanticsNodes().isNotEmpty())
+        assertTrue(composeRule.onAllNodesWithText("用量：输入 9 / 输出 1").fetchSemanticsNodes().isNotEmpty())
         assertTrue(requestLog.items.value.isEmpty())
     }
 

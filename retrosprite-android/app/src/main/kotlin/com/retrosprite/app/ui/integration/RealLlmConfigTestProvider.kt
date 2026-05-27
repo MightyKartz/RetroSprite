@@ -85,10 +85,10 @@ class RealLlmConfigTestProvider(
         llmModel.trim().ifBlank { llmProvider.defaultModel }.ifBlank { "-" }
 
     private fun UiSettings.missingConfigMessage(): String = when {
-        llmApiKey.isBlank() -> "\u8bf7\u5148\u586b\u5199 API Key"
-        llmProvider == UiLlmProvider.Custom && llmBaseUrl.isBlank() -> "\u8bf7\u586b\u5199 Base URL"
-        llmProvider == UiLlmProvider.Custom && llmModel.isBlank() -> "\u8bf7\u586b\u5199\u6a21\u578b\u540d"
-        else -> "LLM \u914d\u7f6e\u4e0d\u5b8c\u6574"
+        llmApiKey.isBlank() -> "请先填写问答 API Key"
+        llmProvider == UiLlmProvider.Custom && llmBaseUrl.isBlank() -> "请填写问答 Base URL"
+        llmProvider == UiLlmProvider.Custom && llmModel.isBlank() -> "请填写问答模型"
+        else -> "问答模型配置不完整"
     }
 
     private fun Throwable.safeMessage(settings: UiSettings): String {

@@ -48,6 +48,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -300,7 +301,7 @@ private fun OverlayPermissionSection(
     onRefresh: () -> Unit,
     onTestOverlay: () -> Unit,
 ) {
-    SectionCard(title = "助手模式", accent = state.isGranted) {
+    SectionCard(title = "游戏内悬浮问答", accent = state.isGranted) {
         Column(
             modifier = Modifier.testTag("settings_overlay_permission_section"),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -319,7 +320,7 @@ private fun OverlayPermissionSection(
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
                     Text(
-                        text = if (state.isGranted) "旁白模式 HUD 可用" else "需要开启显示在其他应用上层",
+                        text = if (state.isGranted) "悬浮窗已开启" else "需要允许悬浮窗权限",
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurface,
                     )
@@ -330,7 +331,10 @@ private fun OverlayPermissionSection(
                     )
                 }
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 Button(
                     onClick = if (state.isGranted) onTestOverlay else onOpenSettings,
                     modifier = Modifier
@@ -343,13 +347,12 @@ private fun OverlayPermissionSection(
                         modifier = Modifier.size(16.dp),
                     )
                     Spacer(Modifier.width(6.dp))
-                    Text(if (state.isGranted) "测试游戏内波形" else "打开系统授权")
+                    Text(if (state.isGranted) "测试悬浮窗" else "打开系统授权")
                 }
-                OutlinedButton(
+                TextButton(
                     onClick = onRefresh,
-                    modifier = Modifier
-                        .weight(1f)
-                        .testTag("settings_overlay_permission_refresh_button"),
+                    modifier = Modifier.testTag("settings_overlay_permission_refresh_button"),
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
                 ) {
                     Text("刷新状态")
                 }
@@ -368,9 +371,9 @@ private fun MicrophonePermissionSection(
 ) {
     val ready = hasRecordAudioPermission && voiceInputState.isAvailable
     val detail = when {
-        !hasRecordAudioPermission -> "热键呼出后需要一次性收音，请允许麦克风权限。RetroSprite 不会持续监听。"
-        !voiceInputState.isAvailable -> voiceInputState.errorMessage ?: "本地语音识别暂不可用，请检查 ASR 模型。"
-        else -> "麦克风和本地语音识别可用，热键呼出后可以直接提问。"
+        !hasRecordAudioPermission -> "按热键提问时才会临时收音。RetroSprite 不会持续监听。"
+        !voiceInputState.isAvailable -> voiceInputState.errorMessage ?: "本地语音识别暂不可用，请检查语音模型。"
+        else -> "语音识别在本机完成。热键呼出后，可以直接说出问题。"
     }
     val testLabel = when {
         !hasRecordAudioPermission -> "授权麦克风"
@@ -384,7 +387,7 @@ private fun MicrophonePermissionSection(
         !voiceInputState.errorMessage.isNullOrBlank() -> voiceInputState.errorMessage
         else -> null
     }
-    SectionCard(title = "麦克风与语音识别", accent = ready) {
+    SectionCard(title = "语音提问", accent = ready) {
         Column(
             modifier = Modifier.testTag("settings_microphone_permission_section"),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -403,7 +406,7 @@ private fun MicrophonePermissionSection(
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
                     Text(
-                        text = if (ready) "麦克风已就绪" else "需要麦克风权限",
+                        text = if (ready) "语音提问已就绪" else "需要麦克风权限",
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurface,
                     )
@@ -414,7 +417,10 @@ private fun MicrophonePermissionSection(
                     )
                 }
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 Button(
                     onClick = if (hasRecordAudioPermission) onTestMicrophone else onOpenPermission,
                     modifier = Modifier
@@ -423,11 +429,10 @@ private fun MicrophonePermissionSection(
                 ) {
                     Text(testLabel)
                 }
-                OutlinedButton(
+                TextButton(
                     onClick = onRefresh,
-                    modifier = Modifier
-                        .weight(1f)
-                        .testTag("settings_microphone_permission_refresh_button"),
+                    modifier = Modifier.testTag("settings_microphone_permission_refresh_button"),
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
                 ) {
                     Text("刷新状态")
                 }
@@ -446,7 +451,7 @@ private fun MicrophonePermissionSection(
             }
             val asrStatus = when {
                 voiceInputState.asrArchitecture != null ->
-                    "ASR 模型：Paraformer，本地识别；游戏术语纠错在回答阶段按当前 GKP 生效"
+                    "语音识别：本地 Paraformer，不上传录音。角色名、道具名会按当前游戏知识包纠正。"
                 else -> null
             }
             if (asrStatus != null) {
@@ -468,7 +473,7 @@ private fun DeveloperDiagnosticsSection(
     onOpenAppQuestionConsole: () -> Unit,
     onOpenDiagnostics: () -> Unit,
 ) {
-    SectionCard(title = "开发者诊断") {
+    SectionCard(title = "诊断与测试") {
         Column(
             verticalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.testTag("settings_developer_diagnostics_section"),
@@ -483,12 +488,12 @@ private fun DeveloperDiagnosticsSection(
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
                     Text(
-                        text = "请求日志和排错工具",
+                        text = "日志和手动测试工具",
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurface,
                     )
                     Text(
-                        text = "普通游玩不需要进入这里；当热键、GKP 或模型返回异常时再查看诊断记录。",
+                        text = "普通游玩不需要进入这里。热键、知识包或模型返回异常时，再查看诊断记录。",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -500,12 +505,12 @@ private fun DeveloperDiagnosticsSection(
             ) {
                 Column(Modifier.weight(1f)) {
                     Text(
-                        text = "显示语音识别字幕",
+                        text = "显示语音识别文字",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurface,
                     )
                     Text(
-                        text = "用于测试 ASR；正式游玩默认隐藏，诊断时可打开。",
+                        text = "用于确认设备听到了什么。正式游玩默认隐藏，排错时再打开。",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -529,7 +534,7 @@ private fun DeveloperDiagnosticsSection(
                     modifier = Modifier.size(16.dp),
                 )
                 Spacer(Modifier.width(6.dp))
-                Text("打开 App 内问答")
+                Text("打开文字问答")
             }
             OutlinedButton(
                 onClick = onOpenDiagnostics,
@@ -553,10 +558,10 @@ private fun DeveloperDiagnosticsSection(
 @Composable
 private fun EndpointSection(currentPort: Int, onApply: (Int) -> Unit) {
     var portInput by remember(currentPort) { mutableStateOf(currentPort.toString()) }
-    SectionCard(title = "连接详情") {
+    SectionCard(title = "本地服务端口") {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(
-                text = "通常不需要修改。只有 RetroArch 里使用了不同端口时，才在这里同步调整本地服务。",
+                text = "通常保持默认即可。只有 RetroArch 的 AI Service URL 使用了其他端口时，才需要同步修改。",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -592,21 +597,21 @@ private fun EndpointSection(currentPort: Int, onApply: (Int) -> Unit) {
 @Composable
 private fun RetroArchSetupSection(port: Int) {
     val aiServiceUrl = remember(port) { "http://localhost:$port" }
-    SectionCard(title = "连接状态") {
+    SectionCard(title = "RetroArch 连接设置") {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(
-                text = "RetroArch 快捷键指引",
+                text = "在 RetroArch 中开启 AI Service，并把服务地址设置为下面的本地地址。",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             RetroArchSetupLine("AI Service", "开启")
             RetroArchSetupLine("AI Service URL", aiServiceUrl)
-            RetroArchSetupLine("AI Service Output", "旁白模式（Narrator Mode）")
+            RetroArchSetupLine("AI Service Output", "Narrator Mode（旁白模式）")
             RetroArchSetupLine(
                 "Pause During Translation",
                 "RetroArch -> Settings -> AI Service -> Pause During Translation -> ON",
             )
-            RetroArchSetupLine("AI Service 快捷键", "在 RetroArch 中确认或绑定")
+            RetroArchSetupLine("AI Service 热键", "在 RetroArch 中确认或绑定")
             CopyToClipboardButton(
                 textToCopy = aiServiceUrl,
                 label = "复制本地服务地址",
@@ -659,8 +664,13 @@ private fun LlmSection(
     var keyVisible by remember { mutableStateOf(false) }
     var dropdownOpen by remember { mutableStateOf(false) }
 
-    SectionCard(title = "高级 AI 配置") {
+    SectionCard(title = "问答模型配置") {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(
+                text = "问答优先使用本地游戏知识包。只有需要综合本地证据时，才会把问题和证据发送到这里配置的 BYOK 模型；不会发送游戏截图。",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
             // Provider selector via the M3-recommended ExposedDropdownMenuBox.
             ExposedDropdownMenuBox(
                 expanded = dropdownOpen,
@@ -702,7 +712,7 @@ private fun LlmSection(
             OutlinedTextField(
                 value = apiKey,
                 onValueChange = { apiKey = it },
-                label = { Text("API Key") },
+                label = { Text("问答 API Key") },
                 singleLine = true,
                 visualTransformation = if (keyVisible) VisualTransformation.None
                 else PasswordVisualTransformation(),
@@ -723,7 +733,7 @@ private fun LlmSection(
                 OutlinedTextField(
                     value = baseUrl,
                     onValueChange = { baseUrl = it },
-                    label = { Text("Base URL") },
+                    label = { Text("问答 Base URL") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     colors = retroFieldColors()
@@ -733,7 +743,7 @@ private fun LlmSection(
             OutlinedTextField(
                 value = model,
                 onValueChange = { model = it },
-                label = { Text("\u6a21\u578b\u540d") },
+                label = { Text("问答模型") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
                 colors = retroFieldColors()
@@ -756,7 +766,7 @@ private fun LlmSection(
                     onValueChange = { value ->
                         maxTokens = value.filter { it.isDigit() }.take(4)
                     },
-                    label = { Text("Max Tokens") },
+                    label = { Text("回答长度") },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.weight(1f),
@@ -766,7 +776,10 @@ private fun LlmSection(
 
             val parsedTimeout = timeoutSeconds.toIntOrNull() ?: DEFAULT_LLM_TIMEOUT_SECONDS
             val parsedMaxTokens = maxTokens.toIntOrNull() ?: DEFAULT_LLM_MAX_TOKENS
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 Button(
                     onClick = {
                         onApply(
@@ -784,7 +797,7 @@ private fun LlmSection(
                         contentColor = MaterialTheme.colorScheme.onPrimary
                     )
                 ) {
-                    Text("\u4fdd\u5b58\u914d\u7f6e")
+                    Text("保存问答配置")
                 }
                 OutlinedButton(
                     onClick = {
@@ -798,7 +811,8 @@ private fun LlmSection(
                         )
                     },
                     enabled = !testState.isRunning,
-                    modifier = Modifier.weight(1f).testTag("settings_llm_test_button"),
+                    modifier = Modifier.testTag("settings_llm_test_button"),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                 ) {
                     if (testState.isRunning) {
                         CircularProgressIndicator(
@@ -808,7 +822,7 @@ private fun LlmSection(
                         )
                         Spacer(Modifier.width(6.dp))
                     }
-                    Text(if (testState.isRunning) "\u6d4b\u8bd5\u4e2d" else "\u6d4b\u8bd5\u914d\u7f6e")
+                    Text(if (testState.isRunning) "测试中" else "测试问答模型")
                 }
             }
 
@@ -841,13 +855,13 @@ private fun ScreenTranslationApiSection(
     var keyVisible by remember { mutableStateOf(false) }
     var dropdownOpen by remember { mutableStateOf(false) }
 
-    SectionCard(title = "画面翻译 API") {
+    SectionCard(title = "画面翻译配置") {
         Column(
             modifier = Modifier.testTag("settings_screen_translation_api_section"),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(
-                text = "热键呼出后，说“翻译一下”“读一下”“这是什么意思”会把当前暂停画面发送到你配置的 BYOK API，并只显示完整中文译文。推荐模型：$RECOMMENDED_SCREEN_TRANSLATION_MODEL。",
+                text = "热键呼出后，说“翻译一下”“读一下”“这是什么意思”，RetroSprite 会把当前暂停画面发送到你配置的 BYOK API，并显示中文译文。推荐模型：$RECOMMENDED_SCREEN_TRANSLATION_MODEL。",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -860,7 +874,7 @@ private fun ScreenTranslationApiSection(
                     value = provider.displayName,
                     onValueChange = {},
                     readOnly = true,
-                    label = { Text("API 模板") },
+                    label = { Text("翻译 API 模板") },
                     trailingIcon = {
                         ExposedDropdownMenuDefaults.TrailingIcon(expanded = dropdownOpen)
                     },
@@ -894,7 +908,7 @@ private fun ScreenTranslationApiSection(
             OutlinedTextField(
                 value = baseUrl,
                 onValueChange = { baseUrl = it },
-                label = { Text("Base URL") },
+                label = { Text("翻译 Base URL") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
                 colors = retroFieldColors(),
@@ -902,7 +916,7 @@ private fun ScreenTranslationApiSection(
             OutlinedTextField(
                 value = apiKey,
                 onValueChange = { apiKey = it },
-                label = { Text("API Key") },
+                label = { Text("翻译 API Key") },
                 singleLine = true,
                 visualTransformation = if (keyVisible) {
                     VisualTransformation.None
@@ -925,7 +939,7 @@ private fun ScreenTranslationApiSection(
                 OutlinedTextField(
                     value = model,
                     onValueChange = { model = it },
-                    label = { Text("模型") },
+                    label = { Text("翻译模型") },
                     singleLine = true,
                     modifier = Modifier.weight(1f),
                     colors = retroFieldColors(),
@@ -963,7 +977,7 @@ private fun ScreenTranslationApiSection(
                     contentColor = MaterialTheme.colorScheme.onPrimary,
                 ),
             ) {
-                Text("保存画面翻译配置")
+                Text("保存翻译配置")
             }
         }
     }
@@ -999,27 +1013,27 @@ private fun LlmTestResultBox(state: SettingsLlmTestState) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
-                text = "\u9884\u7b97\uff1a${result.maxTokens} tok \u00b7 timeout ${result.timeoutMs}ms \u00b7 latency ${result.latencyMs}ms",
+                text = "长度上限：${result.maxTokens} token · 超时 ${result.timeoutMs}ms · 耗时 ${result.latencyMs}ms",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             if (result.tokensIn > 0 || result.tokensOut > 0) {
                 Text(
-                    text = "Token\uff1ain ${result.tokensIn} / out ${result.tokensOut}",
+                    text = "用量：输入 ${result.tokensIn} / 输出 ${result.tokensOut}",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
             result.responsePreview?.let {
                 Text(
-                    text = "\u54cd\u5e94\uff1a$it",
+                    text = "返回：$it",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
             result.errorMessage?.let {
                 Text(
-                    text = "LLM \u9519\u8bef\uff1a$it",
+                    text = "问答模型错误：$it",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.error,
                 )
@@ -1030,10 +1044,10 @@ private fun LlmTestResultBox(state: SettingsLlmTestState) {
 
 @Composable
 private fun SpoilerSection(level: UiSpoilerLevel, onApply: (UiSpoilerLevel) -> Unit) {
-    SectionCard(title = "默认回答明确度") {
+    SectionCard(title = "默认剧透程度") {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(
-                text = "作为默认低剧透策略。游玩中也可以直接说“别剧透”“直接告诉我”等自然跟进。",
+                text = "控制默认答案透露到什么程度。游玩中也可以直接说“别剧透”或“直接告诉我”。",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -1108,9 +1122,9 @@ private fun RadioRow(
 }
 
 private fun UiSpoilerLevel.description(): String = when (this) {
-    UiSpoilerLevel.Light -> "\u53ea\u7ed9\u65b9\u5411\uff0c\u4fdd\u7559\u63a2\u7d22\u4e50\u8da3\u3002"
-    UiSpoilerLevel.Clear -> "\u660e\u786e\u63d0\u793a\u4e0b\u4e00\u6b65\uff0c\u4f46\u4e0d\u900f\u9732\u8c1c\u9898\u7b54\u6848\u3002"
-    UiSpoilerLevel.Direct -> "\u76f4\u63a5\u544a\u8bc9\u4f60\u600e\u4e48\u505a\uff0c\u9002\u5408\u4e0d\u8c03\u67e5\u3002"
+    UiSpoilerLevel.Light -> "只给方向，保留探索。"
+    UiSpoilerLevel.Clear -> "告诉下一步，但不直接揭谜底。"
+    UiSpoilerLevel.Direct -> "直接告诉怎么做，适合卡关时使用。"
 }
 
 @Composable
@@ -1122,7 +1136,7 @@ private fun AboutSection(about: UiAboutInfo) {
             AboutLine("\u6784\u5efa", about.buildFlavor)
             Spacer(Modifier.height(4.dp))
             Text(
-                text = "RetroSprite \u662f\u4e00\u4e2a\u672c\u5730 RetroArch AI Service \u5b9e\u73b0\uff0c\u8fd0\u884c\u5b8c\u5168\u4e0d\u53d1\u9001\u4f60\u7684\u6e38\u620f\u622a\u56fe\u5230\u5176\u4ed6\u670d\u52a1\u5668\uff08\u9664\u4e86\u4f60\u9009\u62e9\u7684 LLM \u4f9b\u5e94\u5546\uff09\u3002",
+                text = "RetroSprite 优先使用本地游戏知识包回答问题。问答模型和画面翻译都走你自己配置的 API Key；画面翻译会把当前暂停画面发送到你选择的翻译 API。",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

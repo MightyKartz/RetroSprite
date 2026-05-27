@@ -13,12 +13,16 @@ import com.retrosprite.app.security.AndroidKeystoreSecretCipher
 import com.retrosprite.app.security.SecretCipher
 import com.retrosprite.app.ui.viewmodel.DEFAULT_LLM_MAX_TOKENS
 import com.retrosprite.app.ui.viewmodel.DEFAULT_LLM_TIMEOUT_SECONDS
+import com.retrosprite.app.ui.viewmodel.DEFAULT_SCREEN_TRANSLATION_TIMEOUT_SECONDS
 import com.retrosprite.app.ui.viewmodel.MAX_LLM_MAX_TOKENS
 import com.retrosprite.app.ui.viewmodel.MAX_LLM_TIMEOUT_SECONDS
+import com.retrosprite.app.ui.viewmodel.MAX_SCREEN_TRANSLATION_TIMEOUT_SECONDS
 import com.retrosprite.app.ui.viewmodel.MIN_LLM_MAX_TOKENS
 import com.retrosprite.app.ui.viewmodel.MIN_LLM_TIMEOUT_SECONDS
+import com.retrosprite.app.ui.viewmodel.MIN_SCREEN_TRANSLATION_TIMEOUT_SECONDS
 import com.retrosprite.app.ui.viewmodel.SettingsStore
 import com.retrosprite.app.ui.viewmodel.UiLlmProvider
+import com.retrosprite.app.ui.viewmodel.UiScreenTranslationApiProvider
 import com.retrosprite.app.ui.viewmodel.UiSettings
 import com.retrosprite.app.ui.viewmodel.UiSpoilerLevel
 import kotlinx.coroutines.flow.Flow
@@ -43,6 +47,9 @@ class UiSettingsStore(
     override val settings: Flow<UiSettings> =
         context.uiSettingsDataStore.data.map { prefs ->
             val provider = (prefs[Keys.LLM_PROVIDER] ?: UiLlmProvider.OpenAI.id).toProvider()
+            val screenTranslationProvider =
+                (prefs[Keys.SCREEN_TRANSLATION_API_PROVIDER] ?: UiScreenTranslationApiProvider.SiliconFlow.id)
+                    .toScreenTranslationApiProvider()
             UiSettings(
                 port = prefs[Keys.PORT] ?: 4_404,
                 llmProvider = provider,
@@ -56,6 +63,18 @@ class UiSettingsStore(
                 spoilerLevel = (prefs[Keys.SPOILER_LEVEL] ?: UiSpoilerLevel.Light.id).toSpoiler(),
                 hotkeyVoiceTranscriptHudEnabled =
                     prefs[Keys.HOTKEY_VOICE_TRANSCRIPT_HUD_ENABLED] ?: BuildConfig.DEBUG,
+                screenTranslationApiProvider = screenTranslationProvider,
+                screenTranslationBaseUrl = prefs[Keys.SCREEN_TRANSLATION_BASE_URL]
+                    ?: screenTranslationProvider.defaultBaseUrl,
+                screenTranslationApiKey = decryptScreenTranslationApiKey(prefs),
+                screenTranslationModel = prefs[Keys.SCREEN_TRANSLATION_MODEL]
+                    ?: screenTranslationProvider.defaultModel,
+                screenTranslationTimeoutSeconds = (prefs[Keys.SCREEN_TRANSLATION_TIMEOUT_SECONDS]
+                    ?: DEFAULT_SCREEN_TRANSLATION_TIMEOUT_SECONDS)
+                    .coerceIn(
+                        MIN_SCREEN_TRANSLATION_TIMEOUT_SECONDS,
+                        MAX_SCREEN_TRANSLATION_TIMEOUT_SECONDS,
+                    ),
             )
         }
 
@@ -98,6 +117,33 @@ class UiSettingsStore(
         }
     }
 
+    override suspend fun updateScreenTranslationApiConfig(
+        provider: UiScreenTranslationApiProvider,
+        baseUrl: String,
+        apiKey: String,
+        model: String,
+        timeoutSeconds: Int,
+    ) {
+        context.uiSettingsDataStore.edit { prefs ->
+            prefs[Keys.SCREEN_TRANSLATION_API_PROVIDER] = provider.id
+            prefs[Keys.SCREEN_TRANSLATION_BASE_URL] =
+                baseUrl.trim().ifBlank { provider.defaultBaseUrl }
+            if (apiKey.isBlank()) {
+                prefs.remove(Keys.SCREEN_TRANSLATION_API_KEY_ENCRYPTED)
+            } else {
+                prefs[Keys.SCREEN_TRANSLATION_API_KEY_ENCRYPTED] =
+                    secretCipher.encryptToString(apiKey.trim())
+            }
+            prefs[Keys.SCREEN_TRANSLATION_MODEL] =
+                model.trim().ifBlank { provider.defaultModel }
+            prefs[Keys.SCREEN_TRANSLATION_TIMEOUT_SECONDS] =
+                timeoutSeconds.coerceIn(
+                    MIN_SCREEN_TRANSLATION_TIMEOUT_SECONDS,
+                    MAX_SCREEN_TRANSLATION_TIMEOUT_SECONDS,
+                )
+        }
+    }
+
     suspend fun migrateLegacyApiKeyIfNeeded() {
         context.uiSettingsDataStore.edit { prefs ->
             val legacy = prefs[Keys.LEGACY_LLM_API_KEY]
@@ -119,6 +165,13 @@ class UiSettingsStore(
         return ""
     }
 
+    private fun decryptScreenTranslationApiKey(prefs: Preferences): String {
+        prefs[Keys.SCREEN_TRANSLATION_API_KEY_ENCRYPTED]?.let { encrypted ->
+            return runCatching { secretCipher.decryptFromString(encrypted) }.getOrDefault("")
+        }
+        return ""
+    }
+
     private object Keys {
         val PORT = intPreferencesKey("port")
         val LLM_PROVIDER = stringPreferencesKey("llm_provider")
@@ -128,6 +181,13 @@ class UiSettingsStore(
         val LLM_MODEL = stringPreferencesKey("llm_model")
         val LLM_TIMEOUT_SECONDS = intPreferencesKey("llm_timeout_seconds")
         val LLM_MAX_TOKENS = intPreferencesKey("llm_max_tokens")
+        val SCREEN_TRANSLATION_API_PROVIDER = stringPreferencesKey("screen_translation_api_provider")
+        val SCREEN_TRANSLATION_BASE_URL = stringPreferencesKey("screen_translation_base_url")
+        val SCREEN_TRANSLATION_API_KEY_ENCRYPTED =
+            stringPreferencesKey("screen_translation_api_key_encrypted")
+        val SCREEN_TRANSLATION_MODEL = stringPreferencesKey("screen_translation_model")
+        val SCREEN_TRANSLATION_TIMEOUT_SECONDS =
+            intPreferencesKey("screen_translation_timeout_seconds")
         val SPOILER_LEVEL = stringPreferencesKey("spoiler_level")
         val HOTKEY_VOICE_TRANSCRIPT_HUD_ENABLED =
             booleanPreferencesKey("hotkey_voice_transcript_hud_enabled")
@@ -136,6 +196,10 @@ class UiSettingsStore(
 
 private fun String.toProvider(): UiLlmProvider =
     UiLlmProvider.values().firstOrNull { it.id == this } ?: UiLlmProvider.OpenAI
+
+private fun String.toScreenTranslationApiProvider(): UiScreenTranslationApiProvider =
+    UiScreenTranslationApiProvider.values().firstOrNull { it.id == this }
+        ?: UiScreenTranslationApiProvider.SiliconFlow
 
 private fun String.toSpoiler(): UiSpoilerLevel =
     UiSpoilerLevel.values().firstOrNull { it.id == this } ?: UiSpoilerLevel.Light

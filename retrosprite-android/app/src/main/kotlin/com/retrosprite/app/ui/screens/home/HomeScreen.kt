@@ -2074,6 +2074,7 @@ private fun String.toRetroArchOutputLabel(): String = when (trim().lowercase()) 
     "text" -> "旁白模式"
     "sound" -> "声音"
     "image" -> "图像"
+    "hotkey_screen_translation:text" -> "画面翻译"
     "" -> "未知"
     else -> this
 }
@@ -2082,6 +2083,7 @@ private fun String.displayNameForQuestionSource(): String = when (this) {
     "app" -> "App 提问"
     "debug" -> "Debug ask"
     "pending_hotkey" -> "Pending hotkey"
+    "hotkey_screen_translation" -> "画面翻译"
     "retroarch" -> "RetroArch 提问"
     else -> this
 }

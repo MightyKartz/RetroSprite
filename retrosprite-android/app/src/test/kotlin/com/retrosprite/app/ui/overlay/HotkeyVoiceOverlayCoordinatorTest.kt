@@ -157,6 +157,21 @@ class HotkeyVoiceOverlayCoordinatorTest {
         )
     }
 
+    @Test
+    fun `hotkey event preserves screenshot base64`() {
+        val event = RetroArchHotkeyEvent(
+            label = "snes__earthbound",
+            outputMode = "text",
+            imageBytes = 12,
+            paused = true,
+            imageBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAUA",
+            receivedAtMillis = 42L,
+        )
+
+        assertEquals("iVBORw0KGgoAAAANSUhEUgAAAAUA", event.imageBase64)
+        assertEquals(12, event.imageBytes)
+    }
+
     private fun event(): RetroArchHotkeyEvent =
         RetroArchHotkeyEvent(
             label = "mega_drive__光明力量2",

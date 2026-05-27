@@ -14,6 +14,9 @@ interface GameDao {
     @Query("SELECT * FROM games ORDER BY title ASC")
     fun observeAll(): Flow<List<GameEntity>>
 
+    @Query("SELECT * FROM games ORDER BY title ASC")
+    suspend fun getAll(): List<GameEntity>
+
     @Query("SELECT * FROM games WHERE game_id = :gameId LIMIT 1")
     suspend fun getById(gameId: String): GameEntity?
 

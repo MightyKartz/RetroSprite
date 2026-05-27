@@ -5,6 +5,7 @@ import com.retrosprite.app.data.models.GameDomain
 import com.retrosprite.app.data.models.toDomain
 import com.retrosprite.app.data.models.toEntity
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
 /**
@@ -17,6 +18,7 @@ interface GameRepository {
     suspend fun getById(gameId: String): GameDomain?
     suspend fun getByRomSha1(sha1: String): GameDomain?
     suspend fun getByRomCrc32(crc32: String): GameDomain?
+    suspend fun listAll(): List<GameDomain> = observeAll().first()
     suspend fun searchByLabel(platform: String, titleQuery: String): List<GameDomain>
     suspend fun upsert(game: GameDomain)
     suspend fun setEnabled(gameId: String, enabled: Boolean, disabledAt: Long?) {
@@ -32,6 +34,9 @@ class DefaultGameRepository(
 
     override fun observeAll(): Flow<List<GameDomain>> =
         dao.observeAll().map { rows -> rows.map { it.toDomain() } }
+
+    override suspend fun listAll(): List<GameDomain> =
+        dao.getAll().map { it.toDomain() }
 
     override suspend fun getById(gameId: String): GameDomain? =
         dao.getById(gameId)?.toDomain()

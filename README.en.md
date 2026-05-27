@@ -11,8 +11,9 @@ RetroArch AI Service hotkey
   -> RetroSprite localhost endpoint
   -> short in-game voice overlay
   -> local sherpa-onnx Paraformer ASR
-  -> current-game GKP retrieval + AnswerPolicy
-  -> short answer + Android TTS
+  -> normal question: current-game GKP retrieval + AnswerPolicy
+  -> translation intent: current screenshot BYOK API recognition / translation
+  -> short answer or full-screen Chinese translation HUD
 ```
 
 RetroSprite is local-first and evidence-first. Optional BYOK LLM providers can help
@@ -22,8 +23,9 @@ allowed to answer game-specific facts without local evidence.
 ## Status
 
 RetroSprite is in a preview / release-candidate testing phase. The hotkey voice
-overlay, local ASR, GKP retrieval, short-answer TTS, diagnostics, and six bundled
-real game packs are the current focus.
+overlay, local ASR, GKP retrieval, on-demand current-screen translation,
+short-answer TTS, diagnostics, and six bundled real game packs are the current
+focus.
 
 This is not a universal walkthrough bot. Use it only with the supported games below
 unless you are developing or testing new GKPs.
@@ -107,6 +109,9 @@ Settings -> Input -> Hotkeys -> AI Service
    GKP, and returns a short low-spoiler answer with evidence.
 6. If local evidence is missing, RetroSprite says it cannot answer reliably
    instead of guessing.
+7. If you say `翻译一下`, `读一下`, `这是什么意思`, or `translate this`,
+   RetroSprite sends the current paused screenshot to your configured BYOK screen
+   translation API and shows the Chinese translation in the in-game HUD.
 
 Example questions:
 
@@ -116,13 +121,26 @@ Example questions:
 - `梦幻模拟战 II 转职怎么选？`
 - `克拉肯怎么过？`
 - `不要剧透，下一步去哪？`
+- `翻译一下。`
+- `读一下这段。`
+- `translate this.`
 
 ## App Screens
 
 - **Home**: endpoint status, text questions, recent context, and debug actions.
 - **Packs**: bundled and external GKP management.
-- **Settings**: RetroArch setup helper, endpoint port, overlay permission, spoiler level, and BYOK LLM settings.
+- **Settings**: RetroArch setup helper, endpoint port, overlay permission, spoiler level, BYOK LLM settings, and BYOK screen translation API settings.
 - **Diagnostics**: latest request, pipeline stage, source ids, LLM status, latency, feedback, and errors.
+
+Screen translation is API-only in this release. Choose a SiliconFlow,
+OpenRouter, or custom OpenAI-compatible template in Settings, then enter your own
+Base URL, API key, model, and timeout. The recommended model is
+`Qwen/Qwen3-VL-8B-Instruct`. RetroSprite does not bundle any API key.
+
+Normal GKP Q&A does not send the RetroArch screenshot to a cloud provider. The
+current screenshot is sent only when the player explicitly asks for screen
+translation. Logs store the final Chinese translation, provider/model, duration,
+and image byte count; they do not store screenshot Base64.
 
 ## Development
 
@@ -182,6 +200,7 @@ curl -fsS -X POST 'http://127.0.0.1:18080/debug/ask?output=text' \
 - [GKP v0 schema](./retrosprite-android/docs/GKP_V0_SCHEMA.md)
 - [Protocol reference](./retrosprite-android/docs/PROTOCOL_REFERENCE.md)
 - [Test coverage](./retrosprite-android/docs/TEST_COVERAGE.md)
+- [Changelog](./CHANGELOG.md)
 
 ## Boundaries
 
@@ -193,6 +212,7 @@ RetroSprite deliberately avoids:
 - Broad storage permissions or automatic `retroarch.cfg` rewriting.
 - ROMs, commercial guide text dumps, executable code, or long copyrighted excerpts inside GKP content.
 - LLM bare-answer fallback when local evidence is unavailable.
+- Sending screenshots to cloud APIs for normal GKP Q&A.
 
 ## License and Notices
 

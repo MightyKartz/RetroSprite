@@ -16,10 +16,9 @@ RetroArch AI Service hotkey
   -> RetroSprite local endpoint
   -> hotkey voice overlay
   -> local ASR transcript
-  -> game resolver
-  -> local GKP retrieval
-  -> evidence and spoiler policy
-  -> short answer and optional TTS
+  -> normal question: game resolver / local GKP retrieval / evidence and spoiler policy
+  -> screen translation command: current screenshot BYOK API translation
+  -> short answer with optional TTS, or complete translated text HUD
 ```
 
 The project direction is:
@@ -47,6 +46,7 @@ Its job is to run the player experience:
 | Endpoint | Receive RetroArch AI Service requests and expose debug routes. |
 | Hotkey overlay | Wake on RetroArch requests, record one short question, show answer state. |
 | Voice | Use local ASR for input and Android TTS for short answer output. |
+| Screen translation | On explicit voice intent, send the current screenshot to the user-configured BYOK screen translation API and show Chinese translation without TTS. |
 | Game resolver | Map label/hash/title/platform to the current GKP game id. |
 | Retrieval | Search templates, aliases/entities, and FTS-style local knowledge rows. |
 | Answer policy | Enforce evidence, spoiler, disabled-pack, and no-evidence boundaries. |
@@ -57,6 +57,7 @@ Its job is to run the player experience:
 The runtime must stay useful when:
 
 - no LLM key is configured;
+- no screen translation API key is configured;
 - the device is offline;
 - a GKP is disabled;
 - retrieval finds no evidence;
@@ -189,7 +190,7 @@ There are separate concepts:
 | --- | --- |
 | `coverage_tier=expanded` | A richer reviewed knowledge pack. This is not a paid app tier. |
 | LLM assistance | A player-enabled runtime feature for query rewrite, translation, or evidence synthesis. |
-| Virtual Spirit Pro | A paid player-facing product tier for advanced runtime value such as screen OCR, menu/dialogue recognition, screen-aware hints, verified pack auto-update, pack collections, sync, and richer history. |
+| Virtual Spirit Pro | A paid player-facing product tier for advanced runtime value such as richer menu/dialogue recognition, screen-aware hints, verified pack auto-update, pack collections, sync, and richer history. |
 | Creator Pro / GKP Studio Pro | A paid creator tooling line for batch import, source/license risk checks, golden generation, regression reports, signing, registry submission, and analytics. |
 
 They should not be coupled. A player can use GKP Lite with no LLM and no Pro
@@ -198,7 +199,8 @@ pack should still work offline for its deterministic goldens.
 
 Pro should not lock the basic app, GKP import, the GKP file format, the free
 GKP generator, basic linting, BYOK LLM configuration, or basic English
-localization. Those remain part of the open/community loop.
+localization. Basic on-demand current-screen translation also remains part of
+the core app. Those remain part of the open/community loop.
 
 Allowed LLM jobs:
 

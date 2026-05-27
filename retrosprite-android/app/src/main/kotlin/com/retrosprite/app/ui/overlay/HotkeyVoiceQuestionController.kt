@@ -9,12 +9,17 @@ import com.retrosprite.app.endpoint.model.RetroArchRequest
 import com.retrosprite.app.endpoint.model.RetroArchResponse
 import com.retrosprite.app.endpoint.model.RetroArchState
 import com.retrosprite.app.endpoint.model.ResponseDiagnostics
+import com.retrosprite.app.screen.translation.ScreenTranslationIntentClassifier
+import com.retrosprite.app.screen.translation.ScreenTranslationContext
+import com.retrosprite.app.screen.translation.ScreenTranslationPipeline
 import com.retrosprite.app.ui.viewmodel.SpeechOutputProvider
+import com.retrosprite.app.ui.viewmodel.UiVoiceInputState
 import com.retrosprite.app.ui.viewmodel.VoiceInputProvider
 import com.retrosprite.app.voice.asr.AsrRecognitionContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
@@ -22,12 +27,15 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
 
 class HotkeyVoiceQuestionController(
     private val coordinator: HotkeyVoiceOverlayCoordinator,
     private val voiceInput: VoiceInputProvider,
     private val responseGenerator: ResponseGenerator,
+    private val screenTranslationPipeline: ScreenTranslationPipeline? = null,
+    private val screenTranslationIntentClassifier: ScreenTranslationIntentClassifier = ScreenTranslationIntentClassifier(),
     private val speechOutput: SpeechOutputProvider,
     private val loggerProvider: () -> RequestLogger,
     private val scope: CoroutineScope,
@@ -158,6 +166,18 @@ class HotkeyVoiceQuestionController(
         }
 
         delay(LISTENING_VISUAL_LINGER_MS)
+        val screenTranslationQuestion =
+            screenTranslationIntentClassifier.normalizeScreenTranslationRequest(question)
+        if (screenTranslationQuestion != null) {
+            runScreenTranslation(
+                event = event,
+                question = screenTranslationQuestion,
+                rawQuestion = question.takeIf { it != screenTranslationQuestion },
+                voiceState = voiceState,
+            )
+            return
+        }
+
         coordinator.renderVoiceState(
             phase = HotkeyVoiceOverlayPhase.Thinking,
             message = "Thinking",
@@ -281,6 +301,130 @@ class HotkeyVoiceQuestionController(
         }
     }
 
+    private suspend fun runScreenTranslation(
+        event: RetroArchHotkeyEvent,
+        question: String,
+        rawQuestion: String?,
+        voiceState: UiVoiceInputState?,
+    ) {
+        val pipeline = screenTranslationPipeline
+        if (pipeline == null) {
+            coordinator.renderVoiceState(
+                phase = HotkeyVoiceOverlayPhase.Error,
+                message = "Screen translation unavailable",
+                transcript = question,
+                showTranscriptHud = showTranscriptHudProvider(),
+                answerText = "屏幕翻译尚未初始化，请稍后再试。",
+                contentKind = HotkeyVoiceOverlayContentKind.ScreenTranslation,
+            )
+            finishVoiceSessionAfter(RECOVERY_LINGER_MS, reason = "screen_translation_unavailable")
+            return
+        }
+
+        coordinator.renderVoiceState(
+            phase = HotkeyVoiceOverlayPhase.Translating,
+            message = "Translating",
+            transcript = question,
+            showTranscriptHud = showTranscriptHudProvider(),
+            answerText = "正在识别并翻译当前画面…",
+            contentKind = HotkeyVoiceOverlayContentKind.ScreenTranslation,
+            asrCommitReason = voiceState?.asrCommitReason,
+            asrLastPartial = voiceState?.asrLastPartial,
+            asrFinalText = voiceState?.asrFinalText,
+            asrSelectedTranscript = voiceState?.asrSelectedTranscript,
+            asrPostVoiceSilenceMillis = voiceState?.asrPostVoiceSilenceMillis,
+            asrPartialStableMillis = voiceState?.asrPartialStableMillis,
+            asrRequiredStableMillis = voiceState?.asrRequiredStableMillis,
+            asrEndpointArmed = voiceState?.asrEndpointArmed,
+            asrFinalFlushMillis = voiceState?.asrFinalFlushMillis,
+        )
+
+        val logger = loggerProvider()
+        val startedAt = System.currentTimeMillis()
+        val result = runCatching {
+            withTimeout(SCREEN_TRANSLATION_TIMEOUT_MS) {
+                pipeline.translateCurrentScreen(
+                    imageBase64 = event.imageBase64,
+                    context = ScreenTranslationContext(label = event.label),
+                )
+            }
+        }.getOrElse { error ->
+            val message = if (error is TimeoutCancellationException) {
+                "画面翻译超时，可能是 API 网络不可用或服务响应过慢，请稍后重试。"
+            } else {
+                error.message ?: "屏幕翻译失败，请稍后再试。"
+            }
+            logger.log(
+                label = event.label,
+                imageBase64 = "",
+                paused = event.paused,
+                outputMode = SCREEN_TRANSLATION_OUTPUT_MODE,
+                responseText = "",
+                errorMessage = "screen_translation_failed: $message",
+                durationMillis = System.currentTimeMillis() - startedAt,
+                question = question,
+                questionSource = SCREEN_TRANSLATION_QUESTION_SOURCE,
+                rawQuestion = rawQuestion,
+                normalizedQuestion = rawQuestion?.let { question },
+                questionNormalizationReason = rawQuestion?.let {
+                    SCREEN_TRANSLATION_TAIL_COMPLETION_REASON
+                },
+                imageBytesOverride = event.imageBytes,
+            )
+            coordinator.renderVoiceState(
+                phase = HotkeyVoiceOverlayPhase.Error,
+                message = "Translation failed",
+                transcript = question,
+                showTranscriptHud = showTranscriptHudProvider(),
+                answerText = "屏幕翻译失败：$message",
+                contentKind = HotkeyVoiceOverlayContentKind.ScreenTranslation,
+            )
+            finishVoiceSessionAfter(RECOVERY_LINGER_MS, reason = "screen_translation_error_recovery")
+            return
+        }
+
+        logger.log(
+            label = event.label,
+            imageBase64 = "",
+            paused = event.paused,
+            outputMode = SCREEN_TRANSLATION_OUTPUT_MODE,
+            responseText = result.translatedText,
+            durationMillis = System.currentTimeMillis() - startedAt,
+            question = question,
+            questionSource = SCREEN_TRANSLATION_QUESTION_SOURCE,
+            rawQuestion = rawQuestion,
+            normalizedQuestion = rawQuestion?.let { question },
+            questionNormalizationReason = rawQuestion?.let {
+                SCREEN_TRANSLATION_TAIL_COMPLETION_REASON
+            },
+            imageBytesOverride = event.imageBytes,
+        )
+
+        for ((index, page) in result.pages.withIndex()) {
+            coordinator.renderVoiceState(
+                phase = HotkeyVoiceOverlayPhase.Translation,
+                message = if (result.pages.size == 1) {
+                    "Translation"
+                } else {
+                    "Translation ${index + 1}/${result.pages.size}"
+                },
+                transcript = question,
+                showTranscriptHud = showTranscriptHudProvider(),
+                answerText = page,
+                contentKind = HotkeyVoiceOverlayContentKind.ScreenTranslation,
+            )
+            delay(
+                if (index == result.pages.lastIndex) {
+                    TRANSLATION_LAST_PAGE_LINGER_MS
+                } else {
+                    TRANSLATION_PAGE_LINGER_MS
+                }
+            )
+        }
+
+        finishVoiceSessionAfter(0L, reason = "screen_translation_completed")
+    }
+
     private suspend fun finishVoiceSessionAfter(delayMillis: Long, reason: String) {
         delay(delayMillis)
         coordinator.finishVoiceSession(reason = reason)
@@ -313,9 +457,16 @@ class HotkeyVoiceQuestionController(
     companion object {
         const val OUTPUT_MODE: String = "hotkey_voice:text"
         const val QUESTION_SOURCE: String = "hotkey_voice"
+        const val SCREEN_TRANSLATION_OUTPUT_MODE: String = "hotkey_screen_translation:text"
+        const val SCREEN_TRANSLATION_QUESTION_SOURCE: String = "hotkey_screen_translation"
+        const val SCREEN_TRANSLATION_TAIL_COMPLETION_REASON: String =
+            "screen_translation_intent_tail_completion"
         private const val VOICE_TIMEOUT_MS: Long = 20_000L
         private const val SPEECH_TIMEOUT_MS: Long = 15_000L
         private const val LISTENING_VISUAL_LINGER_MS: Long = 220L
+        private const val SCREEN_TRANSLATION_TIMEOUT_MS: Long = 35_000L
+        private const val TRANSLATION_PAGE_LINGER_MS: Long = 4_000L
+        private const val TRANSLATION_LAST_PAGE_LINGER_MS: Long = 5_000L
         private const val ANSWER_LINGER_MS: Long = 2_000L
         private const val RECOVERY_LINGER_MS: Long = 2_000L
     }

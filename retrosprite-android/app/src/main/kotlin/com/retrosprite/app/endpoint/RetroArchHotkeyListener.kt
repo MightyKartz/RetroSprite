@@ -7,6 +7,7 @@ data class RetroArchHotkeyEvent(
     val outputMode: String,
     val imageBytes: Int,
     val paused: Boolean,
+    val imageBase64: String = "",
     val receivedAtMillis: Long = System.currentTimeMillis(),
 )
 
@@ -27,5 +28,6 @@ internal fun RetroArchRequest.toHotkeyEvent(
         outputMode = outputMode,
         imageBytes = RequestLogger.decodedBase64Length(image),
         paused = state.isPaused,
+        imageBase64 = image,
         receivedAtMillis = receivedAtMillis,
     )

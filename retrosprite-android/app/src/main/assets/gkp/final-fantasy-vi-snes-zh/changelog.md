@@ -2,9 +2,12 @@
 
 ## Unreleased
 
+## 0.1.1 - 2026-05-27
+
 - Added scoped `observed_asr` aliases from MacBook-speaker Paraformer QA for 魔石系统 and related 魔石/幻兽 phrasing.
 - Added `何石系统是什么 -> 魔石系统是什么` from the 2026-05-25 real-device voice retry.
 - Added voice-like golden questions covering current-game ASR normalization.
+- Added explicit RetroArch labels for the PlayStation `Final Fantasy Anthology - Final Fantasy VI` release so it can reuse this Lite FF6 knowledge pack.
 
 ## 0.1.0 - 2026-05-24
 

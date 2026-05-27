@@ -6,6 +6,10 @@ import com.retrosprite.app.endpoint.RetroArchHotkeyEvent
 import com.retrosprite.app.endpoint.model.RetroArchRequest
 import com.retrosprite.app.endpoint.model.RetroArchResponse
 import com.retrosprite.app.endpoint.model.ResponseDiagnostics
+import com.retrosprite.app.screen.translation.ScreenTranslationIntentClassifier
+import com.retrosprite.app.screen.translation.ScreenTranslationContext
+import com.retrosprite.app.screen.translation.ScreenTranslationPipeline
+import com.retrosprite.app.screen.translation.ScreenTranslationResult
 import com.retrosprite.app.ui.viewmodel.SpeechOutputProvider
 import com.retrosprite.app.ui.viewmodel.UiSpeechOutputState
 import com.retrosprite.app.ui.viewmodel.UiVoiceInputState
@@ -748,12 +752,105 @@ class HotkeyVoiceQuestionControllerTest {
         assertEquals(true, renderer.renderedStates.any { it.transcript == "什么时候转职？" })
     }
 
-    private fun event(): RetroArchHotkeyEvent =
+    @Test
+    fun `translation intent uses hotkey screenshot and skips normal QA pipeline`() = runTest {
+        val renderer = FakeRenderer()
+        val coordinator = HotkeyVoiceOverlayCoordinator(
+            renderer = renderer,
+            canDrawOverlays = { true },
+            scheduleAutoHide = {},
+            cancelAutoHide = {},
+        )
+        val voice = FakeVoiceInputProvider("翻译一下")
+        val generator = CapturingGenerator("normal answer")
+        val translationPipeline = RecordingScreenTranslationPipeline(
+            ScreenTranslationResult(
+                translatedText = "欢迎来到港口城市。",
+                pages = listOf("欢迎来到港口城市。"),
+                providerName = "fake-api",
+                model = "fake-model",
+            )
+        )
+        val logger = RequestLogger()
+        val controller = HotkeyVoiceQuestionController(
+            coordinator = coordinator,
+            voiceInput = voice,
+            responseGenerator = generator,
+            screenTranslationPipeline = translationPipeline,
+            screenTranslationIntentClassifier = ScreenTranslationIntentClassifier(),
+            speechOutput = FakeSpeechOutputProvider(),
+            loggerProvider = { logger },
+            scope = this,
+        )
+
+        controller.onHotkey(event(imageBase64 = "hotkey_image"))
+        advanceUntilIdle()
+
+        assertEquals("hotkey_image", translationPipeline.imageBase64)
+        assertEquals("mega_drive__光明力量2", translationPipeline.context?.label)
+        assertEquals(1, translationPipeline.callCount)
+        assertEquals(null, generator.request)
+        val translationState = renderer.renderedStates.last {
+            it.phase == HotkeyVoiceOverlayPhase.Translation
+        }
+        assertEquals(HotkeyVoiceOverlayContentKind.ScreenTranslation, translationState.contentKind)
+        assertEquals("欢迎来到港口城市。", translationState.answerText)
+        assertEquals("hotkey_screen_translation:text", logger.entries.value.first().outputMode)
+    }
+
+    @Test
+    fun `translation intent logs common tail-dropped command as canonical phrase`() = runTest {
+        val renderer = FakeRenderer()
+        val coordinator = HotkeyVoiceOverlayCoordinator(
+            renderer = renderer,
+            canDrawOverlays = { true },
+            scheduleAutoHide = {},
+            cancelAutoHide = {},
+        )
+        val voice = FakeVoiceInputProvider("翻译一")
+        val translationPipeline = RecordingScreenTranslationPipeline(
+            ScreenTranslationResult(
+                translatedText = "菜单\n物品\n状态",
+                pages = listOf("菜单\n物品\n状态"),
+                providerName = "fake-api",
+                model = "fake-model",
+            )
+        )
+        val logger = RequestLogger()
+        val controller = HotkeyVoiceQuestionController(
+            coordinator = coordinator,
+            voiceInput = voice,
+            responseGenerator = CapturingGenerator("normal answer"),
+            screenTranslationPipeline = translationPipeline,
+            screenTranslationIntentClassifier = ScreenTranslationIntentClassifier(),
+            speechOutput = FakeSpeechOutputProvider(),
+            loggerProvider = { logger },
+            scope = this,
+        )
+
+        controller.onHotkey(event(imageBase64 = "menu_image"))
+        advanceUntilIdle()
+
+        val entry = logger.entries.value.first()
+        assertEquals("hotkey_screen_translation:text", entry.outputMode)
+        assertEquals("翻译一下", entry.question)
+        assertEquals("翻译一", entry.rawQuestion)
+        assertEquals("翻译一下", entry.normalizedQuestion)
+        assertEquals("screen_translation_intent_tail_completion", entry.questionNormalizationReason)
+        assertEquals(1, translationPipeline.callCount)
+        val translationState = renderer.renderedStates.last {
+            it.phase == HotkeyVoiceOverlayPhase.Translation
+        }
+        assertEquals("翻译一下", translationState.transcript)
+    }
+
+    private fun event(imageBase64: String = "fake_screen_png_base64"): RetroArchHotkeyEvent =
         RetroArchHotkeyEvent(
             label = "mega_drive__光明力量2",
             outputMode = "text",
             imageBytes = 4,
             paused = false,
+            imageBase64 = imageBase64,
             receivedAtMillis = 1L,
         )
 
@@ -996,6 +1093,24 @@ class HotkeyVoiceQuestionControllerTest {
             this.request = request
             this.outputMode = outputMode
             return RetroArchResponse.text(answer, diagnostics = diagnostics)
+        }
+    }
+
+    private class RecordingScreenTranslationPipeline(
+        private val result: ScreenTranslationResult,
+    ) : ScreenTranslationPipeline {
+        var imageBase64: String? = null
+        var context: ScreenTranslationContext? = null
+        var callCount: Int = 0
+
+        override suspend fun translateCurrentScreen(
+            imageBase64: String,
+            context: ScreenTranslationContext,
+        ): ScreenTranslationResult {
+            callCount += 1
+            this.imageBase64 = imageBase64
+            this.context = context
+            return result
         }
     }
 }

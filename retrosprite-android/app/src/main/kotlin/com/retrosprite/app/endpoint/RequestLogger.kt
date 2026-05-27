@@ -155,6 +155,7 @@ class RequestLogger(
         questionNormalizationReason: String? = diagnostics.questionNormalizationReason,
         normalizedQuestionMatchedTerm: String? = diagnostics.normalizedQuestionMatchedTerm,
         normalizedQuestionMatchedEntityId: String? = diagnostics.normalizedQuestionMatchedEntityId,
+        imageBytesOverride: Int? = null,
     ): RequestLogEntry {
         val parsed = LabelParser.parse(label)
         val cleanQuestion = question?.trim()?.takeIf { it.isNotEmpty() }
@@ -165,7 +166,7 @@ class RequestLogger(
             label = label,
             system = parsed.system,
             game = parsed.game,
-            imageBytes = decodedBase64Length(imageBase64),
+            imageBytes = imageBytesOverride ?: decodedBase64Length(imageBase64),
             paused = paused,
             outputMode = outputMode,
             question = cleanQuestion,

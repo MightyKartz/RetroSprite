@@ -78,12 +78,15 @@ import com.retrosprite.app.ui.viewmodel.DEFAULT_LLM_TIMEOUT_SECONDS
 import com.retrosprite.app.ui.components.CopyToClipboardButton
 import com.retrosprite.app.ui.components.SectionCard
 import com.retrosprite.app.endpoint.RetroArchHotkeyEvent
+import com.retrosprite.app.ui.viewmodel.RECOMMENDED_SCREEN_TRANSLATION_MODEL
 import com.retrosprite.app.ui.overlay.AndroidHotkeyVoiceOverlayRenderer
 import com.retrosprite.app.ui.overlay.HotkeyVoiceOverlayPhase
 import com.retrosprite.app.ui.overlay.HotkeyVoiceOverlayRenderState
 import com.retrosprite.app.ui.theme.RetroSpriteTheme
 import com.retrosprite.app.ui.viewmodel.UiAboutInfo
 import com.retrosprite.app.ui.viewmodel.UiLlmProvider
+import com.retrosprite.app.ui.viewmodel.DEFAULT_SCREEN_TRANSLATION_TIMEOUT_SECONDS
+import com.retrosprite.app.ui.viewmodel.UiScreenTranslationApiProvider
 import com.retrosprite.app.ui.viewmodel.UiOverlayPermissionState
 import com.retrosprite.app.ui.viewmodel.UiSettings
 import com.retrosprite.app.ui.viewmodel.UiSpoilerLevel
@@ -165,6 +168,7 @@ fun SettingsScreen(
         about = viewModel.about,
         onApplyPort = viewModel::applyPort,
         onApplyLlm = viewModel::applyLlmConfig,
+        onApplyScreenTranslationApi = viewModel::applyScreenTranslationApiConfig,
         onTestLlm = viewModel::testLlmConfig,
         onApplySpoiler = viewModel::applySpoilerLevel,
         onApplyHotkeyVoiceTranscriptHudEnabled = viewModel::applyHotkeyVoiceTranscriptHudEnabled,
@@ -230,6 +234,7 @@ private fun SettingsContent(
     about: UiAboutInfo,
     onApplyPort: (Int) -> Unit,
     onApplyLlm: (UiLlmProvider, String, String, String, Int, Int) -> Unit,
+    onApplyScreenTranslationApi: (UiScreenTranslationApiProvider, String, String, String, Int) -> Unit,
     onTestLlm: (UiLlmProvider, String, String, String, Int, Int) -> Unit,
     onApplySpoiler: (UiSpoilerLevel) -> Unit,
     onApplyHotkeyVoiceTranscriptHudEnabled: (Boolean) -> Unit,
@@ -272,6 +277,10 @@ private fun SettingsContent(
             testState = llmTestState,
             onApply = onApplyLlm,
             onTest = onTestLlm,
+        )
+        ScreenTranslationApiSection(
+            settings = settings,
+            onApply = onApplyScreenTranslationApi,
         )
         DeveloperDiagnosticsSection(
             showTranscriptHud = settings.hotkeyVoiceTranscriptHudEnabled,
@@ -808,6 +817,158 @@ private fun LlmSection(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ScreenTranslationApiSection(
+    settings: UiSettings,
+    onApply: (UiScreenTranslationApiProvider, String, String, String, Int) -> Unit,
+) {
+    var provider by remember(settings.screenTranslationApiProvider) {
+        mutableStateOf(settings.screenTranslationApiProvider)
+    }
+    var baseUrl by remember(settings.screenTranslationBaseUrl) {
+        mutableStateOf(settings.screenTranslationBaseUrl)
+    }
+    var apiKey by remember(settings.screenTranslationApiKey) {
+        mutableStateOf(settings.screenTranslationApiKey)
+    }
+    var model by remember(settings.screenTranslationModel) {
+        mutableStateOf(settings.screenTranslationModel.ifBlank { provider.defaultModel })
+    }
+    var timeoutSeconds by remember(settings.screenTranslationTimeoutSeconds) {
+        mutableStateOf(settings.screenTranslationTimeoutSeconds.toString())
+    }
+    var keyVisible by remember { mutableStateOf(false) }
+    var dropdownOpen by remember { mutableStateOf(false) }
+
+    SectionCard(title = "画面翻译 API") {
+        Column(
+            modifier = Modifier.testTag("settings_screen_translation_api_section"),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = "热键呼出后，说“翻译一下”“读一下”“这是什么意思”会把当前暂停画面发送到你配置的 BYOK API，并只显示完整中文译文。推荐模型：$RECOMMENDED_SCREEN_TRANSLATION_MODEL。",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            ExposedDropdownMenuBox(
+                expanded = dropdownOpen,
+                onExpandedChange = { dropdownOpen = it },
+            ) {
+                OutlinedTextField(
+                    value = provider.displayName,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("API 模板") },
+                    trailingIcon = {
+                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = dropdownOpen)
+                    },
+                    modifier = Modifier
+                        .menuAnchor()
+                        .fillMaxWidth(),
+                    colors = retroFieldColors(),
+                )
+                ExposedDropdownMenu(
+                    expanded = dropdownOpen,
+                    onDismissRequest = { dropdownOpen = false },
+                ) {
+                    UiScreenTranslationApiProvider.values().forEach { candidate ->
+                        DropdownMenuItem(
+                            text = { Text(candidate.displayName) },
+                            onClick = {
+                                provider = candidate
+                                if (candidate.defaultBaseUrl.isNotBlank()) {
+                                    baseUrl = candidate.defaultBaseUrl
+                                }
+                                if (candidate != UiScreenTranslationApiProvider.Custom) {
+                                    model = candidate.defaultModel
+                                }
+                                dropdownOpen = false
+                            },
+                        )
+                    }
+                }
+            }
+
+            OutlinedTextField(
+                value = baseUrl,
+                onValueChange = { baseUrl = it },
+                label = { Text("Base URL") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+                colors = retroFieldColors(),
+            )
+            OutlinedTextField(
+                value = apiKey,
+                onValueChange = { apiKey = it },
+                label = { Text("API Key") },
+                singleLine = true,
+                visualTransformation = if (keyVisible) {
+                    VisualTransformation.None
+                } else {
+                    PasswordVisualTransformation()
+                },
+                trailingIcon = {
+                    IconButton(onClick = { keyVisible = !keyVisible }) {
+                        Icon(
+                            imageVector = if (keyVisible) Icons.Filled.VisibilityOff
+                            else Icons.Filled.Visibility,
+                            contentDescription = null,
+                        )
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                colors = retroFieldColors(),
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = model,
+                    onValueChange = { model = it },
+                    label = { Text("模型") },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f),
+                    colors = retroFieldColors(),
+                )
+                OutlinedTextField(
+                    value = timeoutSeconds,
+                    onValueChange = { value ->
+                        timeoutSeconds = value.filter { it.isDigit() }.take(3)
+                    },
+                    label = { Text("超时 (秒)") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.weight(1f),
+                    colors = retroFieldColors(),
+                )
+            }
+
+            val parsedTimeout =
+                timeoutSeconds.toIntOrNull() ?: DEFAULT_SCREEN_TRANSLATION_TIMEOUT_SECONDS
+            Button(
+                onClick = {
+                    onApply(
+                        provider,
+                        baseUrl,
+                        apiKey,
+                        model,
+                        parsedTimeout,
+                    )
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("settings_screen_translation_api_save_button"),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                ),
+            ) {
+                Text("保存画面翻译配置")
+            }
+        }
+    }
+}
+
 @Composable
 private fun LlmTestResultBox(state: SettingsLlmTestState) {
     val result = state.result ?: return
@@ -1014,6 +1175,7 @@ private fun SettingsPreview() {
             about = UiAboutInfo(),
             onApplyPort = {},
             onApplyLlm = { _, _, _, _, _, _ -> },
+            onApplyScreenTranslationApi = { _, _, _, _, _ -> },
             onTestLlm = { _, _, _, _, _, _ -> },
             onApplySpoiler = {},
             onApplyHotkeyVoiceTranscriptHudEnabled = {},

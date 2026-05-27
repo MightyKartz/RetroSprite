@@ -556,6 +556,7 @@ private fun UiRequestLogItem.diagnosticTags(): List<String> = buildList {
     if (paused) add("PAUSED")
     if (isDebug) add("DEBUG")
     if (rawOutputMode.startsWith("app:")) add("APP")
+    if (rawOutputMode.startsWith("hotkey_screen_translation:")) add("TRANSLATE")
     if (questionSource == QUESTION_SOURCE_PENDING_HOTKEY) {
         add("PENDING")
     } else if (question != null) {

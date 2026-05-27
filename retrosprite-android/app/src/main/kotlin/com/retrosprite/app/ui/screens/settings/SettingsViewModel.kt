@@ -11,6 +11,7 @@ import com.retrosprite.app.ui.viewmodel.SettingsStore
 import com.retrosprite.app.ui.viewmodel.UiAboutInfo
 import com.retrosprite.app.ui.viewmodel.UiLlmConfigTestResult
 import com.retrosprite.app.ui.viewmodel.UiLlmProvider
+import com.retrosprite.app.ui.viewmodel.UiScreenTranslationApiProvider
 import com.retrosprite.app.ui.viewmodel.UiSettings
 import com.retrosprite.app.ui.viewmodel.UiSpoilerLevel
 import kotlinx.coroutines.flow.Flow
@@ -65,6 +66,24 @@ class SettingsViewModel(
 
     fun applyHotkeyVoiceTranscriptHudEnabled(enabled: Boolean) {
         viewModelScope.launch { store.updateHotkeyVoiceTranscriptHudEnabled(enabled) }
+    }
+
+    fun applyScreenTranslationApiConfig(
+        provider: UiScreenTranslationApiProvider,
+        baseUrl: String,
+        apiKey: String,
+        model: String,
+        timeoutSeconds: Int,
+    ) {
+        viewModelScope.launch {
+            store.updateScreenTranslationApiConfig(
+                provider = provider,
+                baseUrl = baseUrl,
+                apiKey = apiKey,
+                model = model,
+                timeoutSeconds = timeoutSeconds,
+            )
+        }
     }
 
     fun refreshOverlayPermission() {

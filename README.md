@@ -12,8 +12,9 @@ RetroArch AI Service 热键
   -> RetroSprite 本地 endpoint
   -> 游戏内短时语音 overlay
   -> 本地 sherpa-onnx Paraformer ASR
-  -> 当前游戏 GKP / 本地检索 / AnswerPolicy
-  -> 短答案 + Android TTS 朗读
+  -> 普通问题：当前游戏 GKP / 本地检索 / AnswerPolicy
+  -> 翻译命令：当前暂停画面 BYOK API 识别 / 翻译
+  -> 游戏内短答案或完整画面翻译
 ```
 
 RetroSprite 的默认路线是 **本地优先、证据优先、低剧透优先**。外部 LLM 是可选的
@@ -23,7 +24,8 @@ RetroSprite 不会让 LLM 裸答。
 ## 当前版本状态
 
 RetroSprite 当前处在发布前最后测试阶段：Hotkey Voice Overlay + 本地 GKP 问答主路径已接通，
-重点验证真实 RetroArch 热键、语音识别、GKP 命中、短答 TTS、Diagnostics 和六个内置游戏包。
+新增的当前画面翻译也已接入同一个热键语音入口。当前重点验证真实 RetroArch 热键、语音识别、
+GKP 命中、画面翻译、短答 TTS、Diagnostics 和六个内置游戏包。
 
 这仍是 preview 阶段，不是“支持所有游戏”的通用攻略机器人。当前 APK 面向测试、演示和早期反馈；
 正式使用前请先确认你的游戏属于下方支持列表。
@@ -58,6 +60,7 @@ RetroSprite 目前只内置支持 **6 个真实游戏**：
 - **本地 HTTP endpoint**：Android 前台服务默认监听 `127.0.0.1:4404`。
 - **游戏内语音 overlay**：按热键后显示短时语音波形，收集一个问题。
 - **本地 ASR**：使用 sherpa-onnx Paraformer 模型进行本地中文/英文语音识别。
+- **按需画面翻译**：说“翻译一下”“读一下”“这是什么意思”时，把当前暂停画面发送到用户配置的 BYOK 画面翻译 API，并显示完整中文译文；菜单/装备/属性画面会优先整理成可扫读的中英文对照卡片。
 - **当前游戏 GKP 检索**：按 RetroArch label、游戏标题、平台和启用状态解析当前知识包。
 - **低剧透回答策略**：默认轻提示，可通过追问升级为更明确或直接答案。
 - **来源与诊断**：回答保留 source id，Diagnostics 可查看 pipeline stage、LLM 状态、耗时和最新请求。
@@ -136,6 +139,7 @@ Settings -> Input -> Hotkeys -> AI Service
 5. RetroSprite 会用本地 ASR 识别问题，并从当前游戏 GKP 中检索证据。
 6. 如果命中本地证据，会在游戏内显示短回答并通过 Android TTS 朗读。
 7. 如果没有可靠证据，会说明暂时不能可靠回答，而不是猜测。
+8. 如果说“翻译一下”“读一下”“这是什么意思”，会改走当前画面翻译；翻译结果只显示中文，不朗读、不显示英文原文。
 
 适合的提问方式：
 
@@ -146,6 +150,9 @@ Settings -> Input -> Hotkeys -> AI Service
 - `克拉肯怎么过？`
 - `不要剧透，下一步去哪？`
 - `直接告诉我具体位置。`
+- `翻译一下。`
+- `读一下这段。`
+- `这是什么意思？`
 
 建议一次只问一个短问题。当前版本更擅长角色、道具、路线、战斗、转职、地点和低剧透下一步提示。
 
@@ -153,8 +160,10 @@ Settings -> Input -> Hotkeys -> AI Service
 
 - **Home**：查看 endpoint 状态，发起文字问题，准备/调试热键问题，查看最近上下文。
 - **Packs**：查看已导入 GKP、启用/禁用知识包、预检和安装外部 GKP。
-- **Settings**：查看 RetroArch 设置助手、端口、overlay 权限、默认剧透级别、LLM provider 配置。
+- **Settings**：查看 RetroArch 设置助手、端口、overlay 权限、默认剧透级别、LLM provider 配置和画面翻译 API 配置。
 - **Diagnostics**：查看最新请求、pipeline stage、source ids、LLM 状态、延迟、反馈和错误信息。
+
+完整更新记录见 [CHANGELOG.md](./CHANGELOG.md)。
 
 ## GKP 是什么
 
@@ -188,6 +197,10 @@ RetroSprite 会按当前游戏解析 GKP，只检索对应游戏的本地知识�
 如果你在 Settings 中配置 BYOK LLM provider，LLM 只用于有本地证据时的综合、翻译、改写或表达润色。
 请不要把它理解为实时联网搜索或万能攻略库。
 
+画面翻译不再依赖 Google ML Kit 本地模型。正式版本采用 BYOK API-only：用户在 Settings 中选择 SiliconFlow / OpenRouter / 自建 OpenAI-compatible API 模板，并填写自己的 Base URL、API Key 和模型名。推荐使用 `Qwen/Qwen3-VL-8B-Instruct`；RetroSprite 不内置任何 API Key。
+
+普通 GKP 问答不会把 RetroArch 截图发给云端；只有玩家明确说出画面翻译意图时，当前截图才会发送到用户配置的画面翻译 API。翻译日志只保存最终中文结果、耗时、provider/model 和截图字节数，不保存截图 Base64。
+
 RetroSprite 默认 endpoint 绑定在 `127.0.0.1`，也就是本机 loopback。请求日志保存在本机 Room 数据库中，
 可通过 Diagnostics 查看和清理。
 
@@ -214,6 +227,13 @@ RetroSprite 默认 endpoint 绑定在 `127.0.0.1`，也就是本机 loopback。�
 - 当前问题可能超出 GKP Lite 覆盖范围。
 - 当前 GKP 可能被禁用。
 - 问题可能需要更明确的角色、道具、地点、章节或目标。
+
+### 画面翻译没有结果
+
+- 确认 Settings -> 画面翻译 API 已填写 Base URL、API Key、模型名和超时时间。
+- 推荐先使用 SiliconFlow / OpenRouter 模板和 `Qwen/Qwen3-VL-8B-Instruct`。
+- 确认 RetroArch AI Service 请求带有截图，并已开启 `Pause During Translation`。
+- 画面翻译需要网络访问用户配置的 BYOK API；离线时不会调用云端，也不会回退到猜测。
 
 ### 支持其他游戏吗
 

@@ -572,6 +572,7 @@ private class HotkeyVoiceWaveView(context: Context) : View(context) {
 
     private fun HotkeyVoiceOverlayPhase.waveformColorAt(progress: Float, alpha: Int): Int = when (this) {
         HotkeyVoiceOverlayPhase.Listening,
+        HotkeyVoiceOverlayPhase.Translation,
         HotkeyVoiceOverlayPhase.Speaking,
         HotkeyVoiceOverlayPhase.NoEvidence -> blend(
             accentColor(),
@@ -582,6 +583,7 @@ private class HotkeyVoiceWaveView(context: Context) : View(context) {
         HotkeyVoiceOverlayPhase.Wake -> withAlpha(Color.rgb(56, 189, 248), (alpha * 0.72f).toInt())
         HotkeyVoiceOverlayPhase.Preparing -> withAlpha(Color.rgb(245, 158, 11), (alpha * 0.78f).toInt())
         HotkeyVoiceOverlayPhase.Muted -> withAlpha(Color.rgb(110, 176, 181), (alpha * 0.46f).toInt())
+        HotkeyVoiceOverlayPhase.Translating,
         HotkeyVoiceOverlayPhase.Thinking -> withAlpha(Color.rgb(96, 165, 250), (alpha * 0.76f).toInt())
         HotkeyVoiceOverlayPhase.Error -> withAlpha(Color.rgb(255, 107, 107), (alpha * 0.76f).toInt())
     }
@@ -614,8 +616,25 @@ private class HotkeyVoiceAnswerView(
         textSize = context.sp(18)
         typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
     }
+    private val lookupTitlePaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.argb(238, 167, 243, 232)
+        textSize = context.sp(13)
+        typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
+    }
+    private val lookupTextPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.argb(238, 245, 250, 255)
+        textSize = context.sp(14)
+        typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
+    }
+    private val lookupChipPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.argb(42, 45, 212, 191)
+    }
+    private val lookupRowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.argb(28, 148, 163, 184)
+    }
     private val miniBarPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val roundedRect = RectF()
+    private val lookupRect = RectF()
 
     private var renderState: HotkeyVoiceOverlayRenderState? = null
     private var typingKey: String? = null
@@ -653,6 +672,7 @@ private class HotkeyVoiceAnswerView(
             fontScale = context.resources.configuration.fontScale,
             answerText = visibleAnswer,
             cardWidthDp = context.pxToDp(cardWidthPx),
+            contentKind = state?.contentKind ?: HotkeyVoiceOverlayContentKind.VoiceAnswer,
         )
     }
 
@@ -666,6 +686,7 @@ private class HotkeyVoiceAnswerView(
         if (w <= 0f || h <= 0f) return
 
         val phase = state.phase
+        val contentKind = state.contentKind
         val accent = phase.accentColor()
         roundedRect.set(0f, 0f, w, h)
         backgroundPaint.color = Color.argb(phase.answerSurfaceAlpha(), 2, 6, 13)
@@ -678,6 +699,7 @@ private class HotkeyVoiceAnswerView(
                 fontScale = context.resources.configuration.fontScale,
                 answerText = state.answerText,
                 cardWidthDp = context.pxToDp(w.toInt()),
+                contentKind = contentKind,
             ).cornerRadiusDp.toFloat(),
         )
         canvas.drawRoundRect(roundedRect, radius, radius, backgroundPaint)
@@ -708,11 +730,12 @@ private class HotkeyVoiceAnswerView(
         )
         notifyVisibleLineCountIfNeeded(
             phase = phase,
+            contentKind = contentKind,
             visibleAnswer = visibleAnswer,
             cardWidthPx = w.toInt(),
         )
-        drawMiniBars(canvas, phase, accent, now, animatorsEnabled)
-        drawAnswerText(canvas, visibleAnswer, phase, w)
+        drawMiniBars(canvas, phase, contentKind, accent, now, animatorsEnabled)
+        drawAnswerText(canvas, visibleAnswer, phase, contentKind, w)
         if (isAttachedToWindow && animatorsEnabled && phase.isAnswerWaveAnimated()) {
             postInvalidateDelayed(72L)
         }
@@ -731,6 +754,7 @@ private class HotkeyVoiceAnswerView(
 
     private fun notifyVisibleLineCountIfNeeded(
         phase: HotkeyVoiceOverlayPhase,
+        contentKind: HotkeyVoiceOverlayContentKind,
         visibleAnswer: String,
         cardWidthPx: Int,
     ) {
@@ -738,6 +762,7 @@ private class HotkeyVoiceAnswerView(
             fontScale = context.resources.configuration.fontScale,
             answerText = visibleAnswer,
             cardWidthDp = context.pxToDp(cardWidthPx),
+            contentKind = contentKind,
         ).maxLines
         if (visibleMaxLines == lastVisibleMaxLines) return
         lastVisibleMaxLines = visibleMaxLines
@@ -749,10 +774,12 @@ private class HotkeyVoiceAnswerView(
     private fun drawMiniBars(
         canvas: Canvas,
         phase: HotkeyVoiceOverlayPhase,
+        contentKind: HotkeyVoiceOverlayContentKind,
         accent: Int,
         now: Long,
         animatorsEnabled: Boolean,
     ) {
+        if (contentKind == HotkeyVoiceOverlayContentKind.ScreenTranslation) return
         val baseX = context.dp(24f)
         val centerY = height * 0.56f
         val barWidth = context.dp(3.8f)
@@ -772,6 +799,8 @@ private class HotkeyVoiceAnswerView(
             val activity = when (phase) {
                 HotkeyVoiceOverlayPhase.Speaking -> 0.68f + pulse * 0.44f
                 HotkeyVoiceOverlayPhase.NoEvidence -> 0.56f + pulse * 0.34f
+                HotkeyVoiceOverlayPhase.Translating,
+                HotkeyVoiceOverlayPhase.Translation,
                 HotkeyVoiceOverlayPhase.Thinking -> 0.46f + pulse * 0.28f
                 else -> 1f
             }
@@ -815,11 +844,18 @@ private class HotkeyVoiceAnswerView(
         }
     }
 
-    private fun drawAnswerText(canvas: Canvas, answer: String, phase: HotkeyVoiceOverlayPhase, w: Float) {
+    private fun drawAnswerText(
+        canvas: Canvas,
+        answer: String,
+        phase: HotkeyVoiceOverlayPhase,
+        contentKind: HotkeyVoiceOverlayContentKind,
+        w: Float,
+    ) {
         val spec = phase.answerCardSpec(
             fontScale = context.resources.configuration.fontScale,
             answerText = answer,
             cardWidthDp = context.pxToDp(w.toInt()),
+            contentKind = contentKind,
         )
         val left = context.dp(spec.textStartDp.toFloat())
         val top = context.dp(spec.textTopDp.toFloat())
@@ -827,23 +863,156 @@ private class HotkeyVoiceAnswerView(
         val maxLines = spec.maxLines
         val originalSize = answerTextPaint.textSize
         answerTextPaint.textSize = context.sp(spec.textSizeSp)
-        val layout = buildAnswerLayout(answer, textWidth, maxLines)
-        canvas.save()
-        canvas.translate(left, top)
-        layout.draw(canvas)
-        canvas.restore()
+        val lookupCard = if (contentKind == HotkeyVoiceOverlayContentKind.ScreenTranslation) {
+            answer.toTranslationLookupCardOrNull()
+        } else {
+            null
+        }
+        if (lookupCard != null) {
+            drawTranslationLookupCard(
+                canvas = canvas,
+                card = lookupCard,
+                left = left,
+                top = top,
+                width = textWidth.toFloat(),
+                maxBottom = height - context.dp(spec.textBottomDp.toFloat()),
+            )
+        } else {
+            val layout = buildAnswerLayout(
+                answer = answer,
+                textWidth = textWidth,
+                maxLines = maxLines,
+                ellipsize = contentKind != HotkeyVoiceOverlayContentKind.ScreenTranslation,
+            )
+            canvas.save()
+            canvas.translate(left, top)
+            layout.draw(canvas)
+            canvas.restore()
+        }
         answerTextPaint.textSize = originalSize
+    }
+
+    private fun drawTranslationLookupCard(
+        canvas: Canvas,
+        card: TranslationLookupCard,
+        left: Float,
+        top: Float,
+        width: Float,
+        maxBottom: Float,
+    ) {
+        val originalTitleSize = lookupTitlePaint.textSize
+        val originalTextSize = lookupTextPaint.textSize
+        lookupTitlePaint.textSize = context.sp(13)
+        lookupTextPaint.textSize = context.sp(14)
+        var y = top
+        val right = left + width
+        for (section in card.sections) {
+            if (y > maxBottom - context.dp(18f)) break
+            y = drawLookupSectionTitle(canvas, section.title, left, y, right)
+            y = when (section.style) {
+                TranslationLookupSectionStyle.Chips -> drawLookupChips(
+                    canvas = canvas,
+                    items = section.items,
+                    left = left,
+                    top = y,
+                    right = right,
+                    maxBottom = maxBottom,
+                )
+                TranslationLookupSectionStyle.Rows -> drawLookupRows(
+                    canvas = canvas,
+                    items = section.items,
+                    left = left,
+                    top = y,
+                    right = right,
+                    maxBottom = maxBottom,
+                )
+            }
+            y += context.dp(5f)
+        }
+        lookupTitlePaint.textSize = originalTitleSize
+        lookupTextPaint.textSize = originalTextSize
+    }
+
+    private fun drawLookupSectionTitle(
+        canvas: Canvas,
+        title: String,
+        left: Float,
+        top: Float,
+        right: Float,
+    ): Float {
+        val height = context.dp(18f)
+        lookupRect.set(left, top, right, top + height)
+        lookupTitlePaint.color = Color.argb(238, 167, 243, 232)
+        canvas.drawText(title, left, top + context.dp(13f), lookupTitlePaint)
+        return top + height
+    }
+
+    private fun drawLookupChips(
+        canvas: Canvas,
+        items: List<String>,
+        left: Float,
+        top: Float,
+        right: Float,
+        maxBottom: Float,
+    ): Float {
+        val chipHeight = context.dp(24f)
+        val gap = context.dp(6f)
+        val horizontalPadding = context.dp(9f)
+        var x = left
+        var y = top
+        for (item in items) {
+            if (y > maxBottom - chipHeight) break
+            val availableWidth = (right - left).coerceAtLeast(context.dp(80f))
+            val measuredWidth = lookupTextPaint.measureText(item) + horizontalPadding * 2f
+            val chipWidth = measuredWidth.coerceAtMost(availableWidth)
+            if (x > left && x + chipWidth > right) {
+                x = left
+                y += chipHeight + gap
+                if (y > maxBottom - chipHeight) break
+            }
+            lookupRect.set(x, y, x + chipWidth, y + chipHeight)
+            lookupChipPaint.color = Color.argb(48, 45, 212, 191)
+            canvas.drawRoundRect(lookupRect, context.dp(7f), context.dp(7f), lookupChipPaint)
+            val label = item.ellipsizeForPaint(lookupTextPaint, chipWidth - horizontalPadding * 2f)
+            canvas.drawText(label, x + horizontalPadding, y + context.dp(16.5f), lookupTextPaint)
+            x += chipWidth + gap
+        }
+        return y + chipHeight
+    }
+
+    private fun drawLookupRows(
+        canvas: Canvas,
+        items: List<String>,
+        left: Float,
+        top: Float,
+        right: Float,
+        maxBottom: Float,
+    ): Float {
+        val rowHeight = context.dp(23f)
+        val gap = context.dp(4f)
+        var y = top
+        for (item in items) {
+            if (y > maxBottom - rowHeight) break
+            lookupRect.set(left, y, right, y + rowHeight)
+            lookupRowPaint.color = Color.argb(30, 148, 163, 184)
+            canvas.drawRoundRect(lookupRect, context.dp(5f), context.dp(5f), lookupRowPaint)
+            val label = item.ellipsizeForPaint(lookupTextPaint, right - left - context.dp(12f))
+            canvas.drawText(label, left + context.dp(7f), y + context.dp(16f), lookupTextPaint)
+            y += rowHeight + gap
+        }
+        return y - gap
     }
 
     private fun buildAnswerLayout(
         answer: String,
         textWidth: Int,
         maxLines: Int,
+        ellipsize: Boolean = true,
     ): StaticLayout =
         StaticLayout.Builder
             .obtain(answer, 0, answer.length, answerTextPaint, textWidth)
             .setAlignment(Layout.Alignment.ALIGN_NORMAL)
-            .setEllipsize(TextUtils.TruncateAt.END)
+            .setEllipsize(if (ellipsize) TextUtils.TruncateAt.END else null)
             .setIncludePad(false)
             .setLineSpacing(context.dp(1.5f), 1.10f)
             .setMaxLines(maxLines)
@@ -993,8 +1162,31 @@ internal fun HotkeyVoiceOverlayPhase.answerCardSpec(
     fontScale: Float,
     answerText: String? = null,
     cardWidthDp: Int = DEFAULT_ANSWER_CARD_WIDTH_DP,
+    contentKind: HotkeyVoiceOverlayContentKind = HotkeyVoiceOverlayContentKind.VoiceAnswer,
 ): HotkeyVoiceAnswerCardSpec {
     val safeFontScale = fontScale.coerceIn(1.0f, 1.6f)
+    if (contentKind == HotkeyVoiceOverlayContentKind.ScreenTranslation) {
+        val maxLines = (
+            answerText.estimatedTranslationLookupLineCount(cardWidthDp)
+                ?: answerText.estimatedAnswerLineCount(
+                    cardWidthDp = cardWidthDp,
+                    textStartDp = TRANSLATION_TEXT_START_DP,
+                    textEndDp = TRANSLATION_TEXT_END_DP,
+                )
+            ).coerceIn(TRANSLATION_MIN_LINES, TRANSLATION_MAX_LINES)
+        return HotkeyVoiceAnswerCardSpec(
+            heightDp = ((TRANSLATION_VERTICAL_CHROME_DP + maxLines * TRANSLATION_LINE_HEIGHT_DP) * safeFontScale)
+                .toInt()
+                .coerceIn(TRANSLATION_MIN_HEIGHT_DP, TRANSLATION_MAX_HEIGHT_DP),
+            maxLines = maxLines,
+            bottomMarginDp = ANSWER_BOTTOM_MARGIN_DP,
+            textStartDp = TRANSLATION_TEXT_START_DP,
+            textSizeSp = TRANSLATION_FONT_SIZE_SP,
+            textTopDp = 18,
+            textEndDp = TRANSLATION_TEXT_END_DP,
+            textBottomDp = 18,
+        )
+    }
     return when (this) {
         HotkeyVoiceOverlayPhase.NoEvidence -> {
             val maxLines = answerText.estimatedAnswerLineCount(
@@ -1014,6 +1206,8 @@ internal fun HotkeyVoiceOverlayPhase.answerCardSpec(
         }
 
         HotkeyVoiceOverlayPhase.Speaking,
+        HotkeyVoiceOverlayPhase.Translating,
+        HotkeyVoiceOverlayPhase.Translation,
         HotkeyVoiceOverlayPhase.Thinking -> {
             val hasFollowUps = answerText.hasSuggestedQuestionBlock()
             val maxLineLimit = if (hasFollowUps) ANSWER_FOLLOW_UP_MAX_LINES else ANSWER_MAX_LINES
@@ -1068,6 +1262,113 @@ internal fun String.typewriterVisibleText(
     return substring(0, endIndex)
 }
 
+internal data class TranslationLookupCard(
+    val sections: List<TranslationLookupSection>,
+)
+
+internal data class TranslationLookupSection(
+    val title: String,
+    val style: TranslationLookupSectionStyle,
+    val items: List<String>,
+)
+
+internal enum class TranslationLookupSectionStyle {
+    Chips,
+    Rows,
+}
+
+internal fun String.toTranslationLookupCardOrNull(): TranslationLookupCard? {
+    val lines = lineSequence()
+        .map { it.trim() }
+        .filter { it.isNotEmpty() }
+        .toList()
+    if (lines.size < 2) return null
+
+    val sections = mutableListOf<TranslationLookupSection>()
+    var currentTitle: String? = null
+    val currentItems = mutableListOf<String>()
+
+    fun flush() {
+        val title = currentTitle ?: return
+        val items = currentItems
+            .flatMap { line ->
+                if (title.translationLookupStyle() == TranslationLookupSectionStyle.Chips) {
+                    line.split(" | ")
+                } else {
+                    listOf(line)
+                }
+            }
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .distinct()
+        if (items.isNotEmpty()) {
+            sections += TranslationLookupSection(
+                title = title,
+                style = title.translationLookupStyle(),
+                items = items,
+            )
+        }
+        currentItems.clear()
+    }
+
+    for (line in lines) {
+        if (line in translationLookupSectionTitles) {
+            flush()
+            currentTitle = line
+        } else if (currentTitle != null) {
+            currentItems += line
+        }
+    }
+    flush()
+
+    if (sections.isEmpty()) return null
+    val hasLookupShape = sections.any { section ->
+        section.items.any { item -> item.hasBilingualLookupShape() }
+    }
+    return if (hasLookupShape) TranslationLookupCard(sections) else null
+}
+
+private fun String.translationLookupStyle(): TranslationLookupSectionStyle =
+    if (this == "属性" || this == "状态") {
+        TranslationLookupSectionStyle.Rows
+    } else {
+        TranslationLookupSectionStyle.Chips
+    }
+
+private fun String?.estimatedTranslationLookupLineCount(cardWidthDp: Int): Int? {
+    val card = this?.toTranslationLookupCardOrNull() ?: return null
+    val usableChars = ((cardWidthDp - TRANSLATION_TEXT_START_DP - TRANSLATION_TEXT_END_DP) / 8)
+        .coerceAtLeast(16)
+    return card.sections.sumOf { section ->
+        1 + when (section.style) {
+            TranslationLookupSectionStyle.Rows -> section.items.size
+            TranslationLookupSectionStyle.Chips -> section.items.estimatedChipRows(usableChars)
+        }
+    }
+}
+
+private fun List<String>.estimatedChipRows(usableChars: Int): Int {
+    if (isEmpty()) return 0
+    var rows = 1
+    var used = 0
+    for (item in this) {
+        val width = (item.length + 4).coerceAtMost(usableChars)
+        if (used > 0 && used + width + 3 > usableChars) {
+            rows += 1
+            used = width
+        } else {
+            used += if (used == 0) width else width + 3
+        }
+    }
+    return rows
+}
+
+private fun String.hasBilingualLookupShape(): Boolean =
+    contains(Regex("[A-Za-z]")) && contains(Regex("[\\u4E00-\\u9FFF]"))
+
+private fun String.ellipsizeForPaint(paint: TextPaint, width: Float): String =
+    TextUtils.ellipsize(this, paint, width.coerceAtLeast(1f), TextUtils.TruncateAt.END).toString()
+
 private fun String?.estimatedAnswerLineCount(
     cardWidthDp: Int,
     textStartDp: Int,
@@ -1092,6 +1393,8 @@ private fun String?.hasSuggestedQuestionBlock(): Boolean {
     return text.contains("你可以这样问：") || text.contains("你还可以问：")
 }
 
+private val translationLookupSectionTitles = setOf("菜单", "装备", "物品", "属性", "状态", "内容")
+
 internal fun HotkeyVoiceAnswerCardSpec.estimatedCjkCapacity(
     cardWidthDp: Int,
     fontSizeSp: Int,
@@ -1114,6 +1417,15 @@ private const val ANSWER_TEXT_START_DP = 58
 private const val ANSWER_TEXT_END_DP = 20
 private const val ANSWER_FONT_SIZE_SP = 18
 private const val ANSWER_LINE_HEIGHT_DP = 24
+private const val TRANSLATION_TEXT_START_DP = 24
+private const val TRANSLATION_TEXT_END_DP = 24
+private const val TRANSLATION_FONT_SIZE_SP = 16
+private const val TRANSLATION_LINE_HEIGHT_DP = 23
+private const val TRANSLATION_MIN_LINES = 3
+private const val TRANSLATION_MAX_LINES = 12
+private const val TRANSLATION_VERTICAL_CHROME_DP = 42
+private const val TRANSLATION_MIN_HEIGHT_DP = 128
+private const val TRANSLATION_MAX_HEIGHT_DP = 360
 private const val ANSWER_MIN_LINES = 3
 private const val ANSWER_MAX_LINES = 8
 private const val ANSWER_FOLLOW_UP_MAX_LINES = 10
@@ -1155,6 +1467,8 @@ internal fun HotkeyVoiceOverlayPhase.statusLabel(): String = when (this) {
     HotkeyVoiceOverlayPhase.Listening -> "Mic live"
     HotkeyVoiceOverlayPhase.Muted -> "No speech"
     HotkeyVoiceOverlayPhase.Thinking -> "Thinking"
+    HotkeyVoiceOverlayPhase.Translating -> "Translating"
+    HotkeyVoiceOverlayPhase.Translation -> "Translation"
     HotkeyVoiceOverlayPhase.Speaking -> "Answering"
     HotkeyVoiceOverlayPhase.NoEvidence -> "No evidence"
     HotkeyVoiceOverlayPhase.Error -> "Error"
@@ -1166,6 +1480,8 @@ internal fun HotkeyVoiceOverlayPhase.statusTextColor(): Int = when (this) {
     HotkeyVoiceOverlayPhase.Listening -> Color.rgb(34, 197, 94)
     HotkeyVoiceOverlayPhase.Muted -> Color.rgb(110, 176, 181)
     HotkeyVoiceOverlayPhase.Thinking -> Color.rgb(96, 165, 250)
+    HotkeyVoiceOverlayPhase.Translating -> Color.rgb(96, 165, 250)
+    HotkeyVoiceOverlayPhase.Translation -> Color.rgb(45, 212, 191)
     HotkeyVoiceOverlayPhase.Speaking -> Color.rgb(45, 212, 191)
     HotkeyVoiceOverlayPhase.NoEvidence -> Color.rgb(248, 181, 0)
     HotkeyVoiceOverlayPhase.Error -> Color.rgb(255, 107, 107)
@@ -1177,6 +1493,8 @@ private fun HotkeyVoiceOverlayPhase.accentColor(): Int = when (this) {
     HotkeyVoiceOverlayPhase.Listening -> Color.rgb(34, 197, 94)
     HotkeyVoiceOverlayPhase.Muted -> Color.rgb(110, 176, 181)
     HotkeyVoiceOverlayPhase.Thinking -> Color.rgb(96, 165, 250)
+    HotkeyVoiceOverlayPhase.Translating -> Color.rgb(96, 165, 250)
+    HotkeyVoiceOverlayPhase.Translation -> Color.rgb(45, 212, 191)
     HotkeyVoiceOverlayPhase.Speaking -> Color.rgb(45, 212, 191)
     HotkeyVoiceOverlayPhase.NoEvidence -> Color.rgb(248, 181, 0)
     HotkeyVoiceOverlayPhase.Error -> Color.rgb(255, 107, 107)
@@ -1188,6 +1506,8 @@ private fun HotkeyVoiceOverlayPhase.secondaryAccentColor(): Int = when (this) {
     HotkeyVoiceOverlayPhase.Listening -> Color.rgb(16, 185, 129)
     HotkeyVoiceOverlayPhase.Muted -> Color.rgb(110, 176, 181)
     HotkeyVoiceOverlayPhase.Thinking -> Color.rgb(147, 197, 253)
+    HotkeyVoiceOverlayPhase.Translating -> Color.rgb(147, 197, 253)
+    HotkeyVoiceOverlayPhase.Translation -> Color.rgb(20, 184, 166)
     HotkeyVoiceOverlayPhase.Speaking -> Color.rgb(20, 184, 166)
     HotkeyVoiceOverlayPhase.NoEvidence -> Color.rgb(251, 146, 60)
     HotkeyVoiceOverlayPhase.Error -> Color.rgb(248, 113, 113)
@@ -1199,6 +1519,8 @@ private fun HotkeyVoiceOverlayPhase.glowAlpha(): Int = when (this) {
     HotkeyVoiceOverlayPhase.Listening -> 74
     HotkeyVoiceOverlayPhase.Muted -> 32
     HotkeyVoiceOverlayPhase.Thinking -> 54
+    HotkeyVoiceOverlayPhase.Translating -> 54
+    HotkeyVoiceOverlayPhase.Translation -> 70
     HotkeyVoiceOverlayPhase.Speaking -> 70
     HotkeyVoiceOverlayPhase.NoEvidence -> 60
     HotkeyVoiceOverlayPhase.Error -> 68
@@ -1210,6 +1532,8 @@ private fun HotkeyVoiceOverlayPhase.waveformActivity(wave: Float, voiceEnergy: F
     HotkeyVoiceOverlayPhase.Listening -> voiceEnergy
     HotkeyVoiceOverlayPhase.Muted -> 0f
     HotkeyVoiceOverlayPhase.Thinking -> 0.22f + wave * 0.24f
+    HotkeyVoiceOverlayPhase.Translating -> 0.22f + wave * 0.24f
+    HotkeyVoiceOverlayPhase.Translation -> 0.38f + wave * 0.32f
     HotkeyVoiceOverlayPhase.Speaking -> 0.48f + wave * 0.46f
     HotkeyVoiceOverlayPhase.NoEvidence -> 0.38f + wave * 0.40f
     HotkeyVoiceOverlayPhase.Error -> 0.18f + wave * 0.22f
@@ -1247,6 +1571,8 @@ private fun HotkeyVoiceOverlayPhase.waveformScale(): Float = when (this) {
     HotkeyVoiceOverlayPhase.Listening -> 1f
     HotkeyVoiceOverlayPhase.Muted -> 0.28f
     HotkeyVoiceOverlayPhase.Thinking -> 0.70f
+    HotkeyVoiceOverlayPhase.Translating -> 0.70f
+    HotkeyVoiceOverlayPhase.Translation -> 0.78f
     HotkeyVoiceOverlayPhase.Speaking -> 0.84f
     HotkeyVoiceOverlayPhase.NoEvidence -> 0.74f
     HotkeyVoiceOverlayPhase.Error -> 0.46f
@@ -1254,6 +1580,8 @@ private fun HotkeyVoiceOverlayPhase.waveformScale(): Float = when (this) {
 
 private fun HotkeyVoiceOverlayPhase.isAnswerWaveAnimated(): Boolean = when (this) {
     HotkeyVoiceOverlayPhase.Thinking,
+    HotkeyVoiceOverlayPhase.Translating,
+    HotkeyVoiceOverlayPhase.Translation,
     HotkeyVoiceOverlayPhase.Speaking,
     HotkeyVoiceOverlayPhase.NoEvidence -> true
     HotkeyVoiceOverlayPhase.Wake,
@@ -1271,6 +1599,8 @@ private fun HotkeyVoiceOverlayPhase.isTypewriterAnimated(): Boolean = when (this
     HotkeyVoiceOverlayPhase.Listening,
     HotkeyVoiceOverlayPhase.Muted,
     HotkeyVoiceOverlayPhase.Thinking,
+    HotkeyVoiceOverlayPhase.Translating,
+    HotkeyVoiceOverlayPhase.Translation,
     HotkeyVoiceOverlayPhase.Error -> false
 }
 

@@ -29,6 +29,12 @@ import com.retrosprite.app.endpoint.HotkeyWakeResponseGenerator
 import com.retrosprite.app.endpoint.model.DebugHotkeyVoiceOverlayResponse
 import com.retrosprite.app.llm.DynamicLlmAdapter
 import com.retrosprite.app.llm.LlmAdapter
+import com.retrosprite.app.screen.translation.ApiScreenTranslationPipeline
+import com.retrosprite.app.screen.translation.BuiltInScreenTranslationGlossaryRepository
+import com.retrosprite.app.screen.translation.OpenAiCompatibleScreenTranslationProvider
+import com.retrosprite.app.screen.translation.ScreenTranslationContext
+import com.retrosprite.app.screen.translation.ScreenTranslationFormatter
+import com.retrosprite.app.screen.translation.ScreenTranslationPipeline
 import com.retrosprite.app.ui.overlay.AndroidHotkeyVoiceOverlayController
 import com.retrosprite.app.ui.integration.RealEndpointStatusProvider
 import com.retrosprite.app.ui.integration.RealGkpLibraryProvider
@@ -277,6 +283,30 @@ object ServiceLocator {
 
         val speechOutputProvider: SpeechOutputProvider = AndroidSpeechOutputProvider(appContext)
 
+        val screenTranslationFormatter: ScreenTranslationFormatter = ScreenTranslationFormatter()
+        val screenTranslationGlossaries = BuiltInScreenTranslationGlossaryRepository()
+        val screenTranslationPipeline: ScreenTranslationPipeline = object : ScreenTranslationPipeline {
+            override suspend fun translateCurrentScreen(
+                imageBase64: String,
+                context: ScreenTranslationContext,
+            ) =
+                settingsState.value.let { current ->
+                    val enrichedContext = context.copy(
+                        glossary = context.glossary ?: screenTranslationGlossaries.findForLabel(context.label),
+                    )
+                    ApiScreenTranslationPipeline(
+                        provider = OpenAiCompatibleScreenTranslationProvider(
+                            providerName = current.screenTranslationApiProvider.displayName,
+                            baseUrl = current.screenTranslationBaseUrl,
+                            apiKey = current.screenTranslationApiKey,
+                            model = current.screenTranslationModel,
+                            timeoutSeconds = current.screenTranslationTimeoutSeconds.toLong(),
+                        ),
+                        formatter = screenTranslationFormatter,
+                    ).translateCurrentScreen(imageBase64, enrichedContext)
+                }
+        }
+
         val hotkeyVoiceOverlayController: AndroidHotkeyVoiceOverlayController =
             AndroidHotkeyVoiceOverlayController(
                 context = appContext,
@@ -287,6 +317,7 @@ object ServiceLocator {
                 showTranscriptHudProvider = {
                     settingsState.value.hotkeyVoiceTranscriptHudEnabled
                 },
+                screenTranslationPipeline = screenTranslationPipeline,
             )
 
         val overlayPermissionProvider: OverlayPermissionProvider =

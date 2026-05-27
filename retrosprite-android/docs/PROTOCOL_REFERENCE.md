@@ -46,6 +46,9 @@ RetroArch 在 URL 上附加这些参数，用以表达「我希望你用什么�
 
 > 字段顺序由 RetroArch 决定，解析方不应假设顺序。
 
+RetroSprite 的热键语音路径会保留 `image` 截图。普通语音问题不会把截图发送给问答模型；
+只有玩家说出“翻译一下”“读一下”“这是什么意思”等画面翻译意图时，才会把当前截图交给用户配置的画面翻译 API。
+
 ### state 字段
 
 每个键对应 RetroPad 的标准按钮，值为 `0`（未按下）/ `1`（按下）。Phase 0 共 17 个键：
@@ -133,9 +136,12 @@ RetroSprite 会在本地 `request_logs` 中记录实际被回答的问题：
 | 字段 | 说明 |
 | ---- | ---- |
 | `question` | App/debug 显式传入的问题，或 pending hotkey 被消费的问题 |
-| `question_source` | `app` / `debug` / `pending_hotkey` / `retroarch` |
+| `question_source` | `app` / `debug` / `pending_hotkey` / `hotkey_voice` / `hotkey_screen_translation` / `retroarch` |
 
 `/debug/latest-request` 会返回同名字段，便于确认某次 RetroArch 热键是否消费了 Home 页准备好的 pending question。官方 RetroArch 当前通常不会在原始 body 中发送 `question`，所以普通热键请求在未消费 pending question 时这两个字段为空。
+
+画面翻译日志使用 `output_mode=hotkey_screen_translation:text`，`response_text` 保存完整中文翻译；
+HUD 不显示英文原文，也不触发 TTS。日志不保存截图 Base64，只保留截图字节数。
 
 ## /health（RetroSprite 自定义）
 

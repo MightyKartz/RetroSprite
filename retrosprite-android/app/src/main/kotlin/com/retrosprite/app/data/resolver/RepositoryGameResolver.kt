@@ -39,6 +39,15 @@ class RepositoryGameResolver(
 
         val parsed = fallback.resolve(label, romHash)
 
+        explicitRetroArchLabelMatches(label).let { matches ->
+            matches.firstOrNull { it.isEnabled }?.let {
+                return it.toIdentity("gkp_index")
+            }
+            matches.firstOrNull { !it.isEnabled }?.let {
+                return it.toDisabledIdentity()
+            }
+        }
+
         for (candidate in idCandidates(label, parsed)) {
             gameRepository.getById(candidate)?.let {
                 return if (it.isEnabled) {
@@ -60,6 +69,14 @@ class RepositoryGameResolver(
         }
 
         return parsed
+    }
+
+    private suspend fun explicitRetroArchLabelMatches(label: String): List<GameDomain> {
+        val labelKey = label.retroArchLabelKey()
+        if (labelKey.isBlank()) return emptyList()
+        return gameRepository.listAll()
+            .filter { it.explicitRetroArchLabelScore(labelKey) > 0.0 }
+            .sortedBy { it.title }
     }
 
     private suspend fun gameMatchesForLabel(

@@ -24,14 +24,22 @@ enum class HotkeyVoiceOverlayPhase {
     Listening,
     Muted,
     Thinking,
+    Translating,
+    Translation,
     Speaking,
     NoEvidence,
     Error,
 }
 
+enum class HotkeyVoiceOverlayContentKind {
+    VoiceAnswer,
+    ScreenTranslation,
+}
+
 data class HotkeyVoiceOverlayRenderState(
     val event: RetroArchHotkeyEvent,
     val phase: HotkeyVoiceOverlayPhase,
+    val contentKind: HotkeyVoiceOverlayContentKind = HotkeyVoiceOverlayContentKind.VoiceAnswer,
     val amplitude: Float = 0f,
     val message: String = "",
     val transcript: String? = null,
@@ -134,6 +142,7 @@ class HotkeyVoiceOverlayCoordinator(
         transcriptMatchedTerm: String? = null,
         showTranscriptHud: Boolean = true,
         answerText: String? = null,
+        contentKind: HotkeyVoiceOverlayContentKind = HotkeyVoiceOverlayContentKind.VoiceAnswer,
         sourceIds: List<String> = emptyList(),
         micLive: Boolean? = null,
         asrArchitecture: String? = null,
@@ -199,6 +208,7 @@ class HotkeyVoiceOverlayCoordinator(
             HotkeyVoiceOverlayRenderState(
                 event = event,
                 phase = phase,
+                contentKind = contentKind,
                 amplitude = amplitude,
                 message = message,
                 micLive = nextMicLive,

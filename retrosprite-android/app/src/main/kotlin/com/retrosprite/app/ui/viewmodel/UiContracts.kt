@@ -188,6 +188,35 @@ enum class UiLlmProvider(
     Custom("custom", "\u81ea\u5b9a\u4e49 (Custom)", "", "")
 }
 
+const val RECOMMENDED_SCREEN_TRANSLATION_MODEL: String = "Qwen/Qwen3-VL-8B-Instruct"
+
+/** BYOK API template used for voice-triggered screen translation. */
+enum class UiScreenTranslationApiProvider(
+    val id: String,
+    val displayName: String,
+    val defaultBaseUrl: String,
+    val defaultModel: String,
+) {
+    SiliconFlow(
+        id = "siliconflow",
+        displayName = "SiliconFlow",
+        defaultBaseUrl = "https://api.siliconflow.cn/v1",
+        defaultModel = RECOMMENDED_SCREEN_TRANSLATION_MODEL,
+    ),
+    OpenRouter(
+        id = "openrouter",
+        displayName = "OpenRouter",
+        defaultBaseUrl = "https://openrouter.ai/api/v1",
+        defaultModel = RECOMMENDED_SCREEN_TRANSLATION_MODEL,
+    ),
+    Custom(
+        id = "custom",
+        displayName = "\u81ea\u5b9a\u4e49 (OpenAI-compatible)",
+        defaultBaseUrl = "",
+        defaultModel = "",
+    ),
+}
+
 /** Spoiler intensity. Strings are persisted; enum is for UI binding. */
 enum class UiSpoilerLevel(val id: String, val displayName: String) {
     Light("light", "\u8f7b\u63d0\u793a"),
@@ -201,6 +230,9 @@ const val MAX_LLM_TIMEOUT_SECONDS: Int = 120
 const val DEFAULT_LLM_MAX_TOKENS: Int = 256
 const val MIN_LLM_MAX_TOKENS: Int = 32
 const val MAX_LLM_MAX_TOKENS: Int = 2048
+const val DEFAULT_SCREEN_TRANSLATION_TIMEOUT_SECONDS: Int = 45
+const val MIN_SCREEN_TRANSLATION_TIMEOUT_SECONDS: Int = 5
+const val MAX_SCREEN_TRANSLATION_TIMEOUT_SECONDS: Int = 120
 val DEFAULT_HOTKEY_VOICE_TRANSCRIPT_HUD_ENABLED: Boolean = BuildConfig.DEBUG
 
 /** A flat snapshot of all user-tunable settings. */
@@ -214,6 +246,14 @@ data class UiSettings(
     val llmMaxTokens: Int = DEFAULT_LLM_MAX_TOKENS,
     val spoilerLevel: UiSpoilerLevel = UiSpoilerLevel.Light,
     val hotkeyVoiceTranscriptHudEnabled: Boolean = DEFAULT_HOTKEY_VOICE_TRANSCRIPT_HUD_ENABLED,
+    val screenTranslationApiProvider: UiScreenTranslationApiProvider =
+        UiScreenTranslationApiProvider.SiliconFlow,
+    val screenTranslationBaseUrl: String =
+        UiScreenTranslationApiProvider.SiliconFlow.defaultBaseUrl,
+    val screenTranslationApiKey: String = "",
+    val screenTranslationModel: String =
+        UiScreenTranslationApiProvider.SiliconFlow.defaultModel,
+    val screenTranslationTimeoutSeconds: Int = DEFAULT_SCREEN_TRANSLATION_TIMEOUT_SECONDS,
 )
 
 /** Header info for the "About" section. Static for Phase 0. */
@@ -453,4 +493,11 @@ interface SettingsStore {
     )
     suspend fun updateSpoilerLevel(level: UiSpoilerLevel)
     suspend fun updateHotkeyVoiceTranscriptHudEnabled(enabled: Boolean)
+    suspend fun updateScreenTranslationApiConfig(
+        provider: UiScreenTranslationApiProvider,
+        baseUrl: String,
+        apiKey: String,
+        model: String,
+        timeoutSeconds: Int = DEFAULT_SCREEN_TRANSLATION_TIMEOUT_SECONDS,
+    )
 }

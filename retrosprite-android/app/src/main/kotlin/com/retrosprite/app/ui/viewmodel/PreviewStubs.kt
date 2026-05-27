@@ -615,4 +615,25 @@ private class FakeSettingsStore(initial: UiSettings) : SettingsStore {
     override suspend fun updateHotkeyVoiceTranscriptHudEnabled(enabled: Boolean) {
         _settings.update { it.copy(hotkeyVoiceTranscriptHudEnabled = enabled) }
     }
+
+    override suspend fun updateScreenTranslationApiConfig(
+        provider: UiScreenTranslationApiProvider,
+        baseUrl: String,
+        apiKey: String,
+        model: String,
+        timeoutSeconds: Int,
+    ) {
+        _settings.update {
+            it.copy(
+                screenTranslationApiProvider = provider,
+                screenTranslationBaseUrl = baseUrl.trim().ifBlank { provider.defaultBaseUrl },
+                screenTranslationApiKey = apiKey.trim(),
+                screenTranslationModel = model.trim().ifBlank { provider.defaultModel },
+                screenTranslationTimeoutSeconds = timeoutSeconds.coerceIn(
+                    MIN_SCREEN_TRANSLATION_TIMEOUT_SECONDS,
+                    MAX_SCREEN_TRANSLATION_TIMEOUT_SECONDS,
+                ),
+            )
+        }
+    }
 }

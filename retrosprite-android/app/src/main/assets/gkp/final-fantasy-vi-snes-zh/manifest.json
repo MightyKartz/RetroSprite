@@ -1,7 +1,7 @@
 {
   "schema_version": "gkp.v0",
   "pack_id": "community.final-fantasy-vi-snes-zh",
-  "pack_version": "0.1.0",
+  "pack_version": "0.1.1",
   "coverage_tier": "lite",
   "default_language": "zh",
   "game": {
@@ -10,7 +10,7 @@
     "platform": "snes",
     "region": null,
     "languages": ["zh"],
-    "retroarch_system_ids": ["snes", "sfc", "super_nintendo"],
+    "retroarch_system_ids": ["snes", "sfc", "super_nintendo", "playstation", "psx", "ps1"],
     "retroarch_labels": [
       "snes__Final Fantasy VI",
       "sfc__Final Fantasy VI",
@@ -22,7 +22,10 @@
       "snes__最终幻想VI",
       "sfc__最终幻想6",
       "snes__太空战士VI",
-      "snes__太空战士6 [!]"
+      "snes__太空战士6 [!]",
+      "playstation__Final Fantasy Anthology - Final Fantasy VI",
+      "psx__Final Fantasy Anthology - Final Fantasy VI",
+      "ps1__Final Fantasy Anthology - Final Fantasy VI"
     ],
     "rom_identity": {
       "crc32": null,

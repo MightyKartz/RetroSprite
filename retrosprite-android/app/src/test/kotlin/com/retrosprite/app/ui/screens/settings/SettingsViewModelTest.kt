@@ -9,6 +9,7 @@ import com.retrosprite.app.ui.viewmodel.UiEndpointPhase
 import com.retrosprite.app.ui.viewmodel.UiEndpointStatus
 import com.retrosprite.app.ui.viewmodel.UiLlmConfigTestResult
 import com.retrosprite.app.ui.viewmodel.UiLlmProvider
+import com.retrosprite.app.ui.viewmodel.UiScreenTranslationApiProvider
 import com.retrosprite.app.ui.viewmodel.UiOverlayPermissionState
 import com.retrosprite.app.ui.viewmodel.UiSettings
 import com.retrosprite.app.ui.viewmodel.UiSpoilerLevel
@@ -82,6 +83,49 @@ class SettingsViewModelTest {
             assertEquals(false, store.state.value.hotkeyVoiceTranscriptHudEnabled)
         }
 
+    @Test
+    fun `applyScreenTranslationApiConfig delegates to settings store`() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val store = FakeSettingsStore()
+            val viewModel = SettingsViewModel(
+                store = store,
+                endpoint = FakeEndpointStatusProvider(),
+                llmConfigTest = FakeLlmConfigTestProvider(),
+                overlayPermission = FakeOverlayPermissionProvider(
+                    UiOverlayPermissionState(isGranted = true),
+                ),
+                about = UiAboutInfo(),
+            )
+
+            viewModel.applyScreenTranslationApiConfig(
+                provider = UiScreenTranslationApiProvider.SiliconFlow,
+                baseUrl = "https://example.invalid/v1",
+                apiKey = "ocr-key",
+                model = "Qwen/Qwen3-VL-8B-Instruct",
+                timeoutSeconds = 45,
+            )
+            advanceUntilIdle()
+
+            assertEquals(UiScreenTranslationApiProvider.SiliconFlow, store.state.value.screenTranslationApiProvider)
+            assertEquals("https://example.invalid/v1", store.state.value.screenTranslationBaseUrl)
+            assertEquals("ocr-key", store.state.value.screenTranslationApiKey)
+            assertEquals("Qwen/Qwen3-VL-8B-Instruct", store.state.value.screenTranslationModel)
+            assertEquals(45, store.state.value.screenTranslationTimeoutSeconds)
+        }
+
+    @Test
+    fun `screen translation defaults recommend qwen vl model`() {
+        assertEquals(
+            "Qwen/Qwen3-VL-8B-Instruct",
+            UiScreenTranslationApiProvider.SiliconFlow.defaultModel,
+        )
+        assertEquals(
+            "Qwen/Qwen3-VL-8B-Instruct",
+            UiScreenTranslationApiProvider.OpenRouter.defaultModel,
+        )
+        assertEquals("Qwen/Qwen3-VL-8B-Instruct", UiSettings().screenTranslationModel)
+    }
+
     private fun viewModel(
         overlay: OverlayPermissionProvider,
     ): SettingsViewModel =
@@ -143,6 +187,22 @@ class SettingsViewModelTest {
 
         override suspend fun updateHotkeyVoiceTranscriptHudEnabled(enabled: Boolean) {
             state.value = state.value.copy(hotkeyVoiceTranscriptHudEnabled = enabled)
+        }
+
+        override suspend fun updateScreenTranslationApiConfig(
+            provider: UiScreenTranslationApiProvider,
+            baseUrl: String,
+            apiKey: String,
+            model: String,
+            timeoutSeconds: Int,
+        ) {
+            state.value = state.value.copy(
+                screenTranslationApiProvider = provider,
+                screenTranslationBaseUrl = baseUrl,
+                screenTranslationApiKey = apiKey,
+                screenTranslationModel = model,
+                screenTranslationTimeoutSeconds = timeoutSeconds,
+            )
         }
     }
 

@@ -81,6 +81,20 @@ class GkpV0ParserTest {
     }
 
     @Test
+    fun `parses bundled final fantasy vi playstation anthology label`() {
+        val parsed = parsePack("final-fantasy-vi-snes-zh")
+
+        assertEquals("final_fantasy_vi_snes", parsed.game.gameId)
+        assertEquals("0.1.1", parsed.game.packVersion)
+        assertTrue(parsed.game.retroarchSystemIds.contains("playstation"))
+        assertTrue(
+            parsed.game.retroarchLabels.contains(
+                "playstation__Final Fantasy Anthology - Final Fantasy VI",
+            )
+        )
+    }
+
+    @Test
     fun `merges aliases file terms into parsed knowledge rows`() {
         val manifestText = """
             {

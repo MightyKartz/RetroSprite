@@ -97,7 +97,14 @@ class RepositoryGameResolverTest {
             FakeGameRepository(
                 listOf(
                     game("chrono_trigger_snes", "Chrono Trigger / 时空之轮", "snes"),
-                    game("final_fantasy_vi_snes", "Final Fantasy VI / 最终幻想 VI", "snes"),
+                    game(
+                        "final_fantasy_vi_snes",
+                        "Final Fantasy VI / 最终幻想 VI",
+                        "snes",
+                        retroarchLabels = listOf(
+                            "playstation__Final Fantasy Anthology - Final Fantasy VI",
+                        ),
+                    ),
                     game("golden_sun_gba", "Golden Sun / 黄金太阳", "gba"),
                     game("langrisser_ii_md", "Langrisser II / 梦幻模拟战 II", "md"),
                     game("phantasy_star_iv_md", "Phantasy Star IV / 梦幻之星 IV", "md"),
@@ -116,6 +123,7 @@ class RepositoryGameResolverTest {
 
         val cases = listOf(
             "sfc__Chrono Trigger (USA)" to "chrono_trigger_snes",
+            "playstation__Final Fantasy Anthology - Final Fantasy VI" to "final_fantasy_vi_snes",
             "super_nintendo__Final Fantasy VI (USA)" to "final_fantasy_vi_snes",
             "snes__最终幻想VI" to "final_fantasy_vi_snes",
             "game_boy_advance__黄金太阳-开启的封印" to "golden_sun_gba",

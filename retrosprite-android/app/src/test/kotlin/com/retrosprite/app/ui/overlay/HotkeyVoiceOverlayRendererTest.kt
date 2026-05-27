@@ -129,6 +129,78 @@ class HotkeyVoiceOverlayRendererTest {
     }
 
     @Test
+    fun `translation answer spec keeps complete page readable`() {
+        val text = "第一段完整译文。第二段完整译文。第三段完整译文。第四段完整译文。"
+        val spec = HotkeyVoiceOverlayPhase.Translation.answerCardSpec(
+            fontScale = 1.0f,
+            answerText = text,
+            cardWidthDp = 420,
+            contentKind = HotkeyVoiceOverlayContentKind.ScreenTranslation,
+        )
+
+        assertTrue(spec.heightDp >= 128)
+        assertTrue(spec.maxLines >= 3)
+        assertTrue(spec.estimatedCjkCapacity(cardWidthDp = 420, fontSizeSp = 16) >= text.length)
+    }
+
+    @Test
+    fun `translation lookup card parses menu chips and attribute rows`() {
+        val card = """
+            菜单
+            EQUIP 装备 | OPTIMUM 最强装备 | REMOVE 卸下 | EMPTY 空
+            装备
+            R-hand 右手 | L-hand 左手 | Head 头部 | Body 身体
+            Mythril Knife 精钢短刀 | Buckler 圆盾
+            属性
+            Vigor 力量
+            Speed 速度
+        """.trimIndent().toTranslationLookupCardOrNull()
+
+        requireNotNull(card)
+        assertEquals("菜单", card.sections[0].title)
+        assertEquals(TranslationLookupSectionStyle.Chips, card.sections[0].style)
+        assertEquals(
+            listOf("EQUIP 装备", "OPTIMUM 最强装备", "REMOVE 卸下", "EMPTY 空"),
+            card.sections[0].items,
+        )
+        assertEquals("装备", card.sections[1].title)
+        assertEquals(TranslationLookupSectionStyle.Chips, card.sections[1].style)
+        assertTrue(card.sections[1].items.contains("Mythril Knife 精钢短刀"))
+        assertEquals("属性", card.sections[2].title)
+        assertEquals(TranslationLookupSectionStyle.Rows, card.sections[2].style)
+        assertEquals(listOf("Vigor 力量", "Speed 速度"), card.sections[2].items)
+    }
+
+    @Test
+    fun `plain dialogue translation does not become lookup card`() {
+        assertEquals(null, "欢迎来到港口城市。请先去旅店。".toTranslationLookupCardOrNull())
+    }
+
+    @Test
+    fun `translation lookup card spec estimates chip grid height`() {
+        val text = """
+            菜单
+            EQUIP 装备 | OPTIMUM 最强装备 | REMOVE 卸下 | EMPTY 空
+            装备
+            R-hand 右手 | L-hand 左手 | Head 头部 | Body 身体
+            Mythril Knife 精钢短刀 | Buckler 圆盾 | Leather Hat 皮帽 | Leather Armor 皮甲
+            属性
+            Vigor 力量
+            Speed 速度
+        """.trimIndent()
+
+        val spec = HotkeyVoiceOverlayPhase.Translation.answerCardSpec(
+            fontScale = 1.0f,
+            answerText = text,
+            cardWidthDp = 390,
+            contentKind = HotkeyVoiceOverlayContentKind.ScreenTranslation,
+        )
+
+        assertTrue(spec.maxLines >= 8)
+        assertTrue(spec.heightDp >= 220)
+    }
+
+    @Test
     fun `rg476h answer card keeps text away from waveform chrome`() {
         val normal = HotkeyVoiceOverlayPhase.Speaking.answerCardSpec(
             fontScale = 1.0f,
@@ -391,6 +463,7 @@ class HotkeyVoiceOverlayRendererTest {
             outputMode = "text",
             imageBytes = 4,
             paused = false,
+            imageBase64 = "fake_screen_png_base64",
             receivedAtMillis = 1L,
         )
 

@@ -12,7 +12,9 @@ class ScreenTranslationIntentClassifier {
             .normalizedForScreenTranslationMatch()
 
         if (normalized.isBlank()) return null
-        if (normalized.withoutSpaces() in tailDroppedChineseTriggers) {
+        if (normalized.withoutSpaces() in canonicalChineseTranslationCommands ||
+            normalized.withoutSpaces() in tailDroppedChineseTriggers
+        ) {
             return CANONICAL_CHINESE_TRANSLATION_REQUEST
         }
 
@@ -34,6 +36,21 @@ class ScreenTranslationIntentClassifier {
             "这段话是什么意思",
             "这句话啥意思",
             "啥意思",
+        )
+
+        val canonicalChineseTranslationCommands = setOf(
+            "翻译",
+            "请翻译",
+            "帮我翻译",
+            "帮忙翻译",
+            "给我翻译",
+            "麻烦翻译",
+            "翻译一下",
+            "请翻译一下",
+            "帮我翻译一下",
+            "帮忙翻译一下",
+            "给我翻译一下",
+            "麻烦翻译一下",
         )
 
         val tailDroppedChineseTriggers = setOf(

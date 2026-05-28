@@ -133,7 +133,9 @@ class HotkeyVoiceQuestionController(
         }
         val question = voiceState?.transcript?.trim().orEmpty()
         val requestLabel = recognitionContext.label
-        if (!question.hasEnoughVoiceQuestionSignal()) {
+        val screenTranslationQuestion =
+            screenTranslationIntentClassifier.normalizeScreenTranslationRequest(question)
+        if (screenTranslationQuestion == null && !question.hasEnoughVoiceQuestionSignal()) {
             voiceInput.cancelListening()
             val errorMessage = voiceState?.errorMessage
             coordinator.renderVoiceState(
@@ -166,8 +168,6 @@ class HotkeyVoiceQuestionController(
         }
 
         delay(LISTENING_VISUAL_LINGER_MS)
-        val screenTranslationQuestion =
-            screenTranslationIntentClassifier.normalizeScreenTranslationRequest(question)
         if (screenTranslationQuestion != null) {
             runScreenTranslation(
                 event = event,
@@ -465,8 +465,8 @@ class HotkeyVoiceQuestionController(
         private const val SPEECH_TIMEOUT_MS: Long = 15_000L
         private const val LISTENING_VISUAL_LINGER_MS: Long = 220L
         private const val SCREEN_TRANSLATION_TIMEOUT_MS: Long = 35_000L
-        private const val TRANSLATION_PAGE_LINGER_MS: Long = 4_000L
-        private const val TRANSLATION_LAST_PAGE_LINGER_MS: Long = 5_000L
+        private const val TRANSLATION_PAGE_LINGER_MS: Long = 10_000L
+        private const val TRANSLATION_LAST_PAGE_LINGER_MS: Long = 10_000L
         private const val ANSWER_LINGER_MS: Long = 2_000L
         private const val RECOVERY_LINGER_MS: Long = 2_000L
     }

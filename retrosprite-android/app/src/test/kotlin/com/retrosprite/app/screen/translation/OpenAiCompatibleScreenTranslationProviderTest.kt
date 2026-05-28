@@ -1,9 +1,11 @@
 package com.retrosprite.app.screen.translation
 
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.test.runTest
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -46,7 +48,9 @@ class OpenAiCompatibleScreenTranslationProviderTest {
         assertEquals("Bearer secret-key", request.getHeader("Authorization"))
         assertTrue(body.contains("\"model\":\"Qwen/Qwen3-VL-8B-Instruct\""))
         assertTrue(body.contains("data:image/png;base64,abc123"))
-        assertTrue(body.contains("只输出中文译文"))
+        assertTrue(body.contains("mode"))
+        assertTrue(body.contains("dialogue"))
+        assertTrue(body.contains("不要包含英文原文"))
         assertEquals("欢迎来到港口城市。\n物品\n状态", result)
 
         server.shutdown()
@@ -98,7 +102,7 @@ class OpenAiCompatibleScreenTranslationProviderTest {
         assertTrue(body.contains("当前游戏：Final Fantasy VI"))
         assertTrue(body.contains("ITEM = 道具"))
         assertTrue(body.contains("ESPER = 魔石"))
-        assertTrue(body.contains("不要保留英文菜单原文"))
+        assertTrue(body.contains("菜单、状态、装备和物品界面必须保留英文 source"))
         assertTrue(body.contains("菜单/状态/物品/装备画面"))
         assertTrue(body.contains("严格 JSON"))
         assertTrue(body.contains("纯数字"))
@@ -107,6 +111,67 @@ class OpenAiCompatibleScreenTranslationProviderTest {
         assertTrue(body.contains("equipment"))
         assertTrue(body.contains("中英文对照"))
         assertTrue(body.contains("value 填"))
+
+        server.shutdown()
+    }
+
+    @Test
+    fun `retries when vision model returns untranslated English OCR text`() = runTest {
+        val server = MockWebServer()
+        server.enqueue(
+            MockResponse()
+                .setResponseCode(200)
+                .setBody(
+                    """
+                    {
+                      "choices": [
+                        {
+                          "message": {
+                            "content": "GUARD: Machine-riding, self-important swine!\nTake this!"
+                          }
+                        }
+                      ]
+                    }
+                    """.trimIndent()
+                )
+        )
+        server.enqueue(
+            MockResponse()
+                .setResponseCode(200)
+                .setBody(
+                    """
+                    {
+                      "choices": [
+                        {
+                          "message": {
+                            "content": "卫兵：骑着机器、自命不凡的猪猡！\n看招！"
+                          }
+                        }
+                      ]
+                    }
+                    """.trimIndent()
+                )
+        )
+        server.start()
+
+        val provider = OpenAiCompatibleScreenTranslationProvider(
+            providerName = "SiliconFlow",
+            baseUrl = server.url("/v1").toString().trimEnd('/'),
+            apiKey = "secret-key",
+            model = "Qwen/Qwen3-VL-8B-Instruct",
+        )
+
+        val result = provider.translateScreenshotToChinese("abc123")
+        val visionRequest = server.takeRequest()
+        val repairRequest = server.takeRequest(1, TimeUnit.SECONDS)
+        assertNotNull("Expected a second text-translation repair request", repairRequest)
+        requireNotNull(repairRequest)
+        val repairBody = repairRequest.body.readUtf8()
+
+        assertTrue(visionRequest.body.readUtf8().contains("data:image/png;base64,abc123"))
+        assertTrue(repairBody.contains("上一轮模型只返回了英文 OCR 原文"))
+        assertTrue(repairBody.contains("Machine-riding"))
+        assertEquals("卫兵：骑着机器、自命不凡的猪猡！\n看招！", result)
 
         server.shutdown()
     }

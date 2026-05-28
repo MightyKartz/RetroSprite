@@ -12,6 +12,7 @@ class ScreenTranslationIntentClassifierTest {
 
     @Test
     fun `detects Chinese translation requests`() {
+        assertTrue(classifier.isScreenTranslationRequest("翻译"))
         assertTrue(classifier.isScreenTranslationRequest("翻译一下"))
         assertTrue(classifier.isScreenTranslationRequest("帮我翻译一下"))
         assertTrue(classifier.isScreenTranslationRequest("翻译一"))
@@ -26,6 +27,13 @@ class ScreenTranslationIntentClassifierTest {
         assertEquals("翻译一下", classifier.normalizeScreenTranslationRequest("翻译一"))
         assertEquals("翻译一下", classifier.normalizeScreenTranslationRequest("请翻译一"))
         assertEquals("翻译一下", classifier.normalizeScreenTranslationRequest("帮我翻译一。"))
+    }
+
+    @Test
+    fun `normalizes standalone translation command`() {
+        assertEquals("翻译一下", classifier.normalizeScreenTranslationRequest("翻译"))
+        assertEquals("翻译一下", classifier.normalizeScreenTranslationRequest("请翻译"))
+        assertEquals("翻译一下", classifier.normalizeScreenTranslationRequest("帮我翻译。"))
     }
 
     @Test

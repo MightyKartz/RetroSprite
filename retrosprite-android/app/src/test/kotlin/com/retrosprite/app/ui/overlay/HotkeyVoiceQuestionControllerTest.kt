@@ -844,6 +844,107 @@ class HotkeyVoiceQuestionControllerTest {
         assertEquals("翻译一下", translationState.transcript)
     }
 
+    @Test
+    fun `standalone translation command bypasses normal voice question length gate`() = runTest {
+        val renderer = FakeRenderer()
+        val coordinator = HotkeyVoiceOverlayCoordinator(
+            renderer = renderer,
+            canDrawOverlays = { true },
+            scheduleAutoHide = {},
+            cancelAutoHide = {},
+        )
+        val voice = FakeVoiceInputProvider("翻译")
+        val translationPipeline = RecordingScreenTranslationPipeline(
+            ScreenTranslationResult(
+                translatedText = "卫兵：看招！",
+                pages = listOf("卫兵：看招！"),
+                providerName = "fake-api",
+                model = "fake-model",
+            )
+        )
+        val logger = RequestLogger()
+        val controller = HotkeyVoiceQuestionController(
+            coordinator = coordinator,
+            voiceInput = voice,
+            responseGenerator = CapturingGenerator("normal answer"),
+            screenTranslationPipeline = translationPipeline,
+            screenTranslationIntentClassifier = ScreenTranslationIntentClassifier(),
+            speechOutput = FakeSpeechOutputProvider(),
+            loggerProvider = { logger },
+            scope = this,
+        )
+
+        controller.onHotkey(event(imageBase64 = "dialogue_image"))
+        advanceUntilIdle()
+
+        val entry = logger.entries.value.first()
+        assertEquals("hotkey_screen_translation:text", entry.outputMode)
+        assertEquals("翻译一下", entry.question)
+        assertEquals("翻译", entry.rawQuestion)
+        assertEquals("翻译一下", entry.normalizedQuestion)
+        assertEquals("screen_translation_intent_tail_completion", entry.questionNormalizationReason)
+        assertEquals(1, translationPipeline.callCount)
+        assertEquals(false, renderer.renderedStates.any { it.phase == HotkeyVoiceOverlayPhase.Muted })
+    }
+
+    @Test
+    fun `screen translation keeps every result page visible for ten seconds`() = runTest {
+        val renderer = FakeRenderer()
+        val coordinator = HotkeyVoiceOverlayCoordinator(
+            renderer = renderer,
+            canDrawOverlays = { true },
+            scheduleAutoHide = {},
+            cancelAutoHide = {},
+        )
+        val voice = FakeVoiceInputProvider("翻译一下")
+        val translationPipeline = RecordingScreenTranslationPipeline(
+            ScreenTranslationResult(
+                translatedText = "第一页译文\n第二页译文",
+                pages = listOf("第一页译文", "第二页译文"),
+                providerName = "fake-api",
+                model = "fake-model",
+            )
+        )
+        val controller = HotkeyVoiceQuestionController(
+            coordinator = coordinator,
+            voiceInput = voice,
+            responseGenerator = CapturingGenerator("normal answer"),
+            screenTranslationPipeline = translationPipeline,
+            screenTranslationIntentClassifier = ScreenTranslationIntentClassifier(),
+            speechOutput = FakeSpeechOutputProvider(),
+            loggerProvider = { RequestLogger() },
+            scope = this,
+        )
+
+        controller.onHotkey(event(imageBase64 = "two_page_translation"))
+        advanceTimeBy(220L)
+        runCurrent()
+
+        assertEquals("第一页译文", lastTranslationText(renderer))
+
+        advanceTimeBy(9_999L)
+        runCurrent()
+        assertEquals("第一页译文", lastTranslationText(renderer))
+
+        advanceTimeBy(1L)
+        runCurrent()
+        assertEquals("第二页译文", lastTranslationText(renderer))
+
+        advanceTimeBy(9_999L)
+        runCurrent()
+        assertEquals("第二页译文", lastTranslationText(renderer))
+        assertTrue(coordinator.state.value is HotkeyVoiceOverlayState.Listening)
+
+        advanceTimeBy(1L)
+        runCurrent()
+        assertTrue(coordinator.state.value is HotkeyVoiceOverlayState.Finished)
+    }
+
+    private fun lastTranslationText(renderer: FakeRenderer): String? =
+        renderer.renderedStates.last {
+            it.phase == HotkeyVoiceOverlayPhase.Translation
+        }.answerText
+
     private fun event(imageBase64: String = "fake_screen_png_base64"): RetroArchHotkeyEvent =
         RetroArchHotkeyEvent(
             label = "mega_drive__光明力量2",

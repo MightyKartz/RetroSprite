@@ -14,7 +14,13 @@ class ScreenTranslationStructuredResponseParser(
     fun parse(rawText: String, glossary: ScreenTranslationGlossary?): String? {
         val root = parseJsonObject(rawText) ?: return null
         val mode = root.stringValue("mode").lowercase()
-        val entries = root["entries"] as? JsonArray ?: return null
+        val entries = root["entries"] as? JsonArray
+
+        if (mode in dialogueModes) {
+            return renderDialogue(root, entries, glossary)
+        }
+
+        entries ?: return null
         if (mode !in structuredMenuModes && entries.isEmpty()) return null
 
         val normalizedEntries = normalizeEntries(
@@ -24,6 +30,27 @@ class ScreenTranslationStructuredResponseParser(
         if (normalizedEntries.isEmpty()) return null
 
         return render(mode, normalizedEntries)
+    }
+
+    private fun renderDialogue(
+        root: JsonObject,
+        entries: JsonArray?,
+        glossary: ScreenTranslationGlossary?,
+    ): String? {
+        val text = root.stringValue("text")
+            .takeIf { it.isNotBlank() }
+            ?.let { glossaryPostProcessor.apply(it, glossary) }
+        if (!text.isNullOrBlank()) {
+            return text.cleanStructuredText()
+        }
+
+        val lines = entries
+            ?.mapNotNull { it as? JsonObject }
+            ?.mapNotNull { objectToEntry(it, glossary)?.translation?.cleanStructuredText() }
+            ?.filter { it.isNotBlank() }
+            ?.distinct()
+            .orEmpty()
+        return lines.joinToString("\n").takeIf { it.isNotBlank() }
     }
 
     private fun normalizeEntries(
@@ -218,6 +245,13 @@ class ScreenTranslationStructuredResponseParser(
         return boilerplateFragments.any { compact.contains(it) }
     }
 
+    private fun String.cleanStructuredText(): String =
+        lineSequence()
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .joinToString("\n")
+            .trim()
+
     private fun String.containsGlossaryTerm(glossary: ScreenTranslationGlossary?): Boolean {
         if (glossary == null) return false
         return glossary.terms.any { term ->
@@ -254,6 +288,7 @@ class ScreenTranslationStructuredResponseParser(
 
     private companion object {
         val json = Json { ignoreUnknownKeys = true }
+        val dialogueModes = setOf("dialogue", "dialog", "story", "narrative", "prompt", "text")
         val structuredMenuModes = setOf("menu", "interface", "status", "inventory", "equipment")
         val menuTypes = setOf("menu", "command", "control", "option", "ui")
         val equipmentTypes = setOf("equipment", "equip", "slot", "equipment_slot")

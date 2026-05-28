@@ -202,6 +202,59 @@ class ScreenTranslationStructuredResponseParserTest {
     }
 
     @Test
+    fun `renders dialogue text json without English original`() {
+        val parsed = ScreenTranslationStructuredResponseParser().parse(
+            rawText = """
+                {
+                  "mode": "dialogue",
+                  "text": "卫兵：骑着机器、自命不凡的家伙！\n看招！"
+                }
+            """.trimIndent(),
+            glossary = null,
+        )
+
+        assertEquals(
+            """
+            卫兵：骑着机器、自命不凡的家伙！
+            看招！
+            """.trimIndent(),
+            parsed,
+        )
+    }
+
+    @Test
+    fun `renders dialogue entries as Chinese only even when source is present`() {
+        val parsed = ScreenTranslationStructuredResponseParser().parse(
+            rawText = """
+                {
+                  "mode": "dialogue",
+                  "entries": [
+                    {
+                      "source": "GUARD: Machine-riding, self-important swine!",
+                      "translation": "卫兵：骑着机器、自命不凡的家伙！",
+                      "type": "dialogue"
+                    },
+                    {
+                      "source": "Take this!",
+                      "translation": "看招！",
+                      "type": "dialogue"
+                    }
+                  ]
+                }
+            """.trimIndent(),
+            glossary = null,
+        )
+
+        assertEquals(
+            """
+            卫兵：骑着机器、自命不凡的家伙！
+            看招！
+            """.trimIndent(),
+            parsed,
+        )
+    }
+
+    @Test
     fun `returns null for normal dialogue text`() {
         val parsed = ScreenTranslationStructuredResponseParser().parse(
             rawText = "欢迎来到港口城市。你需要先去旅店打听船长的消息。",

@@ -861,7 +861,7 @@ private fun ScreenTranslationApiSection(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(
-                text = "热键呼出后，说“翻译一下”“读一下”“这是什么意思”，RetroSprite 会把当前暂停画面发送到你配置的 BYOK API，并显示中文译文。推荐模型：$RECOMMENDED_SCREEN_TRANSLATION_MODEL。",
+                text = "热键呼出后，说“翻译”“翻译一下”“读一下”“这是什么意思”，RetroSprite 会把当前暂停画面发送到你配置的 BYOK API，并显示中文译文。推荐模型：$RECOMMENDED_SCREEN_TRANSLATION_MODEL。",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

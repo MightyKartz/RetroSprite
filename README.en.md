@@ -25,10 +25,11 @@ local evidence.
 
 ## Status
 
-RetroSprite is in the M17.1 / M18 release-candidate hardening phase. The hotkey
-voice overlay, local ASR, GKP retrieval, on-demand current-screen translation,
-short-answer TTS, diagnostics, and six bundled real game packs now form the
-current runnable loop.
+RetroSprite v0.1.0 is the first formal GitHub release intended for long-term
+user downloads. The Android APK is signed with the project release key and ships
+with a SHA-256 checksum. The hotkey voice overlay, local ASR, GKP retrieval,
+on-demand current-screen translation, short-answer TTS, diagnostics, and six
+bundled real game packs now form the current runnable loop.
 
 The latest work focuses on real-device reproducibility: debug hotkey requests can
 inject a question through the same overlay path, ASR now records sample counts,
@@ -37,8 +38,9 @@ Diagnostics explains ASR / GKP / screenshot / BYOK API / permission / timeout
 failures, and observed RG476H voice transcripts are turned into scoped GKP
 aliases plus golden regressions.
 
-This is not a universal walkthrough bot. Use it only with the supported games below
-unless you are developing or testing new GKPs.
+This is not a universal walkthrough bot. The formal v0.1.0 release supports only
+the six games below; other games may reach the endpoint, but they should not be
+expected to produce reliable grounded answers.
 
 ## Supported Games
 
@@ -67,7 +69,7 @@ Download the latest RetroSprite APK from GitHub Releases:
 
 [https://github.com/MightyKartz/RetroSprite/releases](https://github.com/MightyKartz/RetroSprite/releases)
 
-Long-term user builds should use `RetroSprite-*-release.apk`, which is signed
+Long-term user builds should use `RetroSprite-v0.1.0-release.apk`, which is signed
 with the project release key. Packages named `preview`, `debug`, or
 `app-debug.apk` are for testing and early feedback; debug-signed builds usually
 cannot be upgraded in place to release-signed builds.

@@ -2,10 +2,15 @@
 
 本文件记录 RetroSprite 面向 GitHub Release 的项目级更新。各 GKP 包仍保留自己的 `changelog.md`，用于记录单个游戏知识包的内容变化。
 
-## Unreleased
+## v0.1.0 - 2026-06-04
 
 ### 新增
 
+- 发布首个正式 GitHub Release APK：`RetroSprite-v0.1.0-release.apk` 使用项目 release key 签名，并随 Release 提供 SHA-256 校验文件，适合普通用户长期下载。
+- 形成 RetroArch AI Service 热键语音主路径：游戏内短时语音 overlay、本地 sherpa-onnx ASR、当前游戏 GKP 检索、AnswerPolicy、短答 HUD 和 Android TTS 可完整闭环。
+- 内置 6 个真实游戏 GKP Lite：Shining Force II、Golden Sun、Phantasy Star IV、Langrisser II、Chrono Trigger、Final Fantasy VI。
+- 新增 BYOK 当前画面翻译：玩家明确说“翻译”“翻译一下”“读一下”“这是什么意思”时，才把当前暂停截图发送到用户配置的 SiliconFlow / OpenRouter / OpenAI-compatible 视觉模型。
+- 新增 Diagnostics 质量闭环：展示 pipeline stage、source ids、LLM 状态、延迟、ASR 音频指标、失败归因和用户反馈，便于定位真机热键、GKP、截图、BYOK API、权限和超时问题。
 - 新增正式 APK release signing 配置：Gradle 可读取本地 `keystore.properties` 或 `RETROSPRITE_RELEASE_*` 环境变量，为 release build 使用项目发布证书签名。
 - 新增 `generate_release_keystore.sh` 与 `build_release_apk.sh`：支持生成本地 keystore、clean release build、单元测试、`apksigner verify`、debug 证书拦截和 SHA-256 校验文件输出。
 - 新增正式 APK 签名与 GitHub Release 发布指南，明确普通用户长期下载应使用 release-signed APK，preview/debug APK 只用于测试。
@@ -14,6 +19,12 @@
 
 - README 中文默认首页、英文 README 和 Android README 补充正式签名包安装说明、发布脚本入口和密钥安全边界。
 - `.gitignore` 明确排除 Android release keystore、`keystore.properties` 和本地 release 密钥目录，降低误提交风险。
+
+### 限制
+
+- v0.1.0 不是通用攻略机器人；正式支持范围仍为 6 个内置真实游戏。
+- 画面翻译依赖用户自己配置的 BYOK API；RetroSprite 不内置 API Key。
+- 已安装 debug-signed preview APK 的设备通常不能直接覆盖安装 release-signed 正式包，可能需要先卸载旧 preview 包。
 
 ## v0.1.0-preview.8 - 2026-06-03
 

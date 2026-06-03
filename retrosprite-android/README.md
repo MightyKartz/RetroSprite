@@ -6,13 +6,17 @@
 >
 > 仓库首页版 README 见 [../README.md](../README.md)；本文保留 Android App 的详细构建、联调和目录说明。
 
-**当前阶段：M17.1 / M18 收口 · Release Candidate Quality Loop**
+**当前阶段：v0.1.0 正式 GitHub Release · Release-signed APK**
 
-**当前开发重点：冻结功能面，用 M18 质量闭环关闭 M17.1 真实设备风险。**热键语音问答、GKP 本地检索、BYOK 画面翻译、设置/诊断和 6 个内置真实游戏包都已经形成可运行闭环；下一步不扩模型、不扩 GKP、不加大 UI 面，而是把真实失败样本转成 backlog、patch proposal、golden regression 和真机 replay。详见 [M18 Eval Lab And GKP Quality Loop Plan](./docs/superpowers/plans/2026-06-01-m18-eval-lab-gkp-quality-loop.md)。
+**当前正式版本：v0.1.0。**RetroSprite 已经可以通过 GitHub Release 分发 release-signed APK，
+面向普通用户长期下载和后续同签名升级。热键语音问答、GKP 本地检索、BYOK 画面翻译、
+设置/诊断和 6 个内置真实游戏包都已经形成可运行闭环。正式 APK 发布流程见
+[docs/RELEASE_SIGNING.md](./docs/RELEASE_SIGNING.md)。
 
-**当前阻塞：M18 Hotkey voice matrix 仍有 2 条失败行。**2026-06-02 RG476H endpoint/GKP smoke 已通过；新的 AudioRecord 诊断显示早前 `muted_recovery / blank_partial` 主要由 Mac 播放音量过低导致。当前 7 条 hotkey voice matrix 已全部提交 fresh `hotkey_voice` 请求并通过 5/7；剩余失败是 `source_mismatch` 和 `asr_variant`，记录在 [hotkey voice matrix report](./docs/qa-feedback/hotkey-voice-matrix-report.md)。下一步只围绕这 2 条失败做 evidence -> backlog -> scoped patch proposal -> regression -> real-device replay。
-
-**M17 之后的下一阶段：M18 Eval Lab + GKP Quality Loop。**M18 不扩新游戏、不改默认模型路线，而是把真实玩家问题、无 evidence、ASR 误识别和 GKP 覆盖缺口转成可复现的评测报告、backlog、GKP patch proposal 和 golden 回归。详见 [M18 Eval Lab And GKP Quality Loop Plan](./docs/superpowers/plans/2026-06-01-m18-eval-lab-gkp-quality-loop.md)。2026-06-02 起，M18 不再包含人工 ASR 审批、5 个屏幕翻译手工矩阵、内容版权人工确认；这些可以作为 release/QA 事项保留，但不属于 M18 aggregate status、next-action queue 或 offline gate。
+**后续质量闭环：M18 Eval Lab + GKP Quality Loop。**v0.1.0 后不急于扩新游戏、不改默认模型路线，
+而是把真实玩家问题、无 evidence、ASR 误识别和 GKP 覆盖缺口转成可复现的评测报告、backlog、
+GKP patch proposal 和 golden 回归。详见
+[M18 Eval Lab And GKP Quality Loop Plan](./docs/superpowers/plans/2026-06-01-m18-eval-lab-gkp-quality-loop.md)。
 
 **后续方向仍是：GKP Lite + Optional BYOK LLM。**每个游戏的首个支持版本不再要求完整攻略级 GKP，而是先做轻量、可信、可测试的 GKP Lite；外部 LLM 继续由玩家自主选择是否启用、使用什么 provider/model，只作为证据综合、跨语言映射和表达增强层。没有 LLM 时 RetroSprite 仍应离线可用；没有本地证据时不允许 LLM 裸答具体攻略事实。
 

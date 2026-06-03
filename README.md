@@ -24,14 +24,15 @@ RetroSprite 不会让 LLM 裸答。
 
 ## 当前版本状态
 
-RetroSprite 当前处在 M17.1 / M18 发布候选硬化阶段：Hotkey Voice Overlay、本地 GKP
+RetroSprite v0.1.0 是首个面向普通用户长期下载的 GitHub 正式版本，APK 使用项目
+release key 签名，并随 Release 提供 SHA-256 校验文件。Hotkey Voice Overlay、本地 GKP
 问答、BYOK 当前画面翻译、短答 TTS、Diagnostics 和 6 个内置真实游戏包已经形成可运行闭环。
 最新版本重点收敛在真机可复现质量：热键语音请求可通过调试注入复现，ASR 会记录音频采样、
 读帧错误和峰值音量，Diagnostics 会直接解释 ASR / GKP / 截图 / BYOK API / 权限 / 超时类失败，
 GKP ASR 变体和 golden regression 用真实 RG476H 热键语音样本持续回归。
 
-这仍是 preview 阶段，不是“支持所有游戏”的通用攻略机器人。当前 APK 面向测试、演示和早期反馈；
-正式使用前请先确认你的游戏属于下方支持列表。
+这不是“支持所有游戏”的通用攻略机器人。正式版只承诺下方 6 个游戏的 GKP Lite 支持；
+其它游戏可以触发 endpoint，但不会有稳定本地证据。
 
 ## 当前支持的游戏
 
@@ -55,7 +56,7 @@ RetroSprite 目前只内置支持 **6 个真实游戏**：
 - 你正在玩上方 6 个支持游戏之一。
 - 你希望得到短答案、轻提示、低剧透建议，而不是整段攻略搬运。
 - 你希望默认离线、本地优先，不把游戏问题直接交给云端模型猜。
-- 你愿意接受 preview 阶段的限制，并反馈识别错误、无答案问题和不准确来源。
+- 你愿意接受 v0.1.0 只覆盖 6 个游戏的限制，并反馈识别错误、无答案问题和不准确来源。
 
 ## 主要功能
 
@@ -87,7 +88,7 @@ RetroSprite 目前只内置支持 **6 个真实游戏**：
 
 [https://github.com/MightyKartz/RetroSprite/releases](https://github.com/MightyKartz/RetroSprite/releases)
 
-普通用户长期使用应选择 `RetroSprite-*-release.apk` 这类正式签名包。标有
+普通用户长期使用应选择 `RetroSprite-v0.1.0-release.apk` 这类正式签名包。标有
 `preview`、`debug` 或 `app-debug.apk` 的包只用于测试、演示和早期反馈；debug-signed
 包与正式 release-signed 包通常不能直接互相覆盖升级。
 

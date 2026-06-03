@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "objective": "M18 Eval Lab + GKP Quality Loop",
+  "status": "pass",
+  "is_green": true,
+  "paths": {
+    "plan_audit": "docs/qa-feedback/m18-plan-execution-audit.md",
+    "hotkey_voice_report": "docs/qa-feedback/hotkey-voice-matrix-report.md"
+  },
+  "counts": {
+    "plan_checked": 14,
+    "plan_unchecked": 0,
+    "aggregate_pass": 10,
+    "aggregate_open": 0,
+    "open_gates": 0
+  },
+  "gates": {
+    "hotkey_voice_matrix": {
+      "total": 7,
+      "pass": 4,
+      "fail": 3,
+      "blocked": 0,
+      "not_run": 0,
+      "missing": 0,
+      "categories": "asr_variant=1, source_mismatch=2"
+    }
+  },
+  "open_gates": [],
+  "removed_from_m18_scope": [
+    "manual_asr_approval",
+    "five_row_screen_translation_manual_matrix",
+    "human_content_rights_confirmation"
+  ],
+  "required_order": [
+    "Keep machine-generated GKP/eval/audit reports green.",
+    "Review or rerun the hotkey voice matrix only when it is useful device evidence.",
+    "Convert repeated misses into backlog rows or scoped patch proposals.",
+    "Run the final offline quality gate."
+  ],
+  "commands": [
+    {
+      "id": "hotkey_voice_matrix_report",
+      "command": "python3 scripts/hotkey_voice_matrix_report.py \\\n  --output docs/qa-feedback/hotkey-voice-matrix-report.md"
+    },
+    {
+      "id": "manual_notes_template",
+      "command": "python3 scripts/gkp_gap_backlog.py \\\n  --manual-notes-template-output docs/qa-feedback/gkp-manual-notes-template.tsv"
+    },
+    {
+      "id": "manual_notes_backlog_preview",
+      "command": "python3 scripts/gkp_gap_backlog.py \\\n  --input docs/qa-feedback/gkp-manual-notes-template.tsv \\\n  --merge-existing-backlog docs/qa-feedback/gkp-quality-backlog.md \\\n  --output build/m18-manual-notes-backlog-preview.md"
+    },
+    {
+      "id": "manual_notes_backlog_apply_after_review",
+      "command": "python3 scripts/gkp_gap_backlog.py \\\n  --input docs/qa-feedback/gkp-manual-notes-template.tsv \\\n  --merge-existing-backlog docs/qa-feedback/gkp-quality-backlog.md \\\n  --output docs/qa-feedback/gkp-quality-backlog.md"
+    },
+    {
+      "id": "offline_quality_gate",
+      "command": "./scripts/m18_offline_quality_gate.sh"
+    },
+    {
+      "id": "m18_status_report_strict",
+      "command": "python3 scripts/m18_status_report.py \\\n  --output docs/qa-feedback/m18-status-report.md \\\n  --strict"
+    },
+    {
+      "id": "m18_plan_execution_audit_strict",
+      "command": "python3 scripts/m18_plan_execution_audit.py \\\n  --output docs/qa-feedback/m18-plan-execution-audit.md \\\n  --json-output docs/qa-feedback/m18-plan-execution-audit.json \\\n  --strict"
+    },
+    {
+      "id": "m18_completion_audit_strict",
+      "command": "python3 scripts/m18_completion_audit.py \\\n  --output docs/qa-feedback/m18-completion-audit.md \\\n  --json-output docs/qa-feedback/m18-completion-audit.json \\\n  --strict"
+    }
+  ],
+  "contract": {
+    "assets_edited_by_handoff": false,
+    "manual_asr_approval_required": false,
+    "screen_translation_manual_matrix_required": false,
+    "content_rights_human_confirmation_required": false,
+    "merge_existing_backlog": true,
+    "strict_completion_required": true,
+    "final_quality_gate": "./scripts/m18_offline_quality_gate.sh"
+  },
+  "assets_edited_by_handoff": false
+}

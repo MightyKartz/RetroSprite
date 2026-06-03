@@ -82,6 +82,9 @@ class HotkeyVoiceQaCasesTest(unittest.TestCase):
         self.assertIn('[ "$LABEL" = "$EXPECTED_LABEL" ]', script)
         self.assertIn('MIC_LIVE="$(printf "%s" "$LAST_OVERLAY" | json_field "mic_live"', script)
         self.assertIn('[ "$MIC_LIVE" = "true" ]', script)
+        self.assertIn('AUDIO_READ_COUNT="$(printf "%s" "$LAST_OVERLAY" | json_field "asr_audio_read_count"', script)
+        self.assertIn('[ "$AUDIO_READ_COUNT" -gt 0 ]', script)
+        self.assertIn('[ "$AUDIO_READY" = "true" ]', script)
         self.assertIn("overlay_before=\"$(wait_for_overlay_completion || true)\"", script)
         self.assertIn('ready_label="$(printf "%s" "$overlay_ready" | json_field "label"', script)
         self.assertIn('[ "$ready_label" != "$label" ]', script)
@@ -110,6 +113,11 @@ class HotkeyVoiceQaCasesTest(unittest.TestCase):
         self.assertIn("asr_required_stable_ms", script)
         self.assertIn("asr_endpoint_armed", script)
         self.assertIn("asr_final_flush_ms", script)
+        self.assertIn("asr_sample_count", script)
+        self.assertIn("asr_audio_read_count", script)
+        self.assertIn("asr_audio_read_error_count", script)
+        self.assertIn("asr_peak_amplitude", script)
+        self.assertIn("asr_last_frame_amplitude", script)
 
     def test_voice_script_dry_run_does_not_require_device(self):
         env = dict(os.environ)

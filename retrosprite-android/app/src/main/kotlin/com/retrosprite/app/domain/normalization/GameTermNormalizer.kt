@@ -36,10 +36,15 @@ class GameTermNormalizer {
             )
         }
 
-        GkpAsrVariantIndex().build(rows).firstOrNull { variant ->
-            variant.canApplyTo(cleanQuestion)
-        }?.let { variant ->
-            val normalized = cleanQuestion.replaceFirst(variant.term, variant.canonicalTerm)
+        GkpAsrVariantIndex().build(rows).asSequence().mapNotNull { variant ->
+            variant.matchIn(cleanQuestion)
+        }.firstOrNull()?.let { match ->
+            val variant = match.variant
+            val normalized = if (match.noisePrefixApplied) {
+                variant.canonicalTerm
+            } else {
+                cleanQuestion.replaceFirst(variant.term, variant.canonicalTerm)
+            }
             val overlapCollapsed = normalized.collapseReplacementOverlapFor(variant.canonicalTerm)
             val overlapApplied = overlapCollapsed != normalized
             val duplicateCollapsed = overlapCollapsed.collapseDuplicatePrefixFor(variant.canonicalTerm)
@@ -60,6 +65,7 @@ class GameTermNormalizer {
                     duplicateApplied = duplicateApplied,
                     overlapApplied = overlapApplied,
                     tailApplied = tailApplied,
+                    noisePrefixApplied = match.noisePrefixApplied,
                 ),
                 matchedTerm = variant.canonicalTerm,
                 matchedEntityId = variant.entityId,
@@ -140,6 +146,7 @@ class GameTermNormalizer {
                 duplicateApplied = duplicateApplied,
                 overlapApplied = overlapApplied,
                 tailApplied = tailApplied,
+                noisePrefixApplied = false,
             ),
             matchedTerm = top.term,
             matchedEntityId = top.entityId,
@@ -209,10 +216,25 @@ class GameTermNormalizer {
         )
     }
 
-    private fun GkpAsrVariant.canApplyTo(question: String): Boolean {
-        if (!question.contains(term)) return false
-        return term !in WHOLE_QUESTION_ASR_TERMS || question == term
+    private fun GkpAsrVariant.matchIn(question: String): VariantMatch? {
+        if (!question.contains(term)) return null
+        if (term in WHOLE_QUESTION_ASR_TERMS && question != term) return null
+        val start = question.indexOf(term)
+        val end = start + term.length
+        val noisePrefixApplied = start > 0 &&
+            end == question.length &&
+            isObservedAsr() &&
+            term.looksLikeFullObservedQuestion() &&
+            canonicalTerm.looksLikeFullObservedQuestion()
+        return VariantMatch(this, noisePrefixApplied)
     }
+
+    private fun GkpAsrVariant.isObservedAsr(): Boolean =
+        kind == OBSERVED_ASR || source == OBSERVED_ASR
+
+    private fun String.looksLikeFullObservedQuestion(): Boolean =
+        length >= MIN_FULL_QUESTION_ASR_CHARS &&
+            FULL_QUESTION_SUFFIXES.any { suffix -> endsWith(suffix) }
 
     private fun String.completeTruncatedQuestionTail(): String =
         TRUNCATED_SUFFIXES.entries.fold(this) { current, (truncated, full) ->
@@ -248,9 +270,11 @@ class GameTermNormalizer {
         duplicateApplied: Boolean,
         overlapApplied: Boolean,
         tailApplied: Boolean,
+        noisePrefixApplied: Boolean,
     ): String =
         buildList {
             add(this@withCleanupReasons)
+            if (noisePrefixApplied) add("noise_prefix")
             if (duplicateApplied) add("duplicate_prefix")
             if (overlapApplied) add("overlap_suffix")
             if (tailApplied) add("truncated_suffix")
@@ -284,7 +308,9 @@ class GameTermNormalizer {
 
     private data class Term(val term: String, val entityId: String, val entityType: String)
     private data class ScoredMatch(val score: Double, val reason: String)
+    private data class VariantMatch(val variant: GkpAsrVariant, val noisePrefixApplied: Boolean)
     private companion object {
+        const val OBSERVED_ASR = "observed_asr"
         const val EXACT_SCORE = 1.00
         const val HOMOPHONE_SCORE = 0.94
         const val EDIT_DISTANCE_SCORE = 0.88
@@ -294,6 +320,7 @@ class GameTermNormalizer {
         const val MAX_TERM_CHARS = 8
         const val MIN_EDIT_DISTANCE_TERM_CHARS = 3
         const val MAX_DIAGNOSTIC_CANDIDATES = 5
+        const val MIN_FULL_QUESTION_ASR_CHARS = 5
         const val ITEM_ENTITY_TYPE = "item"
 
         val STOP_TERMS = setOf("是谁", "在哪", "在哪里", "怎么用", "有什么用", "怎么办", "怎么打", "怎么练")
@@ -301,6 +328,7 @@ class GameTermNormalizer {
         val WHITESPACE = Regex("\\s+")
         val OBSERVED_BARE_USAGE_ITEM_TERMS = setOf("米斯里鲁")
         val WHOLE_QUESTION_ASR_TERMS = setOf("怎么玩")
+        val FULL_QUESTION_SUFFIXES = setOf("是什么", "有什么用", "怎么用", "怎么玩", "是谁", "怎么理解", "会不会剧透")
         val TRUNCATED_SUFFIXES = mapOf(
             "隐藏地" to "隐藏地点",
             "怎么有" to "怎么用",
@@ -318,6 +346,9 @@ class GameTermNormalizer {
             '步' to "bu",
             '皮' to "pi",
             '特' to "te",
+            '技' to "ji",
+            '继' to "ji",
+            '巧' to "qiao",
             '气' to "qi",
             '合' to "he",
             '和' to "he",

@@ -61,7 +61,7 @@
     {"term": "一凡是不是因", "entity_id": "npc.ivan", "weight": 0.78, "kind": "observed_asr", "source": "observed_asr", "canonical_term": "伊凡是不是伊万", "notes": "Observed MacBook-speaker Paraformer transcript for 伊凡是不是伊万."},
     {"term": "一凡是不是亿万", "entity_id": "npc.ivan", "weight": 0.78, "kind": "observed_asr", "source": "observed_asr", "canonical_term": "伊凡是不是伊万", "notes": "Observed MacBook-speaker Paraformer transcript for 伊凡是不是伊万."},
     {"term": "一凡", "entity_id": "npc.ivan", "weight": 0.72, "kind": "observed_asr", "source": "observed_asr", "canonical_term": "伊凡", "notes": "Observed ASR variant for 伊凡."},
-    {"term": "亿万", "entity_id": "npc.ivan", "weight": 0.70, "kind": "observed_asr", "source": "observed_asr", "canonical_term": "伊万", "notes": "Observed ASR variant for 伊万."},
+    {"term": "亿万", "entity_id": "npc.ivan", "weight": 0.7, "kind": "observed_asr", "source": "observed_asr", "canonical_term": "伊万", "notes": "Observed ASR variant for 伊万."},
     {"term": "Ivan", "entity_id": "npc.ivan", "weight": 1.0},
     {"term": "米娅", "entity_id": "npc.mia", "weight": 1.0},
     {"term": "米亚", "entity_id": "npc.mia", "weight": 0.9},
@@ -117,6 +117,8 @@
     {"term": "宝箱改", "entity_id": "enemy.mimic", "weight": 0.8},
     {"term": "Mimic", "entity_id": "enemy.mimic", "weight": 1.0},
     {"term": "蜥蜴人", "entity_id": "enemy.lizardman", "weight": 1.0},
-    {"term": "Lizard Man", "entity_id": "enemy.lizardman", "weight": 1.0}
+    {"term": "Lizard Man", "entity_id": "enemy.lizardman", "weight": 1.0},
+    {"canonical_term": "伊凡是不是伊万", "entity_id": "npc.ivan", "kind": "observed_asr", "notes": "Observed RG476H hotkey voice transcript for 伊凡是不是伊万.", "source": "observed_asr", "term": "依凡士不是一晚", "weight": 0.78},
+    {"canonical_term": "伊凡是不是伊万", "entity_id": "npc.ivan", "kind": "observed_asr", "notes": "Observed RG476H hotkey voice transcript for 伊凡是不是伊万; evidence build/hotkey-voice-qa/20260603-200807/results.tsv.", "source": "observed_asr", "term": "依凡是不是意碗", "weight": 0.78}
   ]
 }

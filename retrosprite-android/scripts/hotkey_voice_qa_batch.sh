@@ -272,7 +272,7 @@ preflight() {
 
   mkdir -p "$RESULTS_DIR" || fail "could not create results dir: ${RESULTS_DIR}"
   RESULTS_FILE="${RESULTS_DIR}/results.tsv"
-  printf "timestamp\tcase_name\tpack_id\tcategory\tlabel\tspoken_prompt\ttts_backend\tvoice\ttts_artifact\toverlay_transcript\toverlay_normalized_transcript\toverlay_matched_term\traw_question\tnormalized_question\tmatched_term\tmatched_entity_id\tanswer_type\tanswer_confidence\tpipeline_stage\tllm_status\tsource_ids\toverlay_phase\tfinish_reason\tasr_commit_reason\tasr_last_partial\tasr_final_text\tasr_selected_transcript\tasr_post_voice_silence_ms\tasr_partial_stable_ms\tasr_required_stable_ms\tasr_endpoint_armed\tasr_final_flush_ms\tresult\tnotes\n" > "$RESULTS_FILE"
+  printf "timestamp\tcase_name\tpack_id\tcategory\tlabel\tspoken_prompt\ttts_backend\tvoice\ttts_artifact\toverlay_transcript\toverlay_normalized_transcript\toverlay_matched_term\traw_question\tnormalized_question\tmatched_term\tmatched_entity_id\tanswer_type\tanswer_confidence\tpipeline_stage\tllm_status\tsource_ids\toverlay_phase\tfinish_reason\tasr_commit_reason\tasr_last_partial\tasr_final_text\tasr_selected_transcript\tasr_post_voice_silence_ms\tasr_partial_stable_ms\tasr_required_stable_ms\tasr_endpoint_armed\tasr_final_flush_ms\tasr_sample_count\tasr_audio_read_count\tasr_audio_read_error_count\tasr_peak_amplitude\tasr_last_frame_amplitude\tresult\tnotes\n" > "$RESULTS_FILE"
   info "Results: ${RESULTS_FILE}"
 }
 
@@ -350,12 +350,21 @@ wait_for_overlay_listening() {
     VISIBLE="$(printf "%s" "$LAST_OVERLAY" | json_field "is_visible" 2>/dev/null || true)"
     LABEL="$(printf "%s" "$LAST_OVERLAY" | json_field "label" 2>/dev/null || true)"
     MIC_LIVE="$(printf "%s" "$LAST_OVERLAY" | json_field "mic_live" 2>/dev/null || true)"
+    AUDIO_READ_COUNT="$(printf "%s" "$LAST_OVERLAY" | json_field "asr_audio_read_count" 2>/dev/null || true)"
+    AUDIO_READY="true"
+    if [ -n "$AUDIO_READ_COUNT" ] && [ "$AUDIO_READ_COUNT" != "null" ]; then
+      AUDIO_READY="false"
+      if [ "$AUDIO_READ_COUNT" -gt 0 ] 2>/dev/null; then
+        AUDIO_READY="true"
+      fi
+    fi
     if [ "$PHASE" = "listening" ] &&
        [ "$RENDER_PHASE" = "listening" ] &&
        [ "$ACTIVE" = "true" ] &&
        [ "$VISIBLE" = "true" ] &&
        [ "$LABEL" = "$EXPECTED_LABEL" ] &&
-       [ "$MIC_LIVE" = "true" ]; then
+       [ "$MIC_LIVE" = "true" ] &&
+       [ "$AUDIO_READY" = "true" ]; then
       printf "%s" "$LAST_OVERLAY"
       return 0
     fi
@@ -471,6 +480,11 @@ run_case() {
   asr_required_stable_ms="$(printf "%s" "$overlay_after" | json_field "asr_required_stable_ms" 2>/dev/null || true)"
   asr_endpoint_armed="$(printf "%s" "$overlay_after" | json_field "asr_endpoint_armed" 2>/dev/null || true)"
   asr_final_flush_ms="$(printf "%s" "$overlay_after" | json_field "asr_final_flush_ms" 2>/dev/null || true)"
+  asr_sample_count="$(printf "%s" "$overlay_after" | json_field "asr_sample_count" 2>/dev/null || true)"
+  asr_audio_read_count="$(printf "%s" "$overlay_after" | json_field "asr_audio_read_count" 2>/dev/null || true)"
+  asr_audio_read_error_count="$(printf "%s" "$overlay_after" | json_field "asr_audio_read_error_count" 2>/dev/null || true)"
+  asr_peak_amplitude="$(printf "%s" "$overlay_after" | json_field "asr_peak_amplitude" 2>/dev/null || true)"
+  asr_last_frame_amplitude="$(printf "%s" "$overlay_after" | json_field "asr_last_frame_amplitude" 2>/dev/null || true)"
 
   VALIDATION_NOTES="$stale_latest_note"
   result="PASS"
@@ -490,7 +504,7 @@ run_case() {
   fi
 
   timestamp="$(date +%Y-%m-%dT%H:%M:%S%z)"
-  printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n" \
+  printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n" \
     "$(tsv_clean "$timestamp")" \
     "$(tsv_clean "$case_name")" \
     "$(tsv_clean "$pack_id")" \
@@ -523,6 +537,11 @@ run_case() {
     "$(tsv_clean "$asr_required_stable_ms")" \
     "$(tsv_clean "$asr_endpoint_armed")" \
     "$(tsv_clean "$asr_final_flush_ms")" \
+    "$(tsv_clean "$asr_sample_count")" \
+    "$(tsv_clean "$asr_audio_read_count")" \
+    "$(tsv_clean "$asr_audio_read_error_count")" \
+    "$(tsv_clean "$asr_peak_amplitude")" \
+    "$(tsv_clean "$asr_last_frame_amplitude")" \
     "$(tsv_clean "$result")" \
     "$(tsv_clean "${VALIDATION_NOTES}${notes}")" >> "$RESULTS_FILE"
 

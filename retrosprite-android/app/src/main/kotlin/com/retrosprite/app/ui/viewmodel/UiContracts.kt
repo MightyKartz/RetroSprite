@@ -145,6 +145,11 @@ data class UiVoiceInputState(
     val asrRequiredStableMillis: Long? = null,
     val asrEndpointArmed: Boolean? = null,
     val asrFinalFlushMillis: Long? = null,
+    val asrSampleCount: Long? = null,
+    val asrAudioReadCount: Long? = null,
+    val asrAudioReadErrorCount: Long? = null,
+    val asrPeakAmplitude: Float? = null,
+    val asrLastFrameAmplitude: Float? = null,
 )
 
 /** App-side short-answer speech output state. */

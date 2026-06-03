@@ -1,6 +1,6 @@
 # RetroSprite Architecture And Product Tiers
 
-> Date: 2026-05-24
+> Date: 2026-06-01
 > Status: current documentation source of truth
 > Scope: main Android app, GKP builder, GKP Lite, expanded/deep GKP coverage, Pro commercial tier, and optional LLM boundaries.
 
@@ -34,6 +34,17 @@ offline GKP Lite baseline
 The important boundary: an enabled LLM can make answers more natural, translate,
 rewrite noisy questions, or synthesize evidence, but it must not become the
 factual source for game-specific claims.
+
+Current engineering focus is **M17.1 / M18 quality-loop closure**. The product
+shape above is already broad enough for a preview release; the next milestone
+should harden the existing hotkey voice loop, six bundled GKP packs,
+diagnostics, and BYOK screen translation instead of adding new runtime
+features. The active execution frontier is the machine-checkable M18 loop:
+refresh reports, replay the seven-row hotkey voice matrix, convert repeatable
+misses into backlog or scoped patch proposals, run GKP regression, then replay
+on RG476H. See
+`docs/superpowers/plans/2026-06-01-m18-eval-lab-gkp-quality-loop.md` and
+`docs/qa-feedback/m18-next-action-queue.md`.
 
 ## 2. Main Program
 
@@ -228,9 +239,17 @@ As of this document:
 - `shining-force-ii-md` is broader than Lite and should be classified as
   `expanded` or kept as legacy until Packs UI and preflight fully surface tiers.
 - `tools/gkp-builder` has a Lite scaffold and coverage command.
-- Six-pack runtime `/debug/ask` smoke exists.
-- Multi-pack hotkey voice QA tooling exists, but the true speaker-to-device
-  batch still needs a recorded pass before M16 is complete.
+- Six-pack runtime `/debug/ask` smoke passed on RG476H through the M17 device
+  smoke gate.
+- Multi-pack hotkey voice QA tooling now records real AudioRecord counters.
+  The current seven-row RG476H hotkey voice matrix reaches fresh
+  `hotkey_voice` submissions for every row and is narrowed to 5/7 pass with
+  two repeatable failures: one `source_mismatch` and one `asr_variant`.
+- M18 quality tooling exists for GKP coverage, gap backlog, patch proposals,
+  patch dry-run, asset mutation guard, ASR replay handoff, hotkey voice matrix
+  reporting, command-contract audit, quality-loop handoff, and aggregate status
+  reports. Manual ASR approval, the five-row screen translation manual matrix,
+  and human content-rights confirmation are not M18 aggregate gates.
 
 ## 9. Documentation Map
 
@@ -247,7 +266,9 @@ Use this file for the current architecture and tier vocabulary.
 | `../../VIRTUAL_SPIRIT_COMMERCIALIZATION_DISCUSSION.md` | Commercial split: free/community loop, Virtual Spirit Pro, Creator Pro, registry, and OEM paths. |
 | `docs/TEST_COVERAGE.md` | What is actually validated. |
 | `docs/NEXT_IMPLEMENTATION_PLAN.md` | Historical roadmap and implementation task board. |
-| `docs/superpowers/plans/2026-05-24-post-gkp-update-development-plan.md` | Current post-six-pack hardening plan. |
+| `docs/superpowers/plans/2026-06-01-release-candidate-hardening.md` | M17 release-candidate hardening plan. |
+| `docs/superpowers/plans/2026-06-01-m18-approval-gated-quality-loop.md` | Superseded historical approval-gated plan. |
+| `docs/qa-feedback/m18-status-report.md` | Current open/pass status for machine-checkable M18 GKP/eval/voice/quality-loop gates. |
 
 When documents disagree, prefer:
 
@@ -263,12 +284,17 @@ current code/tests
 
 Recommended order:
 
-1. Finish M16 true-device multi-pack hotkey voice QA.
-2. Surface `coverage_tier` in Packs UI and preflight summaries.
-3. Classify `shining-force-ii-md` as `expanded` once tier UI/tests are ready.
-4. Implement optional LLM assist as an evidence enhancer, not a factual fallback.
-5. Add answer-language support and multilingual surfaces.
-6. Add no-evidence failure inbox and builder task export.
+1. Refresh M18 reports with `./scripts/m18_offline_quality_gate.sh`.
+2. Use hotkey voice matrix misses as evidence for backlog rows or scoped patch
+   proposals; do not wait on an M18 manual ASR approval gate.
+3. Keep bundled GKP assets clean unless the user explicitly approves an exact
+   patch, then run focused GKP regression and release audit.
+4. Use `docs/qa-feedback/m18-next-action-queue.md` and
+   `docs/qa-feedback/m18-remaining-gate-handoff.md` for the current
+   machine/device frontier.
+5. Only after the RC gate is green, resume product improvements such as
+   `coverage_tier` surfacing, richer no-evidence inboxes, multilingual answer
+   surfaces, and optional LLM assist as an evidence enhancer.
 
 This keeps the project anchored: the app experience improves, the content
 pipeline scales, expanded means reviewed coverage, and Pro means paid

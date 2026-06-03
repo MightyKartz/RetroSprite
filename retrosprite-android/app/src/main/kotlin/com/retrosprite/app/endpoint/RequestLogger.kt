@@ -63,6 +63,7 @@ data class RequestLogEntry(
             errorMessage != null -> "error"
             sourceIds.isNotEmpty() -> "evidence"
             responseText.contains(GKP_DISABLED_MARKER) -> "gkp_disabled"
+            answerType == NO_EVIDENCE_ANSWER_TYPE -> "no_evidence"
             responseText.contains(NO_EVIDENCE_MARKER) -> "no_evidence"
             isDebugRequest -> "debug"
             else -> "unknown"
@@ -81,6 +82,7 @@ private const val SOURCE_PREFIX = "来源："
 private const val LOCAL_SOURCE_NOTICE_LABEL = "本地知识"
 private const val GKP_DISABLED_MARKER = "知识包已禁用"
 private const val NO_EVIDENCE_MARKER = "没有足够证据"
+private const val NO_EVIDENCE_ANSWER_TYPE = "no_evidence"
 
 private fun extractSourceIds(responseText: String): List<String> {
     val sourceLine = responseText

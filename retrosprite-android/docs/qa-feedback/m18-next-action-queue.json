@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "objective": "M18 Eval Lab + GKP Quality Loop",
+  "counts": {
+    "done": 3,
+    "ready": 0,
+    "blocked": 0
+  },
+  "action_ids_by_status": {
+    "ready": [],
+    "blocked": [],
+    "done": [
+      "rerun-device-lifecycle-row",
+      "replay-full-voice-matrix",
+      "final-m18-offline-gate"
+    ]
+  },
+  "assets_edited_by_report": false,
+  "actions": [
+    {
+      "id": "rerun-device-lifecycle-row",
+      "title": "Rerun the non-patch device lifecycle voice row",
+      "owner": "human/device",
+      "status": "done",
+      "blockers": [
+        "No open device_rerun_needed backlog row is present."
+      ],
+      "evidence": [
+        "docs/qa-feedback/gkp-backlog-triage-report.md"
+      ],
+      "command": "No device lifecycle rerun is required.",
+      "acceptance": "The rerun records a fresh hotkey_voice request or fresh overlay audio diagnostics for the device_rerun_needed row; do not edit GKP assets from this action."
+    },
+    {
+      "id": "replay-full-voice-matrix",
+      "title": "Review the observational hotkey voice matrix",
+      "owner": "human/device",
+      "status": "done",
+      "blockers": [
+        "Hotkey voice matrix is already closed."
+      ],
+      "evidence": [
+        "docs/qa-feedback/hotkey-voice-matrix-report.md"
+      ],
+      "command": "RUN_PLAYBACK=1 CONFIRM_PLAYBACK=1 \\\nCASE_FILTER=sf2_vigor_ball_observed,golden_sun_ivan_observed,chrono_marle_observed,chrono_atb_observed,ff6_magicite_observed,langrisser_commander_smoke,phantasy_star_tech_skill_smoke \\\nVOICE=Tingting SAY_RATE=96 PRE_SPEAK_SECONDS=3 POST_CASE_SECONDS=10 \\\nPOLL_ATTEMPTS=40 POLL_INTERVAL_SECONDS=2 READY_ATTEMPTS=20 READY_INTERVAL_SECONDS=1 STRICT=1 \\\n./scripts/hotkey_voice_qa_batch.sh",
+      "acceptance": "A fresh run updates `docs/qa-feedback/hotkey-voice-matrix-report.md`; repeated misses become backlog evidence, not an M18 manual approval gate."
+    },
+    {
+      "id": "final-m18-offline-gate",
+      "title": "Run the final M18 offline quality gate",
+      "owner": "agent",
+      "status": "done",
+      "blockers": [],
+      "evidence": [
+        "docs/qa-feedback/m18-completion-audit.md"
+      ],
+      "command": "./scripts/m18_offline_quality_gate.sh",
+      "acceptance": "Strict aggregate probes, script tests, release audit, diff check, approved GKP regression, and relevant real-device evidence pass."
+    }
+  ]
+}

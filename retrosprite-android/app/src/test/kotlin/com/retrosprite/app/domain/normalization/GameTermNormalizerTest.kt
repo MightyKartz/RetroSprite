@@ -266,6 +266,14 @@ class GameTermNormalizerTest {
                 canonicalTerm = "气合之玉怎么用",
             ),
             NormalizationCase(
+                raw = "契河之域怎么用",
+                expected = "气合之玉怎么用",
+                entityId = "item.vigor-ball",
+                canonical = "气合之玉",
+                asrTerm = "契河之域怎么用",
+                canonicalTerm = "气合之玉怎么用",
+            ),
+            NormalizationCase(
                 raw = "一凡事不是一",
                 expected = "伊凡是不是伊万",
                 entityId = "npc.ivan",
@@ -330,6 +338,14 @@ class GameTermNormalizerTest {
                 canonicalTerm = "玛尔是谁",
             ),
             NormalizationCase(
+                raw = "麦尔是谁",
+                expected = "玛尔是谁",
+                entityId = "npc.marle",
+                canonical = "Marle / 玛尔",
+                asrTerm = "麦尔是谁",
+                canonicalTerm = "玛尔是谁",
+            ),
+            NormalizationCase(
                 raw = "时间调战斗怎么理解",
                 expected = "时间条战斗怎么理解",
                 entityId = "mechanic.atb",
@@ -359,6 +375,22 @@ class GameTermNormalizerTest {
                 entityId = "mechanic.magicite",
                 canonical = "Magicite / 魔石",
                 asrTerm = "无石系统是什么",
+                canonicalTerm = "魔石系统是什么",
+            ),
+            NormalizationCase(
+                raw = "扶食系统是什",
+                expected = "魔石系统是什么",
+                entityId = "mechanic.magicite",
+                canonical = "Magicite / 魔石",
+                asrTerm = "扶食系统是什",
+                canonicalTerm = "魔石系统是什么",
+            ),
+            NormalizationCase(
+                raw = "我石心统是什么么",
+                expected = "魔石系统是什么",
+                entityId = "mechanic.magicite",
+                canonical = "Magicite / 魔石",
+                asrTerm = "我石心统是什么么",
                 canonicalTerm = "魔石系统是什么",
             ),
         )
@@ -443,6 +475,48 @@ class GameTermNormalizerTest {
         assertTrue(result.applied)
         assertEquals("魔石系统是什么", result.normalizedQuestion)
         assertEquals("gkp_observed_asr_variant", result.reason)
+        assertEquals("mechanic.magicite", result.matchedEntityId)
+    }
+
+    @Test
+    fun `normalizes technique homophone span`() {
+        val result = normalizer.normalize(
+            rawQuestion = "继巧和技能有什么区别",
+            rows = listOf(
+                row(
+                    entityId = "mechanic.techniques",
+                    entityType = "mechanic",
+                    canonicalName = "Techniques / 技巧",
+                    aliases = listOf("技巧"),
+                )
+            ),
+        )
+
+        assertTrue(result.applied)
+        assertEquals("技巧和技能有什么区别", result.normalizedQuestion)
+        assertEquals("技巧", result.matchedTerm)
+        assertEquals("mechanic.techniques", result.matchedEntityId)
+        assertEquals("homophone", result.reason)
+    }
+
+    @Test
+    fun `normalizes observed full question asr suffix after noisy prefix`() {
+        val result = normalizer.normalize(
+            rawQuestion = "他主要是今天要回复要要是美术生啊人准的是很娘吧同时系统是什么",
+            rows = listOf(
+                row(
+                    entityId = "mechanic.magicite",
+                    entityType = "mechanic",
+                    canonicalName = "Magicite / 魔石",
+                    aliases = listOf("魔石", "魔石系统"),
+                    aliasMetadata = listOf(asrVariant("同时系统是什么", "魔石系统是什么", "mechanic.magicite")),
+                )
+            ),
+        )
+
+        assertTrue(result.applied)
+        assertEquals("魔石系统是什么", result.normalizedQuestion)
+        assertEquals("gkp_observed_asr_variant+noise_prefix", result.reason)
         assertEquals("mechanic.magicite", result.matchedEntityId)
     }
 

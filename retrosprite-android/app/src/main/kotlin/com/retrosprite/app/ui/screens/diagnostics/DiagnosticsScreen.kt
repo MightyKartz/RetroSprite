@@ -191,9 +191,9 @@ private fun DiagnosticsContent(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-                        if (item.pipelineStage == GKP_DISABLED_STAGE) {
+                        item.diagnosticFailureExplanations().forEach { explanation ->
                             Text(
-                                text = "\u8bca\u65ad\uff1a\u5df2\u5339\u914d\u5230\u77e5\u8bc6\u5305\uff0c\u4f46\u8be5\u5305\u5df2\u5728 Packs \u4e2d\u7981\u7528\uff1b\u672c\u6b21\u6ca1\u6709\u8bfb\u53d6\u77e5\u8bc6\u6216\u8c03\u7528 LLM\u3002",
+                                text = "诊断：${explanation.title} · ${explanation.message}",
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.error
                             )
@@ -619,7 +619,6 @@ private fun relTime(ts: Long): String {
     }
 }
 
-private const val GKP_DISABLED_STAGE: String = "gkp_disabled"
 private const val QUESTION_SOURCE_PENDING_HOTKEY: String = "pending_hotkey"
 private const val SOURCE_FILTERS_PER_ROW: Int = 2
 

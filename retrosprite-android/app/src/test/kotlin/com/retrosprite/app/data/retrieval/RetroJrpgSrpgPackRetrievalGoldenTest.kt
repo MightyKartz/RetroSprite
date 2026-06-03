@@ -148,6 +148,175 @@ class RetroJrpgSrpgPackRetrievalGoldenTest {
         assertTrue(failures.joinToString(separator = "\n"), failures.isEmpty())
     }
 
+    @Test
+    fun `observed ff6 magicite voice transcript normalizes from bundled gkp metadata`() = runTest {
+        val fixture = loadPack("final-fantasy-vi-snes-zh")
+
+        val result = GameTermNormalizer().normalize("五十系统是什么", fixture.knowledge)
+
+        assertTrue("五十系统是什么 should apply a scoped FF6 observed ASR alias", result.applied)
+        assertEquals("魔石系统是什么", result.normalizedQuestion)
+        assertEquals("mechanic.magicite", result.matchedEntityId)
+    }
+
+    @Test
+    fun `observed ff6 noisy magicite voice transcript normalizes from bundled gkp metadata`() = runTest {
+        val fixture = loadPack("final-fantasy-vi-snes-zh")
+
+        val result = GameTermNormalizer().normalize(
+            "他主要是今天要回复要要是美术生啊人准的是很娘吧同时系统是什么",
+            fixture.knowledge,
+        )
+
+        assertTrue("noisy observed FF6 transcript should apply a scoped observed ASR alias", result.applied)
+        assertEquals("魔石系统是什么", result.normalizedQuestion)
+        assertEquals("mechanic.magicite", result.matchedEntityId)
+    }
+
+    @Test
+    fun `observed ff6 clipped magicite voice transcript normalizes from bundled gkp metadata`() = runTest {
+        val fixture = loadPack("final-fantasy-vi-snes-zh")
+
+        val result = GameTermNormalizer().normalize("扶食系统是什", fixture.knowledge)
+
+        assertTrue("clipped observed FF6 transcript should apply a scoped observed ASR alias", result.applied)
+        assertEquals("魔石系统是什么", result.normalizedQuestion)
+        assertEquals("mechanic.magicite", result.matchedEntityId)
+    }
+
+    @Test
+    fun `observed ff6 duplicated magicite voice transcript normalizes from bundled gkp metadata`() = runTest {
+        val fixture = loadPack("final-fantasy-vi-snes-zh")
+
+        val result = GameTermNormalizer().normalize("我石心统是什么么", fixture.knowledge)
+
+        assertTrue("duplicated observed FF6 transcript should apply a scoped observed ASR alias", result.applied)
+        assertEquals("魔石系统是什么", result.normalizedQuestion)
+        assertEquals("mechanic.magicite", result.matchedEntityId)
+    }
+
+    @Test
+    fun `observed golden sun ivan bowl voice transcript normalizes from bundled gkp metadata`() = runTest {
+        val fixture = loadPack("golden-sun-gba-zh")
+
+        val result = GameTermNormalizer().normalize("依凡是不是意碗", fixture.knowledge)
+
+        assertTrue("observed Golden Sun Ivan transcript should apply a scoped observed ASR alias", result.applied)
+        assertEquals("伊凡是不是伊万", result.normalizedQuestion)
+        assertEquals("npc.ivan", result.matchedEntityId)
+    }
+
+    @Test
+    fun `observed ff6 clipped heshi magicite voice transcript normalizes from bundled gkp metadata`() = runTest {
+        val fixture = loadPack("final-fantasy-vi-snes-zh")
+
+        val result = GameTermNormalizer().normalize("核实系是什", fixture.knowledge)
+
+        assertTrue("latest clipped FF6 transcript should apply a scoped observed ASR alias", result.applied)
+        assertEquals("魔石系统是什么", result.normalizedQuestion)
+        assertEquals("mechanic.magicite", result.matchedEntityId)
+    }
+
+    @Test
+    fun `observed ff6 guoshi magicite voice transcript normalizes from bundled gkp metadata`() = runTest {
+        val fixture = loadPack("final-fantasy-vi-snes-zh")
+
+        val result = GameTermNormalizer().normalize("国时系统是什么", fixture.knowledge)
+
+        assertTrue("latest FF6 transcript should apply a scoped observed ASR alias", result.applied)
+        assertEquals("魔石系统是什么", result.normalizedQuestion)
+        assertEquals("mechanic.magicite", result.matchedEntityId)
+    }
+
+    @Test
+    fun `observed ff6 guoshi number magicite voice transcript normalizes from bundled gkp metadata`() = runTest {
+        val fixture = loadPack("final-fantasy-vi-snes-zh")
+
+        val result = GameTermNormalizer().normalize("国十系统是什么", fixture.knowledge)
+
+        assertTrue("latest FF6 number transcript should apply a scoped observed ASR alias", result.applied)
+        assertEquals("魔石系统是什么", result.normalizedQuestion)
+        assertEquals("mechanic.magicite", result.matchedEntityId)
+    }
+
+    @Test
+    fun `observed ps4 technique skill transcript resolves to techniques mechanic source first`() = runTest {
+        val fixture = loadPack("phantasy-star-iv-md-zh")
+        val pipeline = LocalKnowledgeRetrievalPipeline(FixtureKnowledgeRepository(fixture.knowledge))
+        val normalizedQuestion = GameTermNormalizer()
+            .normalize(pipeline.normalizeQuestion("气巧和技能有什么区别", "zh"), fixture.knowledge)
+            .normalizedQuestion
+
+        val results = pipeline.retrieve(
+            RetrievalQuery(
+                gameId = "phantasy_star_iv_md",
+                normalizedQuery = normalizedQuestion,
+                language = "zh",
+                progressGate = null,
+                spoilerLevel = SpoilerLevel.LIGHT,
+                limit = 5,
+            )
+        )
+
+        val first = results.firstOrNull()
+        assertEquals("技巧和技能有什么区别", normalizedQuestion)
+        assertEquals("mechanic.techniques", first?.entityId)
+        assertEquals(AnswerType.Mechanic, first?.answerType)
+        assertEquals("ps4.techniques_wiki", first?.evidence?.firstOrNull()?.sourceId)
+    }
+
+    @Test
+    fun `observed ps4 technique homophone transcript resolves to techniques mechanic source first`() = runTest {
+        val fixture = loadPack("phantasy-star-iv-md-zh")
+        val pipeline = LocalKnowledgeRetrievalPipeline(FixtureKnowledgeRepository(fixture.knowledge))
+        val normalizedQuestion = GameTermNormalizer()
+            .normalize(pipeline.normalizeQuestion("继巧和技能有什么区别", "zh"), fixture.knowledge)
+            .normalizedQuestion
+
+        val results = pipeline.retrieve(
+            RetrievalQuery(
+                gameId = "phantasy_star_iv_md",
+                normalizedQuery = normalizedQuestion,
+                language = "zh",
+                progressGate = null,
+                spoilerLevel = SpoilerLevel.LIGHT,
+                limit = 5,
+            )
+        )
+
+        val first = results.firstOrNull()
+        assertEquals("技巧和技能有什么区别", normalizedQuestion)
+        assertEquals("mechanic.techniques", first?.entityId)
+        assertEquals(AnswerType.Mechanic, first?.answerType)
+        assertEquals("ps4.techniques_wiki", first?.evidence?.firstOrNull()?.sourceId)
+    }
+
+    @Test
+    fun `observed ps4 clipped technique transcript resolves to techniques mechanic source first`() = runTest {
+        val fixture = loadPack("phantasy-star-iv-md-zh")
+        val pipeline = LocalKnowledgeRetrievalPipeline(FixtureKnowledgeRepository(fixture.knowledge))
+        val normalizedQuestion = GameTermNormalizer()
+            .normalize(pipeline.normalizeQuestion("记巧和技能有什么区", "zh"), fixture.knowledge)
+            .normalizedQuestion
+
+        val results = pipeline.retrieve(
+            RetrievalQuery(
+                gameId = "phantasy_star_iv_md",
+                normalizedQuery = normalizedQuestion,
+                language = "zh",
+                progressGate = null,
+                spoilerLevel = SpoilerLevel.LIGHT,
+                limit = 5,
+            )
+        )
+
+        val first = results.firstOrNull()
+        assertEquals("技巧和技能有什么区别", normalizedQuestion)
+        assertEquals("mechanic.techniques", first?.entityId)
+        assertEquals(AnswerType.Mechanic, first?.answerType)
+        assertEquals("ps4.techniques_wiki", first?.evidence?.firstOrNull()?.sourceId)
+    }
+
     private data class Pack(
         val slug: String,
     )
@@ -343,8 +512,22 @@ class RetroJrpgSrpgPackRetrievalGoldenTest {
             RuntimeWordingCase(
                 packSlug = "shining-force-ii-md",
                 gameId = "shining_force_ii_md",
+                question = "契河之域怎么用",
+                expectedEntityId = "item.vigor-ball",
+                expectedType = AnswerType.Usage,
+            ),
+            RuntimeWordingCase(
+                packSlug = "shining-force-ii-md",
+                gameId = "shining_force_ii_md",
                 question = "红男爵是谁？",
                 expectedEntityId = "boss.red-baron",
+                expectedType = AnswerType.NameMapping,
+            ),
+            RuntimeWordingCase(
+                packSlug = "chrono-trigger-snes-zh",
+                gameId = "chrono_trigger_snes",
+                question = "麦尔是谁",
+                expectedEntityId = "npc.marle",
                 expectedType = AnswerType.NameMapping,
             ),
         )

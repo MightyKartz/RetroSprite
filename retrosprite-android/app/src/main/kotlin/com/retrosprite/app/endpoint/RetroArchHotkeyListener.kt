@@ -8,6 +8,7 @@ data class RetroArchHotkeyEvent(
     val imageBytes: Int,
     val paused: Boolean,
     val imageBase64: String = "",
+    val injectedQuestion: String = "",
     val receivedAtMillis: Long = System.currentTimeMillis(),
 )
 
@@ -29,5 +30,12 @@ internal fun RetroArchRequest.toHotkeyEvent(
         imageBytes = RequestLogger.decodedBase64Length(image),
         paused = state.isPaused,
         imageBase64 = image,
+        injectedQuestion = question
+            .trim()
+            .takeIf { outputMode.allowsDebugInjectedQuestion() }
+            .orEmpty(),
         receivedAtMillis = receivedAtMillis,
     )
+
+private fun String.allowsDebugInjectedQuestion(): Boolean =
+    startsWith("hotkey_voice_debug")

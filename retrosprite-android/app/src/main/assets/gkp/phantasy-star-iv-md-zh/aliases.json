@@ -99,6 +99,8 @@
     {"term": "生物怪物", "entity_id": "enemy.biomonster", "weight": 0.8},
     {"term": "机械敌人", "entity_id": "enemy.machine", "weight": 1.0},
     {"term": "机器人敌人", "entity_id": "enemy.machine", "weight": 0.9},
-    {"term": "机械怪", "entity_id": "enemy.machine", "weight": 0.8}
+    {"term": "机械怪", "entity_id": "enemy.machine", "weight": 0.8},
+    {"canonical_term": "技巧和技能有什么区别", "entity_id": "mechanic.techniques", "kind": "observed_asr", "notes": "Observed RG476H hotkey voice transcript for 技巧和技能有什么区别.", "source": "observed_asr", "term": "气巧和技能有什么区别", "weight": 0.78},
+    {"canonical_term": "技巧和技能有什么区别", "entity_id": "mechanic.techniques", "kind": "observed_asr", "notes": "Observed RG476H hotkey voice transcript with clipped tail for 技巧和技能有什么区别; evidence build/hotkey-voice-qa/20260603-200807/results.tsv.", "source": "observed_asr", "term": "记巧和技能有什么区", "weight": 0.78}
   ]
 }

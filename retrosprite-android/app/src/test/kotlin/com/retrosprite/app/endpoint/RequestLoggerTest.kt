@@ -57,4 +57,26 @@ class RequestLoggerTest {
         assertEquals("evidence", entry.pipelineStage)
         assertEquals("skipped", entry.llmStatus)
     }
+
+    @Test
+    fun `classifies no evidence from diagnostics when retry copy omits old marker`() {
+        val logger = RequestLogger()
+
+        val entry = logger.log(
+            label = "super_nintendo__Final Fantasy VI (USA)",
+            imageBase64 = "",
+            paused = true,
+            outputMode = "hotkey_voice:text",
+            responseText = "没听清这个问题，可以再按一次热键重问。",
+            diagnostics = ResponseDiagnostics(
+                answerType = "no_evidence",
+                llmStatus = "skipped",
+            ),
+            question = "怎么获",
+            questionSource = "hotkey_voice",
+        )
+
+        assertEquals("no_evidence", entry.pipelineStage)
+        assertEquals("skipped", entry.llmStatus)
+    }
 }

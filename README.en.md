@@ -1,10 +1,12 @@
 # RetroSprite
 
-[中文（默认）](./README.md) | English
+[Chinese README (default)](./README.md) | English
 
-RetroSprite is an Android in-game Q&A companion for **RetroArch**. A player presses
-the RetroArch AI Service hotkey, asks a short question by voice, and receives a
-low-spoiler answer grounded in local Game Knowledge Packs (GKP).
+RetroSprite is an Android in-game Q&A and screen-translation companion for
+**RetroArch**. A player presses the RetroArch AI Service hotkey, asks a short
+voice question, or says "translate" for the current paused screen. Normal Q&A is
+grounded in local Game Knowledge Packs (GKP); screen translation runs only when
+the player explicitly asks for it and uses the player's own BYOK API settings.
 
 ```text
 RetroArch AI Service hotkey
@@ -16,16 +18,24 @@ RetroArch AI Service hotkey
   -> short answer or full-screen Chinese translation HUD
 ```
 
-RetroSprite is local-first and evidence-first. Optional BYOK LLM providers can help
-with synthesis or phrasing, but they are not the default fact source and are not
-allowed to answer game-specific facts without local evidence.
+RetroSprite is local-first, evidence-first, and low-spoiler by default. Optional
+BYOK LLM providers can help with synthesis or phrasing, but they are not the
+default fact source and are not allowed to answer game-specific facts without
+local evidence.
 
 ## Status
 
-RetroSprite is in a preview / release-candidate testing phase. The hotkey voice
-overlay, local ASR, GKP retrieval, on-demand current-screen translation,
-short-answer TTS, diagnostics, and six bundled real game packs are the current
-focus.
+RetroSprite is in the M17.1 / M18 release-candidate hardening phase. The hotkey
+voice overlay, local ASR, GKP retrieval, on-demand current-screen translation,
+short-answer TTS, diagnostics, and six bundled real game packs now form the
+current runnable loop.
+
+The latest work focuses on real-device reproducibility: debug hotkey requests can
+inject a question through the same overlay path, ASR now records sample counts,
+audio read counts, read errors, peak amplitude, and last-frame amplitude,
+Diagnostics explains ASR / GKP / screenshot / BYOK API / permission / timeout
+failures, and observed RG476H voice transcripts are turned into scoped GKP
+aliases plus golden regressions.
 
 This is not a universal walkthrough bot. Use it only with the supported games below
 unless you are developing or testing new GKPs.
@@ -109,7 +119,7 @@ Settings -> Input -> Hotkeys -> AI Service
    GKP, and returns a short low-spoiler answer with evidence.
 6. If local evidence is missing, RetroSprite says it cannot answer reliably
    instead of guessing.
-7. If you say `翻译一下`, `读一下`, `这是什么意思`, or `translate this`,
+7. If you say `翻译`, `翻译一下`, `读一下`, `这是什么意思`, or `translate this`,
    RetroSprite sends the current paused screenshot to your configured BYOK screen
    translation API and shows the Chinese translation in the in-game HUD.
 
@@ -121,6 +131,7 @@ Example questions:
 - `梦幻模拟战 II 转职怎么选？`
 - `克拉肯怎么过？`
 - `不要剧透，下一步去哪？`
+- `翻译。`
 - `翻译一下。`
 - `读一下这段。`
 - `translate this.`
@@ -130,7 +141,7 @@ Example questions:
 - **Home**: endpoint status, text questions, recent context, and debug actions.
 - **Packs**: bundled and external GKP management.
 - **Settings**: RetroArch setup helper, endpoint port, overlay permission, spoiler level, BYOK LLM settings, and BYOK screen translation API settings.
-- **Diagnostics**: latest request, pipeline stage, source ids, LLM status, latency, feedback, and errors.
+- **Diagnostics**: latest request, pipeline stage, source ids, LLM status, latency, ASR audio metrics, failure explanations, feedback, and errors.
 
 Screen translation is API-only in this release. Choose a SiliconFlow,
 OpenRouter, or custom OpenAI-compatible template in Settings, then enter your own

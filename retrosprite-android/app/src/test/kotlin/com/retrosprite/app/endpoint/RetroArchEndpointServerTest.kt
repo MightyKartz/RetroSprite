@@ -110,6 +110,58 @@ class RetroArchEndpointServerTest {
     }
 
     @Test
+    fun `regular hotkey voice output ignores request question injection`() = testApplication {
+        val logger = RequestLogger()
+        val events = mutableListOf<RetroArchHotkeyEvent>()
+        val listener = RetroArchHotkeyListener { event -> events += event }
+        application { retroArchModule(PlaceholderResponseGenerator(), logger, listener) }
+
+        val resp = client.post("/?output=hotkey_voice:text") {
+            contentType(ContentType.Application.Json)
+            setBody(
+                """
+                {
+                  "image": "dGVzdA==",
+                  "label": "snes__Final Fantasy VI",
+                  "question": "翻译",
+                  "state": { "paused": 1 }
+                }
+                """.trimIndent()
+            )
+        }
+
+        assertEquals(HttpStatusCode.OK, resp.status)
+        assertEquals(1, events.size)
+        assertEquals("", events.single().injectedQuestion)
+    }
+
+    @Test
+    fun `debug hotkey voice output carries an injected question for qa only`() = testApplication {
+        val logger = RequestLogger()
+        val events = mutableListOf<RetroArchHotkeyEvent>()
+        val listener = RetroArchHotkeyListener { event -> events += event }
+        application { retroArchModule(PlaceholderResponseGenerator(), logger, listener) }
+
+        val resp = client.post("/?output=hotkey_voice_debug:text") {
+            contentType(ContentType.Application.Json)
+            setBody(
+                """
+                {
+                  "image": "dGVzdA==",
+                  "label": "snes__Final Fantasy VI",
+                  "question": "翻译",
+                  "state": { "paused": 1 }
+                }
+                """.trimIndent()
+            )
+        }
+
+        assertEquals(HttpStatusCode.OK, resp.status)
+        assertEquals(1, events.size)
+        assertEquals("翻译", events.single().injectedQuestion)
+    }
+
+    @Test
     fun `debug ask does not notify hotkey listener`() = testApplication {
         val logger = RequestLogger()
         val events = mutableListOf<RetroArchHotkeyEvent>()
@@ -397,6 +449,11 @@ class RetroArchEndpointServerTest {
                         asr_required_stable_ms = 650L,
                         asr_endpoint_armed = true,
                         asr_final_flush_ms = 2_000L,
+                        asr_sample_count = 48_000L,
+                        asr_audio_read_count = 12L,
+                        asr_audio_read_error_count = 0L,
+                        asr_peak_amplitude = 0.18f,
+                        asr_last_frame_amplitude = 0.04f,
                         started_at = 10_000L,
                         finished_at = 12_345L,
                         finish_reason = "answer_completed",
@@ -433,6 +490,11 @@ class RetroArchEndpointServerTest {
         assertEquals(650L, parsed.asr_required_stable_ms)
         assertEquals(true, parsed.asr_endpoint_armed)
         assertEquals(2_000L, parsed.asr_final_flush_ms)
+        assertEquals(48_000L, parsed.asr_sample_count)
+        assertEquals(12L, parsed.asr_audio_read_count)
+        assertEquals(0L, parsed.asr_audio_read_error_count)
+        assertEquals(0.18f, parsed.asr_peak_amplitude)
+        assertEquals(0.04f, parsed.asr_last_frame_amplitude)
         assertEquals(12_345L, parsed.finished_at)
         assertEquals("answer_completed", parsed.finish_reason)
     }

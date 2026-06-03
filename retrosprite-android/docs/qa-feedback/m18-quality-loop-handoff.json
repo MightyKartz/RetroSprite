@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "objective": "M18 Eval Lab + GKP Quality Loop",
+  "loop_status": "ready_for_ongoing_rc_cycle",
+  "overall_status": "pass",
+  "paths": {
+    "gate_status": "docs/qa-feedback/m18-gate-status.json",
+    "action_queue": "docs/qa-feedback/m18-next-action-queue.json",
+    "backlog": "docs/qa-feedback/gkp-quality-backlog.md",
+    "manual_notes_template": "docs/qa-feedback/gkp-manual-notes-template.tsv"
+  },
+  "open_areas": [],
+  "action_ids_by_status": {
+    "ready": [],
+    "blocked": [],
+    "done": [
+      "rerun-device-lifecycle-row",
+      "replay-full-voice-matrix",
+      "final-m18-offline-gate"
+    ]
+  },
+  "counts": {
+    "open_areas": 0,
+    "ready": 0,
+    "blocked": 0,
+    "done": 3
+  },
+  "current_loop_state": {
+    "gkp_backlog": "items=10; triage_items=10; triage_status=covered_by_applied_patch=7, covered_by_device_rerun=1, covered_by_existing_golden=2; triage_categories=asr_patch_applied=7, device_rerun_passed=1, policy_golden_existing=2; review_packet_rows=7; triage_open=0; manual_asr_approval_required=no; raw_tags=voice_lifecycle_gap=1, coverage_gap=7, alias_gap=5, ranking_gap=2, asr_variant=6, spoiler_gate_gap=2",
+    "hotkey_voice_matrix": "gate=observational; total=7; observed_rows=7; strict_pass=no; pass=4; fail=3; blocked=0; not_run=0; missing=0; categories=asr_variant=1, source_mismatch=2; results=build/hotkey-voice-qa/20260603-200807/results.tsv"
+  },
+  "safe_import_sources": [
+    "/debug/latest-request JSON",
+    "build/hotkey-voice-qa/<run>/results.tsv",
+    "Manual tester notes TSV"
+  ],
+  "preview_backlog_commands": [
+    {
+      "id": "latest_request",
+      "input": "build/rc-device-evidence/YYYYMMDD-HHMMSS/latest-request.json",
+      "output": "build/m18-latest-request-backlog-preview.md",
+      "merge_existing_backlog": "docs/qa-feedback/gkp-quality-backlog.md",
+      "command": "python3 scripts/gkp_gap_backlog.py \\\n  --input build/rc-device-evidence/YYYYMMDD-HHMMSS/latest-request.json \\\n  --merge-existing-backlog docs/qa-feedback/gkp-quality-backlog.md \\\n  --output build/m18-latest-request-backlog-preview.md"
+    },
+    {
+      "id": "voice_qa",
+      "input": "build/hotkey-voice-qa/YYYYMMDD-HHMMSS/results.tsv",
+      "output": "build/m18-voice-backlog-preview.md",
+      "merge_existing_backlog": "docs/qa-feedback/gkp-quality-backlog.md",
+      "command": "python3 scripts/gkp_gap_backlog.py \\\n  --input build/hotkey-voice-qa/YYYYMMDD-HHMMSS/results.tsv \\\n  --merge-existing-backlog docs/qa-feedback/gkp-quality-backlog.md \\\n  --output build/m18-voice-backlog-preview.md"
+    },
+    {
+      "id": "manual_notes_template",
+      "output": "docs/qa-feedback/gkp-manual-notes-template.tsv",
+      "command": "python3 scripts/gkp_gap_backlog.py \\\n  --manual-notes-template-output docs/qa-feedback/gkp-manual-notes-template.tsv"
+    },
+    {
+      "id": "manual_notes_preview",
+      "input": "docs/qa-feedback/gkp-manual-notes-template.tsv",
+      "output": "build/m18-manual-notes-backlog-preview.md",
+      "merge_existing_backlog": "docs/qa-feedback/gkp-quality-backlog.md",
+      "command": "python3 scripts/gkp_gap_backlog.py \\\n  --input docs/qa-feedback/gkp-manual-notes-template.tsv \\\n  --merge-existing-backlog docs/qa-feedback/gkp-quality-backlog.md \\\n  --output build/m18-manual-notes-backlog-preview.md"
+    },
+    {
+      "id": "manual_notes_apply_after_review",
+      "input": "docs/qa-feedback/gkp-manual-notes-template.tsv",
+      "output": "docs/qa-feedback/gkp-quality-backlog.md",
+      "merge_existing_backlog": "docs/qa-feedback/gkp-quality-backlog.md",
+      "command": "python3 scripts/gkp_gap_backlog.py \\\n  --input docs/qa-feedback/gkp-manual-notes-template.tsv \\\n  --merge-existing-backlog docs/qa-feedback/gkp-quality-backlog.md \\\n  --output docs/qa-feedback/gkp-quality-backlog.md"
+    }
+  ],
+  "fix_acceptance_rules": [
+    "Every accepted GKP fix needs source ids and a regression target.",
+    "Alias or ASR fixes must be scoped to the current game pack and add or update at least one golden.",
+    "Translation failures should first become reproducible screen matrix rows or backlog rows before UI/model changes.",
+    "Voice-originated fixes require real-device replay after local regression.",
+    "Do not add new game content until the current six bundled packs complete one full green RC pass.",
+    "Prefer retrieval, aliases, ASR variants, screen grouping, diagnostics, and evidence quality before adding provider/model surface area."
+  ],
+  "contract": {
+    "preview_first_backlog_imports": true,
+    "merge_existing_backlog": true,
+    "latest_request_preview": true,
+    "voice_qa_preview": true,
+    "manual_notes_preview": true,
+    "fix_acceptance_rules": true,
+    "voice_replay_required": true,
+    "no_new_games_until_green_rc": true
+  },
+  "verification": {
+    "safe_default": "./scripts/m18_offline_quality_gate.sh",
+    "final_quality_gate": "./scripts/m18_offline_quality_gate.sh"
+  },
+  "assets_edited_by_handoff": false
+}

@@ -6,9 +6,15 @@
 >
 > 仓库首页版 README 见 [../README.md](../README.md)；本文保留 Android App 的详细构建、联调和目录说明。
 
-**当前阶段：M10/M11 · Hotkey Voice Overlay + Zero-LLM GKP**
+**当前阶段：M17.1 / M18 收口 · Release Candidate Quality Loop**
 
-**后续方向：GKP Lite + Optional BYOK LLM。**每个游戏的首个支持版本不再要求完整攻略级 GKP，而是先做轻量、可信、可测试的 GKP Lite；外部 LLM 继续由玩家自主选择是否启用、使用什么 provider/model，只作为证据综合、跨语言映射和表达增强层。没有 LLM 时 RetroSprite 仍应离线可用；没有本地证据时不允许 LLM 裸答具体攻略事实。
+**当前开发重点：冻结功能面，用 M18 质量闭环关闭 M17.1 真实设备风险。**热键语音问答、GKP 本地检索、BYOK 画面翻译、设置/诊断和 6 个内置真实游戏包都已经形成可运行闭环；下一步不扩模型、不扩 GKP、不加大 UI 面，而是把真实失败样本转成 backlog、patch proposal、golden regression 和真机 replay。详见 [M18 Eval Lab And GKP Quality Loop Plan](./docs/superpowers/plans/2026-06-01-m18-eval-lab-gkp-quality-loop.md)。
+
+**当前阻塞：M18 Hotkey voice matrix 仍有 2 条失败行。**2026-06-02 RG476H endpoint/GKP smoke 已通过；新的 AudioRecord 诊断显示早前 `muted_recovery / blank_partial` 主要由 Mac 播放音量过低导致。当前 7 条 hotkey voice matrix 已全部提交 fresh `hotkey_voice` 请求并通过 5/7；剩余失败是 `source_mismatch` 和 `asr_variant`，记录在 [hotkey voice matrix report](./docs/qa-feedback/hotkey-voice-matrix-report.md)。下一步只围绕这 2 条失败做 evidence -> backlog -> scoped patch proposal -> regression -> real-device replay。
+
+**M17 之后的下一阶段：M18 Eval Lab + GKP Quality Loop。**M18 不扩新游戏、不改默认模型路线，而是把真实玩家问题、无 evidence、ASR 误识别和 GKP 覆盖缺口转成可复现的评测报告、backlog、GKP patch proposal 和 golden 回归。详见 [M18 Eval Lab And GKP Quality Loop Plan](./docs/superpowers/plans/2026-06-01-m18-eval-lab-gkp-quality-loop.md)。2026-06-02 起，M18 不再包含人工 ASR 审批、5 个屏幕翻译手工矩阵、内容版权人工确认；这些可以作为 release/QA 事项保留，但不属于 M18 aggregate status、next-action queue 或 offline gate。
+
+**后续方向仍是：GKP Lite + Optional BYOK LLM。**每个游戏的首个支持版本不再要求完整攻略级 GKP，而是先做轻量、可信、可测试的 GKP Lite；外部 LLM 继续由玩家自主选择是否启用、使用什么 provider/model，只作为证据综合、跨语言映射和表达增强层。没有 LLM 时 RetroSprite 仍应离线可用；没有本地证据时不允许 LLM 裸答具体攻略事实。
 
 RetroArch AI Service → Android 本地 endpoint → 热键唤醒 RetroSprite 游戏内语音 overlay → 本地 ASR → GKP/AnswerPolicy → 短答 TTS 这条主路径已经接通并进入体验打磨。Home 页文字提问、pending hotkey 问题和 debug curl 仍保留为设置验证与开发 fallback；玩家主体验应是在 RetroArch 中按热键呼出科技感语音波形，不需要频繁回到 App 里操作。
 
@@ -17,7 +23,7 @@ int8 三件套（`encoder.int8.onnx`、`decoder.int8.onnx`、`tokens.txt`），
 通过 sherpa-onnx `OnlineParaformerModelConfig` 做本地 streaming ASR。该路径不启用
 sherpa 原生热词；游戏专属名词靠当前 GKP 的别名/ASR 变体和
 `GameTermNormalizer` 做游戏域内修复，不能退化成跨游戏全局替换。Paraformer 资产约
-226 MB；2026-05-24 本地 `assembleDebug` 产物为 276 MB，APK 内未再打包旧
+226 MB；2026-06-01 本地 `assembleDebug` 产物约 251 MB，APK 内未再打包旧
 14M Zipformer 资产。真机可用性仍以 RG476H 安装、启动、录音和连续问答测试为准。
 
 **当前真实支持游戏：仅 6 个。**RetroSprite 目前内置支持：
@@ -27,6 +33,8 @@ sherpa 原生热词；游戏专属名词靠当前 GKP 的别名/ASR 变体和
 **Langrisser II / 梦幻模拟战 II**（`community.langrisser-ii-md-zh`）、
 **Chrono Trigger / 时空之轮**（`community.chrono-trigger-snes-zh`），以及
 **Final Fantasy VI / 最终幻想 VI**（`community.final-fantasy-vi-snes-zh`）。这是当前完整正式游戏支持范围；`sample-2048` 和 `sample-relay-station` 已从 bundled assets 移除，开发和冒烟测试应使用真实游戏 GKP。
+
+当前内置 GKP 规模约为 347 条 knowledge row 与 337 条 golden；发布前必须保持这些 goldens、端点 smoke 和 hotkey voice matrix 可解释、可回归。
 
 ---
 
@@ -98,9 +106,31 @@ adb forward tcp:4404 tcp:4404
 | [docs/GKP_LITE_OPTIONAL_LLM_DIRECTION.md](./docs/GKP_LITE_OPTIONAL_LLM_DIRECTION.md) | GKP Lite + 玩家可选 LLM 的后续产品与架构方向 |
 | [docs/REAL_GAME_GKP_EXPANSION_TEMPLATE.md](./docs/REAL_GAME_GKP_EXPANSION_TEMPLATE.md) | 真实游戏 GKP Lite 生产模板、覆盖层级与验收标准 |
 | [docs/NEXT_IMPLEMENTATION_PLAN.md](./docs/NEXT_IMPLEMENTATION_PLAN.md) | 下一阶段实施计划、任务板与验证门槛 |
+| [docs/superpowers/plans/2026-06-01-release-candidate-hardening.md](./docs/superpowers/plans/2026-06-01-release-candidate-hardening.md) | M17 Release Candidate Hardening 可执行计划 |
+| [docs/superpowers/plans/2026-06-01-m17-hotkey-voice-lifecycle-recovery.md](./docs/superpowers/plans/2026-06-01-m17-hotkey-voice-lifecycle-recovery.md) | M17.1 热键语音生命周期恢复计划 |
+| [docs/superpowers/plans/2026-06-01-m18-eval-lab-gkp-quality-loop.md](./docs/superpowers/plans/2026-06-01-m18-eval-lab-gkp-quality-loop.md) | M18 Eval Lab + GKP 质量闭环实施计划 |
+| [docs/superpowers/plans/2026-06-01-m18-approval-gated-quality-loop.md](./docs/superpowers/plans/2026-06-01-m18-approval-gated-quality-loop.md) | 已被 2026-06-02 M18 范围更新取代的历史计划 |
+| [docs/RELEASE_CANDIDATE_CHECKLIST.md](./docs/RELEASE_CANDIDATE_CHECKLIST.md) | M17 preview release 出包前检查清单 |
+| [docs/qa-feedback/m18-status-report.md](./docs/qa-feedback/m18-status-report.md) | M18 GKP 覆盖、backlog、patch dry-run、hotkey voice 和 quality-loop 汇总状态 |
+| [docs/qa-feedback/m18-gate-status.json](./docs/qa-feedback/m18-gate-status.json) | M18 gate 状态的机器可读 JSON 摘要 |
+| [docs/qa-feedback/m18-plan-execution-audit.md](./docs/qa-feedback/m18-plan-execution-audit.md) | M18 主计划 checkbox 与 aggregate gate 的执行状态审计，并生成机器可读 JSON |
+| [docs/qa-feedback/m18-completion-audit.md](./docs/qa-feedback/m18-completion-audit.md) | M18 完成性审计：逐项列出 plan、aggregate gate、机器/实机证据和最终 strict gate 是否足以证明完成，并生成机器可读 JSON |
+| [docs/qa-feedback/m18-next-action-queue.md](./docs/qa-feedback/m18-next-action-queue.md) | M18 下一步行动队列：仅保留当前机器/设备 gate 的 owner、ready/blocked、阻塞条件、证据和命令 |
+| [docs/qa-feedback/m18-quality-loop-handoff.md](./docs/qa-feedback/m18-quality-loop-handoff.md) | M18 持续质量闭环交接：preview-first backlog 导入入口、修复验收规则和新增游戏冻结规则，并生成机器可读 JSON |
+| [docs/qa-feedback/m18-command-contract-audit.md](./docs/qa-feedback/m18-command-contract-audit.md) | M18 生成命令契约审计：覆盖 queue、quality-loop JSON、plan execution JSON、completion JSON、remaining handoff、offline gate、README、Architecture、NEXT 和 TEST_COVERAGE |
+| [docs/qa-feedback/m18-remaining-gate-handoff.md](./docs/qa-feedback/m18-remaining-gate-handoff.md) | M18 剩余机器/设备 gate 总交接 |
+| [docs/qa-feedback/hotkey-voice-matrix-report.md](./docs/qa-feedback/hotkey-voice-matrix-report.md) | M18 热键语音 7 条实机 playback matrix 的 pass/fail、ASR transcript 和失败分类报告 |
+| [docs/qa-feedback/gkp-asset-mutation-guard.md](./docs/qa-feedback/gkp-asset-mutation-guard.md) | M18 内置 GKP 资产变更门禁，确保资产保持 clean；只有用户明确批准 exact patch 后才允许预期 alias/golden 文件变更 |
+| [docs/qa-feedback/gkp-patch-regression-gate-readiness.md](./docs/qa-feedback/gkp-patch-regression-gate-readiness.md) | M18 GKP patch regression gate safe-default 实跑证据，证明批准后的回归门禁可执行 |
+| [docs/qa-feedback/hotkey-voice-lifecycle-failure-20260601.md](./docs/qa-feedback/hotkey-voice-lifecycle-failure-20260601.md) | 2026-06-01 RG476H 热键语音 playback 失败归因记录 |
+| [docs/qa-feedback/gkp-patch-proposals-20260601-hotkey-voice.md](./docs/qa-feedback/gkp-patch-proposals-20260601-hotkey-voice.md) | 2026-06-01 热键语音 ASR 变体 GKP patch proposals |
 | [docs/RETROARCH_ANDROID_AI_SERVICE_FINDINGS.md](./docs/RETROARCH_ANDROID_AI_SERVICE_FINDINGS.md) | RetroArch Android 官方 APK 首次联调记录 |
 | [scripts/test_endpoint.sh](./scripts/test_endpoint.sh) | 一键 curl 冒烟脚本 |
 | [scripts/android_avd_smoke.sh](./scripts/android_avd_smoke.sh) | AVD/真机上的 RetroSprite endpoint 冒烟脚本，覆盖真实内置 GKP |
+| [scripts/screen_translation_matrix_update.py](./scripts/screen_translation_matrix_update.py) | 通用 QA 工具：安全更新屏幕翻译手测矩阵单行结果，避免手改 Markdown 表格 |
+| [scripts/m18_quality_loop_handoff.py](./scripts/m18_quality_loop_handoff.py) | 生成 M18 持续质量闭环交接，固化 latest-request、voice TSV 和 manual notes 的 preview-first backlog 导入流程 |
+| [scripts/m18_command_contract_audit.py](./scripts/m18_command_contract_audit.py) | 审计 M18 生成文档、核心计划/测试文档和结构化 JSON，阻止过期参数、危险 apply、ready frontier 漂移和旧人工 gate 口径回流 |
+| [scripts/m18_offline_quality_gate.sh](./scripts/m18_offline_quality_gate.sh) | M18 离线报告刷新、strict open-gate 探针、脚本测试和 release audit 总入口 |
 | [scripts/sample_payload.json](./scripts/sample_payload.json) | 标准请求体样本 |
 | [../RetroSprite_Development_Plan.md](../RetroSprite_Development_Plan.md) | 项目整体规划 |
 | [../.qoder/skills/retrosprite-dev/SKILL.md](../.qoder/skills/retrosprite-dev/SKILL.md) | 项目开发约束与方向 |

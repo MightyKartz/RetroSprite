@@ -1,74 +1,116 @@
 # RetroSprite 下一阶段实施计划
 
 > 生成日期：2026-05-19
-> 最近更新：2026-05-24
-> 依据：代码现状、`docs/DELIVERY_REPORT.md`、Android AVD 实测、RetroArch v1.22.2 源码/官方 APK 行为、DeepSeek 官方 API 文档，以及 `docs/GKP_LITE_OPTIONAL_LLM_DIRECTION.md`。
+> 最近更新：2026-06-01
+> 依据：代码现状、`docs/DELIVERY_REPORT.md`、Android AVD/真机实测、RetroArch v1.22.2 源码/官方 APK 行为、DeepSeek 官方 API 文档、`docs/GKP_LITE_OPTIONAL_LLM_DIRECTION.md`，以及 2026-06-01 对 RetroArch AI Service、ZTranslate/LunaTranslator/Game2Text、RAG 评测和 ScreenAI/UI 理解路线的外部调研。
 
 > 文档口径提示：本文保留了从 Phase 0 到当前阶段的历史实施记录，前半部分可能仍提到
 > 已移除的 sample 包或早期状态。当前架构、GKP Lite、expanded/deep 覆盖、Pro 商业层
 > 与可选 LLM 的统一定义见 `docs/ARCHITECTURE_AND_PRODUCT_TIERS.md`；当前已验证
 > 范围以 `docs/TEST_COVERAGE.md` 和 README 的 supported-games 列表为准。
 
-## 0. 当前真实状态
+## 2026-06-01 当前执行口径：M17 Release Candidate Hardening
 
-RetroSprite Android 已经具备可运行的 Phase 0/Phase 1 脚手架：
+当前项目已经从功能原型进入 release-candidate 收口阶段。主链路
+`RetroArch hotkey -> overlay -> local Paraformer ASR -> GKP retrieval -> AnswerPolicy -> TTS/overlay`
+已经可运行；显式语音命令触发的 BYOK 当前画面翻译也已接入。下一步不再优先扩功能面，而是冻结主能力，围绕真实设备稳定性、翻译展示质量、GKP 命中率、诊断可解释性和发布资料做硬化。
 
-- Android 本地 endpoint 默认运行在 `http://localhost:4404`（绑定 loopback），`GET /health` 和 `POST /?output=text` 可用。
-- 请求可写入 Room `request_logs`，Diagnostics/UI 层可读取近期日志。
-- Domain 管线已拆出 `GameResolver`、`RetrievalPipeline`、`AnswerPolicy`、`AnswerComposer`、`LlmAdapter`。
-- Room/FTS5、Compose 四屏、DataStore 设置和测试骨架已存在。
-- `OpenAiCompatibleLlmAdapter` 已支持非流式 OpenAI-compatible `/chat/completions`；`ServiceLocator` 通过 Settings 动态创建真实 adapter，无 key 时仍回落到 `MockLlmAdapter`。
-- LLM API key 已从 DataStore 明文迁到 Android Keystore-backed 加密密文；旧明文字段会在启动后迁移并移除。
-- 真实 DeepSeek BYOK smoke 已在 `RetroSprite_API_34` 上通过；DeepSeek 请求默认关闭 thinking 以控制延迟和 token 成本。
-- 官方 RetroArch Android APK 已安装并配置 AI Service；实体键盘热键已触发到 RetroSprite endpoint。真实 APK 会用 `application/x-www-form-urlencoded` Content-Type 发送 JSON body，RetroSprite 已增加兼容解析并在 `RetroSprite_API_34` 上完成修复版手动热键复验。
-- 内置 GKP 已接入运行时：`RepositoryGameResolver` 能把 `2048__`、`relay_station__`、`md__Shining Force II`、真机 playlist 读到的 `md__光明力量2` 和真机 AI Service 发来的 `mega_drive__光明力量2` 解析到 GKP，`LocalKnowledgeRetrievalPipeline` 可按 template/entity/FTS 漏斗命中本地证据，`EvidenceAnswerPolicy` 可输出带来源的低剧透答案；当前包含 `sample-2048` `0.1.1`（14 条知识行、16 条 golden Q&A）、自写 `sample-relay-station` `0.1.0`（14 条知识行、12 条 golden Q&A）和 `community.shining-force-ii-md` `0.2.1`（32 条知识行、34 条 golden Q&A）。
-- Diagnostics 已能标记 debug 请求、source ids、pipeline stage 和 LLM 状态；`/debug/latest-request` 可返回最新请求摘要，方便 AVD/真机联调。
-- `scripts/android_avd_smoke.sh` 已增强为一条命令验证：设备在线、APK 自动安装/启动、端口转发、endpoint smoke、`sample-2048` 与 `sample-relay-station` 两个内置 GKP 的 `/debug/ask` 问答、`/debug/latest-request` 链路摘要。
-- Home 页已增加 App 内文字提问入口：默认使用 `2048__` 样例 label，把玩家问题直接送入 `ResponseGenerator → QueryPipeline → RequestLogger`，并在 Diagnostics 中以 `output_mode=app:text` 记录。
-- Home 页文字提问入口已能自动跟随最近一次真实 RetroArch 请求 label；`debug:*`、`app:*` 和 diagnostic 自测请求不会污染默认游戏上下文。
-- Home 页已展示最近 RetroArch 上下文摘要：label、时间、暂停状态、GKP/evidence 状态和来源；用户手动覆盖 label 后可一键恢复最近上下文。
-- Home 页已增加快捷问题草稿：`2048__` 和 `relay_station__` 会显示上下文相关问题按钮，点选只填入输入框，不绕过原有 GKP/evidence/LLM gate。
-- Home 页已增加恢复动作提示：无 evidence、GKP 禁用、LLM 失败或请求错误会在回答区提示下一步该去 Packs、Settings、Diagnostics 还是补充上下文。
-- Home 页最近 RetroArch 上下文已增加行动条：可使用当前上下文 label，并复制 host 侧 `/debug/ask` curl 复现当前样例问题。
-- Home 页恢复动作已支持跨 tab 跳转：请求错误进入 Diagnostics，GKP 禁用或无 evidence 进入 Packs，LLM 失败进入 Settings。
-- Home 页恢复动作收口 smoke 已自动化：Compose instrumentation 覆盖 Settings、Packs、Diagnostics 三类恢复跳转，AVD smoke 继续验证 `/debug/ask` 与 latest-request 复现链路。
-- Home 页已增加最小 in-app conversation tray：最近 5 次 App 内问答会保留在本机内存中，显示 label、问题、答案预览、pipeline/LLM 状态和来源；点选记录可恢复对应 label/question/result 继续追问。
-- Home 页会话托盘已接入持久化 request log：真实 RetroArch / pending hotkey 请求只要带有 `question`，就会恢复为最近问答；`app:*`、`debug:*`、diagnostic 和失败请求不会重复污染托盘。
-- Home 页会话托盘已增加追问草稿：每条记录可生成“更明确 / 直接答案 / 换个问法”三类草稿，点击只填入输入框，不自动提交、不绕过本地 GKP 和低剧透策略。
-- Home 页“直接答案”追问已增加剧透升级提示：选择该草稿后输入区显示“剧透级别提升”，提示用户提交前确认愿意看到更明确的信息；手动改写问题会清除该提示。
-- Settings 的默认剧透级别和 Home 追问草稿的单次升级已进入运行时策略：`spoiler_level` 可随 App/debug 请求传入 `QueryPipeline`；未传入时使用 Settings 的 `轻提示 / 更明确 / 直接答案` 默认值；“更明确”和“直接答案”追问会分别映射到 `CLEAR` 和 `FULL`。
-- Home 页已增加 Pending Question → RetroArch Hotkey 最小闭环：玩家可先把当前文字问题准备给下一次热键；下一条同 label、且原始 `question` 为空的 RetroArch AI Service 请求会消费该问题，并沿用同一条 `ResponseGenerator → QueryPipeline → GKP/AnswerPolicy` 返回到 RetroArch。
-- Request log 已进入 Room v6：每条请求可持久化 `question` / `question_source`；App 内提问、debug ask、未来 RetroArch 原生问题和 pending hotkey 消费路径会分别记录来源，`/debug/latest-request`、Diagnostics 详情和 Home 最近上下文都能显示被回答的问题。
-- Diagnostics 已增加来源计数与筛选：顶部可按 `全部 / RetroArch / Pending / App / Debug` 查看请求数并过滤日志，方便确认热键是否消费了 pending question。
-- 正式 App 内语音输入和 Hotkey Voice Overlay 已切到 `k2-fsa/sherpa-onnx` 本地离线 ASR：APK 内置 `sherpa-onnx-streaming-paraformer-bilingual-zh-en` Paraformer int8 模型和 Android JNI/onnxruntime native libs，当前 Debug 包按 RG 476H/Apple Silicon AVD 收敛到 `arm64-v8a`，`ServiceLocator` 默认使用 `SherpaOnnxVoiceInputProvider`，不再依赖 Android `SpeechRecognizer` 主路径。语音只负责把本地转写文本填入 question，提交后仍复用 `ResponseGenerator → QueryPipeline → GKP/AnswerPolicy/LLM` 文本链路；朗读继续使用 Android `TextToSpeech` 只读成功答案第一句/短摘要；不实现端到端 speech-to-speech，也不让语音绕过低剧透/evidence gate。Paraformer 路径不使用 sherpa 原生 hotword；游戏术语修复由当前 GKP 的 `asr_variant` / `observed_asr` metadata 和 `GameTermNormalizer` 负责。
-- M8.3 真机语音 QA 已通过最小闭环：RG 476H 上点击 Home “语音输入”，说“两个 2 怎么合并？”，本地 sherpa-onnx 转写为“两个二怎么合并”，直接点击“提问”后命中 `sample-2048` GKP 并返回正确答案。当时结论是样例路径不需要引入 ASR 文本规范化；后续真实游戏术语误召回已收敛为当前 GKP scoped ASR variant 问题。
-- M8.4 真机语音回归已通过：RG 476H 上 5 个语音问题全部通过，覆盖 2048 冷启动/热启动、空识别提示、Relay Station 样例和再次 2048 回归。这个结论只说明当时 2048/样例路径不需要额外 ASR 规范化；后续真实游戏专名已改为用当前 GKP 的 `asr_variant` / `observed_asr` metadata 做 scoped 术语修复，不新增云 ASR 或多模式 UI。
-- M9.1 已选择 MD 平台《Shining Force II / 光明力量2》作为首个真实游戏 GKP 试点，并落地一个小而可验证的 bundled pack。第一版只覆盖游戏身份、早期低剧透方向、战斗/复活/转职机制、特殊转职道具用法和少量转职道具摘要；所有文字为 RetroSprite 原创短句，引用官方/社区页面作事实来源，不复制攻略正文或手册长段落。
-- M9.2 真机 label 前置验证已推进：RG 476H 的 RetroArch playlist 中《光明力量2》实际条目为 `label=光明力量2`、core 为 `Genesis Plus GX`；真实 AI Service 请求 label 为 `mega_drive__光明力量2`。GKP `0.1.2` 已补中英标题和 `Sega - Mega Drive - Genesis__光明力量2` / `mega_drive__光明力量2` label metadata，并增加 `md__光明力量2` 与 `mega_drive__光明力量2` pipeline 回归。新 Debug APK 已在 RG 476H 上通过 `/debug/ask` 运行时验证，转职问题命中 `sf2.promotion`、低剧透下一步问题命中 `sf2.early_route`。旧真机实验曾临时写入 `8080` 和热键；当前产品默认已改为 RetroArch 默认 AI Service URL `http://localhost:4404`，不再写 cfg。
-- Settings 已将 RetroArch 相关功能改为纯“设置助手”：主路径是玩家在 RetroArch **Settings → Accessibility → AI Service** 中设置；RetroSprite 只显示推荐值并提供“一键复制 AI Service URL”，不再写入 `retroarch.cfg`，不提供高级 cfg 片段，不修改快捷键，也不申请 `MANAGE_EXTERNAL_STORAGE` 或其他存储权限。
-- Home 语音状态已做一次 polish：首次加载 sherpa-onnx 模型时显示“首次加载本地 ASR 模型，可能需要几秒钟…”，空识别时显示“没有识别到问题，可再试一次或使用文字输入。”；这些提示只影响 App 内语音输入体验，不改变 GKP/evidence/低剧透/LLM 决策链路。
-- M10.0 已开始把产品主路径从 Home pending question 转向 Hotkey Wake Voice Overlay：真实 RetroArch `POST /` 请求现在会发出 `RetroArchHotkeyEvent`，`EndpointController` 会把该事件交给 `AndroidHotkeyVoiceOverlayController`；在用户授予 Android “显示在其他应用上层”权限后，RetroSprite 可在 RetroArch 右上角显示一个不拦截触摸的彩色波形 cue，并在短时间后自动关闭。当前 M10.0 只验证“热键唤醒 UI”这一片，不做连续监听、不做 Accessibility/MediaProjection 截屏，也尚未把 sherpa-onnx ASR/TTS 自动接进 overlay。
-- M10.1/M10.3 已接入 Hotkey Wake Voice Overlay 主闭环：Settings 增加“游戏内语音 Overlay”授权入口，可跳转 Android `ACTION_MANAGE_OVERLAY_PERMISSION` 并刷新状态；热键请求进入 overlay 后会启动一次 sherpa-onnx 本地 ASR，最终转写直接送入现有 `ResponseGenerator → QueryPipeline → GKP/AnswerPolicy`，结果以 `output_mode=hotkey_voice:text`、`question_source=hotkey_voice` 写入 request log，并通过 Android TTS 朗读短答案后关闭 overlay。原始空问题 RetroArch wake 请求改为静默响应，避免 Narrator Mode 抢先朗读“没有足够证据”。
-- M10.3 真机首轮问题已定位并修复：Android 在 RetroSprite 退到 RetroArch 后会把普通 `RECORD_AUDIO` 视为 foreground-only AppOps，导致后台 overlay 录音被静音；`EndpointService` 现在在已有录音权限时以前台服务 `dataSync|microphone` 类型运行，并声明 `FOREGROUND_SERVICE_MICROPHONE`。同时修复两类 overlay 卡住风险：RetroArch 连续发送热键 POST 时忽略活动中的重复 wake；ASR 超时后取消等待 final transcript 的子协程，确保无识别结果也会释放 `AudioRecord` 并隐藏 overlay。RG 476H 后台 POST 烟测确认：无 `silencing record`/`Operation not started RECORD_AUDIO` 日志，28 秒后 RetroSprite overlay window 数为 0。
-- M10.2 真机主交互已通过第一轮：用户在 RG 476H 的 RetroArch《光明力量2》中按 AI Service 热键，说“什么时候转职？”，已确认右上角波形出现、识别完成后走到 TTS 朗读。随后 `/debug/latest-request` 确认真实请求为 `label=mega_drive__光明力量2`、`output_mode=hotkey_voice:text`、`question_source=hotkey_voice`。本次 latest transcript 为“接受他几部这个角色”，因此 pipeline 走 `no_evidence`；`sf2.promotion` 证据命中还需要再用更清晰短句（如“角色什么时候转职”）复测一次后才能标记完成。
-- 2026-05-25 ASR capture/commit 已按“语音活动结束后再提交”轻量修复：`SherpaEndpointCommitGate` 等待 sherpa endpoint、post-voice silence 和 stable partial，保留 final flush silence，并只对不完整疑问尾音增加小等待；`SherpaFinalTranscriptSelector` 只在 final 和 partial 兼容时保留更长 partial，不做 `是什 -> 是什么` 或 `玩什 -> 玩什么` 这类文本补全。Tingting 真机批测 `build/hotkey-voice-qa/20260525-113514` 中 Golden Sun、Chrono Trigger、Langrisser II 通过并到达 overlay `finished`；Shining Force II `气合之玉怎么用？` 被识别为 `气河之欲怎么用`，命中 `sf2.characters` 而非期望 `sf2.promotion`，剩余问题归类为 GKP ASR variant/source-ranking，而不是 UI/回答生命周期问题。
-- Home 文字提问链路已有 Compose instrumentation 覆盖：输入问题、点击提问、显示答案/来源，并切换到 Diagnostics 验证 `APP` 日志标签。
-- Home 页已区分输入来源：RetroArch 热键负责刷新上下文/label，玩家问题来自 App 内输入框，避免把 RetroArch 原始请求误认为自然语言提问。
-- LLM/DeepSeek 调用链路已有本地可诊断预算：Home 处理中会显示耗时状态，回答结果和 Diagnostics 会展示 request duration、provider/model、max token、timeout、LLM latency、token in/out 和失败信息；Settings 已可配置 timeout / max token，并可执行一次不写 request log 的低成本配置自检。
-- Home 最近回答已支持本地反馈：用户可标记“有帮助 / 这不对”，反馈通过 `request_key` 关联到 Room `request_logs` v3，并在 Diagnostics 中以标签和详情展示；反馈不会上传。
-- Packs 页已从占位 UI 升级为真实 GKP 管理视图：显示启动导入状态、已安装 pack/game、版本、schema、知识行数、来源数、信任/许可摘要；导入失败会在页面中暴露。
-- Packs 页已增加外部 GKP 只读预检入口：通过系统文件夹选择器读取候选包，执行 manifest/JSONL/schema/license lint，阻断 ROM/脚本/可执行文件，但不会安装或覆盖 Room 数据。
-- Packs 页已支持外部 GKP 确认安装/覆盖：只有预检通过后才显示安装计划，明确 `game_id`、现有/新版本、知识行数变化、来源/Golden 数；用户点击确认后才会重新预检并写入 Room。
-- Packs 页已支持本地 GKP 删除确认：删除前显示 `pack_id`、`game_id`、版本、知识行数、来源数和内置样例恢复风险；用户确认后才清除对应 game/knowledge 行。
-- GKP 元数据已进入 Room v5：`games` 持久化 `pack_id`、`provenance`、`signature_status`、`signature_key_id`、`content_digest`、`enabled`、`disabled_at`；Packs 页可区分内置/外部来源、签名状态和启用状态，bundled importer 不会覆盖用户安装的外部包，也不会把已禁用的 bundled 包重新启用。
-- GKP 禁用边界已可诊断：`RepositoryGameResolver` 发现匹配包已禁用时返回 `gkp_disabled` 身份但不提供 `gameId`，因此不会读取知识行或调用 LLM；Home 会显示“GKP 已禁用”，Diagnostics 会标记 `GKP_DISABLED` 并解释需要在 Packs 重新启用。
-- 2026-05-21 产品方向复盘结论：RetroSprite 的主体验不需要把 LLM 作为必需依赖。当前 `本地 sherpa-onnx ASR → 文本问题 → GKP template/entity/FTS → AnswerPolicy → 短答案/TTS` 已经能作为 zero-LLM 主路径；LLM 只保留为可选的 evidence-grounded composer，用于多条证据综合、翻译、解释和表达润色。无 GKP、无 evidence、GKP 禁用、证据冲突或剧透超限时不应调用 LLM 裸答。
-- 2026-05-21 TTS 方向复盘结论：当前 ASR 模型本身不能直接做 TTS；ASR 和 TTS 是两套模型/管线。当前 `AndroidSpeechOutputProvider` 仍走 Android `TextToSpeech`，但 `SpeechOutputProvider` 接口已经允许后续替换为本地神经 TTS。短期可用 sherpa-onnx TTS Engine APK 作为系统 TTS 引擎来验证离线效果；中期若要产品内置，需要新增 `SherpaOnnxTtsSpeechOutputProvider`、打包对应 TTS 模型/native/API，并用 `AudioTrack` 或等价播放器输出 PCM。
-- 2026-05-21 GKP 内容复盘结论：zero-LLM 体验的上限主要由 GKP 决定。复盘时 Shining Force II GKP 已能回答“这是什么游戏”“战斗怎么玩”“什么时候转职”等问题，但对“这个游戏主要是玩什么？乐趣在哪里？”这类概览/动机型问题覆盖不足；后续真实游戏 GKP 必须加入 `核心玩法/乐趣/适合谁/怎么玩才有意思` 这类玩家自然问法，并配套 golden Q&A。
-- M11.1-M11.3 已按上述结论落地第一轮：Shining Force II `0.2.1` 新增 `note.core-gameplay-loop`，覆盖“主要玩什么 / 乐趣在哪里 / 好玩在哪 / 核心玩法 / 适合什么玩家”等自然问法；`qa_goldens.jsonl` 增加 4 条概览型 golden，真实游戏 GKP 生产模板也新增 Core Gameplay And Fun Hooks lane。
-- 2026-05-24 后续方向复盘结论：不要把每个游戏的首个支持版本做成完整攻略级 GKP。后续应转向 **GKP Lite + 玩家可选 BYOK LLM 增强层**：GKP Lite 负责可信游戏锚点、别名、核心玩法、常见机制、低剧透门和来源；LLM 由玩家自主启用和选择 provider/model，只做 query rewrite、跨语言映射、证据综合、翻译和表达润色。无 LLM 时 App 仍必须离线可用；无 GKP/无 evidence 时不允许 LLM 裸答具体攻略事实。
+当前代码事实：
 
-这意味着：**RetroArch Android 官方 APK 触发路径已经打通，Phase 0A 可以收口；Phase 1 的主要风险转移到 GKP 检索、低剧透策略和真实问答交互。**
+- `./gradlew :app:testDebugUnitTest :app:assembleDebug` 在 2026-06-01 通过。
+- `app/src/main/kotlin` 约 135 个 Kotlin 文件，`app/src/test/kotlin` 约 68 个 JVM test 文件，`app/src/androidTest/kotlin` 约 10 个 instrumented test 文件。
+- 内置真实 GKP 为 6 个，约 347 条 knowledge row、337 条 golden；Shining Force II 为 expanded，其余为 Lite。
+- Debug APK 约 251 MB，其中本地 Paraformer ASR assets 约 226 MB；发布前必须把 APK 体积作为明确产品取舍记录。
+- 当前工作区存在未提交实现改动时，必须先判断这些改动属于正式能力、QA 注入能力还是临时调试能力；未归类的代码不能进入 RC。
+
+M17 的目标不是“再做更多”，而是证明当前能力可以被玩家反复使用：
+
+1. **功能冻结**：不新增模型、不新增 GKP 大包、不做 Live2D/宠物/自动操作等非主链路能力。
+2. **真实设备验收**：RG476H 或等价 Android 设备上完成安装、启动、endpoint、hotkey voice、screen translation、Settings、Diagnostics 验收。
+3. **翻译质量矩阵**：覆盖对白、菜单、状态、装备、物品、英文泄漏、数字误翻、分页停留；单页和多页结果每页停留 10 秒。
+4. **GKP/版权边界**：继续只内置原创短摘要、别名、术语和来源引用；不内置 ROM、商业攻略正文、完整脚本、网友完整汉化文本或汉化补丁文本。
+5. **发布资料同步**：README、测试覆盖、设置页文案、release checklist 必须与代码实际一致。
+
+执行计划已拆到独立文档：
+
+- `docs/superpowers/plans/2026-06-01-release-candidate-hardening.md`
+
+M17 完成标准：
+
+- JVM 单测和 Debug assemble 通过。
+- 至少一次 `scripts/android_avd_smoke.sh` 真机/模拟器 smoke 通过。
+- 6 个内置 GKP 的 `/debug/ask` matrix 全部达到期望 source/stage/LLM 状态。
+- hotkey voice QA matrix 至少覆盖 6 个游戏各 1 条核心问题和 1 条 no-evidence/边界问题。
+- screen translation QA matrix 至少覆盖 FF6/Chrono Trigger 类菜单、状态、装备和对白画面。
+- Diagnostics 能解释每次失败属于 ASR、GKP miss、API 翻译、无截图、无 key、超时还是权限问题。
+- 文档中没有把历史 sample 包、DeepSeek-OCR、ML Kit 或已移除路线描述成当前默认路径。
+
+### 2026-06-01 立即下一步：M17.1 Hotkey Voice Lifecycle Recovery
+
+RG476H `RG476H01077813` 已通过 device endpoint/GKP smoke，但 2026-06-01 14:49 CST 的真实 playback 矩阵 7 条全部失败在语音提交前：overlay 进入 `listening` / `mic_live=true`，随后以 `finish_reason=muted_recovery`、`asr_commit_reason=blank_partial`、`asr_endpoint_armed=false` 结束，且 `/debug/latest-request` 没有新记录。证据见 `build/hotkey-voice-qa/20260601-144348/` 和 `docs/qa-feedback/hotkey-voice-lifecycle-failure-20260601.md`。
+
+因此下一步不是扩游戏、扩模型或补 GKP 内容，而是先恢复热键语音生命周期：
+
+已完成的代码侧诊断改动：
+
+1. overlay debug snapshot 已增加 `AudioRecord` read count、sample count、peak amplitude、last frame amplitude 和 read error count。
+2. `scripts/hotkey_voice_qa_batch.sh` 已改为在新 APK 暴露 `asr_audio_read_count` 时，等到 ASR 读到首批 samples 后再播放，避免只凭 `mic_live=true` 过早开播。
+3. GKP backlog 已能记录 capture counters；旧 evidence 因当时 APK 没有这些字段，所以仍只显示 `muted_recovery`、`blank_partial` 和 stale latest-request。
+
+当前状态：
+
+1. 已安装包含诊断字段的新 Debug APK 到 RG476H，并确认 endpoint/GKP smoke 通过。
+2. 已跑单条 `golden_sun_ivan_observed` recovery probe：Mac output volume 13 时音频峰值只有 `0.0060507967` 并失败；Mac output volume 90 时提交 fresh `hotkey_voice` request 并命中 `gs.localized_name_audit`。
+3. 最新 7 条 playback matrix 已全部提交 fresh `hotkey_voice` request，5/7 通过；剩余两条分别是 `sf2_vigor_ball_observed` 的 `source_mismatch` 和 `chrono_marle_observed` 的 `asr_variant`。证据见 `docs/qa-feedback/hotkey-voice-matrix-report.md` 和 `build/hotkey-voice-qa/20260602-083111/results.tsv`。
+
+当前真正的下一步：
+
+1. 以 `docs/qa-feedback/m18-next-action-queue.md` 的 `replay-full-voice-matrix` 为唯一设备前线；重复失败必须回流到 backlog/patch proposal，而不是开新功能。
+2. 对 `source_mismatch` 优先检查当前 Shining Force II GKP 的 alias/entity/source 排序；对 `asr_variant` 优先补当前 Chrono Trigger GKP 的 observed-ASR alias 和 golden。
+3. 只有用户明确批准 exact patch review packet 后，才修改 `app/src/main/assets/gkp/*/aliases.json` 或 `qa_goldens.jsonl`。
+4. 每个已批准 patch 必须跑 `RUN_REPORTS=1 ./scripts/gkp_patch_regression_gate.sh`；安装 patched APK 后再跑 7 条 matrix。
+5. 只有 7 条 matrix 全绿并且 `EXPECT_ALL_PASS=1 ./scripts/m18_offline_quality_gate.sh` 通过后，才能关闭 M17.1/M18 当前质量门。
+
+执行计划：
+
+- `docs/superpowers/plans/2026-06-01-m17-hotkey-voice-lifecycle-recovery.md`
+
+## 2026-06-02 当前执行口径：M18 Eval Lab + GKP Quality Loop
+
+M18 是 M17 之后的质量工程阶段，不是功能扩张阶段。它的目标是把“用户问了但没有相关答案”“ASR 听错游戏术语”“GKP Lite 覆盖不到自然问法”这些真实问题，转成可复现、可修复、可回归的工程闭环。
+
+执行计划：
+
+- `docs/superpowers/plans/2026-06-01-m18-eval-lab-gkp-quality-loop.md`
+
+M18 当前边界：
+
+- 保持默认路线不变：RetroArch AI Service、热键触发、本地 Paraformer ASR、本地 GKP/AnswerPolicy、可选 BYOK screen translation/LLM。
+- 不新增默认云服务、不新增游戏数量、不内置完整脚本/网友汉化/商业攻略正文，也不引入 Accessibility、MediaProjection 或 AI 自动操作游戏。
+- M18 不再包含人工 ASR 审批、5 个屏幕翻译手工矩阵、内容版权人工确认；这些可以保留为 release/QA 事项，但不属于 M18 aggregate status、next-action queue 或 offline gate。
+
+M18 推荐工作流：
+
+1. **GKP 覆盖评测**：按 identity、core gameplay、first hour、mechanics、menu terms、items/skills/magic、names/aliases、common blockers、low-spoiler next step、no-evidence boundary 和 observed ASR variants 生成每包覆盖报告。
+2. **No-evidence backlog**：把 `/debug/latest-request`、真机 evidence、玩家反馈和 QA 失败记录整理成 `coverage_gap`、`alias_gap`、`ranking_gap`、`asr_variant`、`spoiler_gate_gap`、`translation_gap`。
+3. **安全 GKP patch proposal**：工具只生成建议和 dry-run，不默认写入；每次补洞必须有 source id、golden regression、lint、retrieval golden 和 `rc_release_audit.py`。
+4. **质量报告**：每轮 M18 产出 `docs/qa-feedback/m18-eval-report.md`、`docs/qa-feedback/gkp-quality-backlog.md`、`docs/qa-feedback/m18-status-report.md` 和 machine-readable handoff，让下次开发从失败样本开始。
+
+当前实施状态：
+
+- `scripts/m18_status_report.py` 聚合机器可检查的 GKP coverage、backlog triage、patch proposal/review/apply dry-run、asset guard、ASR voice handoff、hotkey voice matrix、command-contract audit 和 quality-loop handoff。
+- `scripts/m18_gate_status_json.py` 输出同一口径的 machine-readable rows/counts/open_areas/overall_status。
+- `scripts/m18_next_action_queue.py` 现在只保留 M18 仍关心的机器/设备 action：设备生命周期复测（如有）、热键语音矩阵复跑和最终 offline gate。
+- `scripts/m18_remaining_gate_packet.py` 已改为机器/设备 handoff，不再合并 ASR 人工审批、屏幕翻译手测、内容权利人工确认或 release checklist 更新。
+- `scripts/m18_quality_loop_handoff.py` 保留 preview-first backlog imports：`/debug/latest-request`、hotkey voice `results.tsv`、manual tester notes TSV。
+- `scripts/m18_offline_quality_gate.sh` 的 safe default 刷新 M18 报告、handoff、completion audit、next action queue、quality loop handoff 和 command-contract audit，并运行脚本测试、`rc_release_audit.py`、`git diff --check`；不刷新或 strict-check 三类已移出 M18 的人工 gate。
+
+当前真正的下一步：
+
+1. 刷新 M18 reports：`./scripts/m18_offline_quality_gate.sh`。
+2. 若 hotkey voice matrix 仍有重复 miss，把它作为 backlog/patch proposal 输入，而不是等待人工 ASR 审批或人工 screen/content gate。
+3. 保持 `app/src/main/assets/gkp` clean；只有用户明确批准 exact patch 时才改 bundled GKP。
+4. 不新增游戏、不新增默认模型、不扩大屏幕捕获能力；当前开发只围绕热键语音矩阵、GKP 命中、诊断可解释性和文档同步。
 
 ## 1. 使用的工具/技能/MCP
 

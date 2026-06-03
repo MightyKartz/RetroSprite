@@ -17,7 +17,7 @@
     {"term": "这个游戏到底要怎么玩", "entity_id": "note.core-gameplay-loop", "weight": 1.0},
     {"term": "到底要怎么玩", "entity_id": "note.core-gameplay-loop", "weight": 0.9},
     {"term": "怎么玩", "entity_id": "note.core-gameplay-loop", "weight": 0.72, "kind": "observed_asr", "source": "observed_asr", "canonical_term": "这游戏怎么玩", "notes": "Observed prefix-dropped MacBook-speaker transcript for 这游戏怎么玩."},
-    {"term": "气怎么玩", "entity_id": "note.core-gameplay-loop", "weight": 0.70, "kind": "observed_asr", "source": "observed_asr", "canonical_term": "这游戏怎么玩", "notes": "Observed noisy prefix MacBook-speaker transcript for 这游戏怎么玩."},
+    {"term": "气怎么玩", "entity_id": "note.core-gameplay-loop", "weight": 0.7, "kind": "observed_asr", "source": "observed_asr", "canonical_term": "这游戏怎么玩", "notes": "Observed noisy prefix MacBook-speaker transcript for 这游戏怎么玩."},
     {"term": "适合什么玩家", "entity_id": "note.core-gameplay-loop", "weight": 0.9},
     {"term": "新手怎么玩", "entity_id": "strategy.beginner-first-hour", "weight": 1.0},
     {"term": "开局先干什么", "entity_id": "strategy.beginner-first-hour", "weight": 1.0},
@@ -48,7 +48,7 @@
     {"term": "契合之欲怎么", "entity_id": "item.vigor-ball", "weight": 0.78, "kind": "observed_asr", "source": "observed_asr", "canonical_term": "气合之玉怎么用", "notes": "Observed MacBook-speaker Paraformer transcript for 气合之玉怎么用."},
     {"term": "契合之域怎么用", "entity_id": "item.vigor-ball", "weight": 0.78, "kind": "observed_asr", "source": "observed_asr", "canonical_term": "气合之玉怎么用", "notes": "Observed MacBook-speaker Paraformer transcript for 气合之玉怎么用."},
     {"term": "契合之域", "entity_id": "item.vigor-ball", "weight": 0.74, "kind": "observed_asr", "source": "observed_asr", "canonical_term": "气合之玉", "notes": "Observed shorter Paraformer transcript for 气合之玉."},
-    {"term": "气河之欲怎么用", "entity_id": "item.vigor-ball", "weight": 0.80, "kind": "observed_asr", "source": "observed_asr", "canonical_term": "气合之玉怎么用", "notes": "Observed Tingting MacBook-speaker Paraformer transcript for 气合之玉怎么用."},
+    {"term": "气河之欲怎么用", "entity_id": "item.vigor-ball", "weight": 0.8, "kind": "observed_asr", "source": "observed_asr", "canonical_term": "气合之玉怎么用", "notes": "Observed Tingting MacBook-speaker Paraformer transcript for 气合之玉怎么用."},
     {"term": "气河之欲", "entity_id": "item.vigor-ball", "weight": 0.76, "kind": "observed_asr", "source": "observed_asr", "canonical_term": "气合之玉", "notes": "Observed shorter variant for 气合之玉."},
     {"term": "秘传书", "entity_id": "item.secret-book", "weight": 1.0},
     {"term": "奥义之书", "entity_id": "item.secret-book", "weight": 1.0},
@@ -126,11 +126,11 @@
     {"term": "密营", "entity_id": "item.mithril", "weight": 0.72, "kind": "observed_asr", "source": "observed_asr", "canonical_term": "秘银"},
     {"term": "密影", "entity_id": "item.mithril", "weight": 0.72, "kind": "observed_asr", "source": "observed_asr", "canonical_term": "秘银"},
     {"term": "米斯里鲁", "entity_id": "item.mithril", "weight": 1.0, "kind": "display_alias", "source": "community"},
-    {"term": "米斯林鲁", "entity_id": "item.mithril", "weight": 0.70, "kind": "observed_asr", "source": "observed_asr", "canonical_term": "米斯里鲁"},
-    {"term": "以斯列鲁", "entity_id": "item.mithril", "weight": 0.70, "kind": "observed_asr", "source": "observed_asr", "canonical_term": "米斯里鲁"},
+    {"term": "米斯林鲁", "entity_id": "item.mithril", "weight": 0.7, "kind": "observed_asr", "source": "observed_asr", "canonical_term": "米斯里鲁"},
+    {"term": "以斯列鲁", "entity_id": "item.mithril", "weight": 0.7, "kind": "observed_asr", "source": "observed_asr", "canonical_term": "米斯里鲁"},
     {"term": "米斯里尔", "entity_id": "item.mithril", "weight": 0.9},
     {"term": "米斯里鲁银", "entity_id": "item.mithril", "weight": 1.0},
-    {"term": "米斯里鲁因", "entity_id": "item.mithril", "weight": 0.70, "kind": "observed_asr", "source": "observed_asr", "canonical_term": "米斯里鲁银", "notes": "Observed trailing character ASR variant for 米斯里鲁银."},
+    {"term": "米斯里鲁因", "entity_id": "item.mithril", "weight": 0.7, "kind": "observed_asr", "source": "observed_asr", "canonical_term": "米斯里鲁银", "notes": "Observed trailing character ASR variant for 米斯里鲁银."},
     {"term": "隐藏物品", "entity_id": "strategy.hidden-content-overview", "weight": 1.0},
     {"term": "隐藏要素", "entity_id": "strategy.hidden-content-overview", "weight": 1.0},
     {"term": "秘密村庄", "entity_id": "location.secret-villages", "weight": 0.9},
@@ -305,6 +305,8 @@
     {"term": "兽人", "entity_id": "enemy.orc", "weight": 1.0},
     {"term": "魔像", "entity_id": "enemy.golem", "weight": 1.0},
     {"term": "混沌法师", "entity_id": "enemy.chaos-wizard", "weight": 1.0},
-    {"term": "恶魔大师", "entity_id": "enemy.demon-master", "weight": 1.0}
+    {"term": "恶魔大师", "entity_id": "enemy.demon-master", "weight": 1.0},
+    {"canonical_term": "气合之玉怎么用", "entity_id": "item.vigor-ball", "kind": "observed_asr", "notes": "Observed RG476H hotkey voice transcript for 气合之玉怎么用.", "source": "observed_asr", "term": "契河之域怎么", "weight": 0.78},
+    {"canonical_term": "气合之玉怎么用", "entity_id": "item.vigor-ball", "kind": "observed_asr", "notes": "Observed RG476H hotkey voice transcript for 气合之玉怎么用.", "source": "observed_asr", "term": "契河之域怎么用", "weight": 0.78}
   ]
 }

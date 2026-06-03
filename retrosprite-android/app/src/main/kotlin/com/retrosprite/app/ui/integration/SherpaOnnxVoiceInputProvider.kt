@@ -156,6 +156,11 @@ class SherpaOnnxVoiceInputProvider(
                     asrRequiredStableMillis = null,
                     asrEndpointArmed = null,
                     asrFinalFlushMillis = null,
+                    asrSampleCount = 0L,
+                    asrAudioReadCount = 0L,
+                    asrAudioReadErrorCount = 0L,
+                    asrPeakAmplitude = 0f,
+                    asrLastFrameAmplitude = 0f,
                 ).withAsrDiagnostics()
             }
 
@@ -225,10 +230,20 @@ class SherpaOnnxVoiceInputProvider(
                         (model.sampleRateHz * VISUAL_FRAME_MS / 1_000).coerceAtLeast(1)
                     )
                     while (shouldRecord && coroutineContext.isActive) {
-                        val read = runCatching { record.read(buffer, 0, buffer.size) }.getOrDefault(0)
-                        if (read <= 0) continue
+                        val readResult = runCatching { record.read(buffer, 0, buffer.size) }
+                        val read = readResult.getOrElse {
+                            _state.update { state -> state.withAudioReadError() }
+                            0
+                        }
+                        if (read < 0) {
+                            _state.update { state -> state.withAudioReadError() }
+                            continue
+                        }
+                        if (read == 0) continue
 
                         val samples = FloatArray(read) { index -> buffer[index] / PCM_FLOAT_SCALE }
+                        val amplitude = samples.rmsAmplitude()
+                        _state.update { it.withAudioRead(samplesRead = read, amplitude = amplitude) }
                         fanOut.dispatch(samples)
                     }
                 } finally {
@@ -430,4 +445,18 @@ private fun UiVoiceInputState.withCommitDecision(
         asrPartialStableMillis = decision.partialStableMillis,
         asrRequiredStableMillis = decision.requiredStableMillis,
         asrEndpointArmed = decision.endpointArmed,
+    )
+
+private fun UiVoiceInputState.withAudioRead(samplesRead: Int, amplitude: Float): UiVoiceInputState =
+    copy(
+        asrSampleCount = (asrSampleCount ?: 0L) + samplesRead.toLong(),
+        asrAudioReadCount = (asrAudioReadCount ?: 0L) + 1L,
+        asrAudioReadErrorCount = asrAudioReadErrorCount ?: 0L,
+        asrPeakAmplitude = maxOf(asrPeakAmplitude ?: 0f, amplitude),
+        asrLastFrameAmplitude = amplitude,
+    )
+
+private fun UiVoiceInputState.withAudioReadError(): UiVoiceInputState =
+    copy(
+        asrAudioReadErrorCount = (asrAudioReadErrorCount ?: 0L) + 1L,
     )

@@ -2,10 +2,11 @@
 
 中文（默认） | [English](./README.en.md)
 
-RetroSprite 是一个面向 **RetroArch** 的 Android 游戏内 AI 问答伙伴。玩家在
-RetroArch 中按下 AI Service 热键后，可以直接用语音询问当前游戏里的问题，
-RetroSprite 会优先基于本地 Game Knowledge Pack（GKP）给出短、准、低剧透、
-可追溯来源的回答。
+RetroSprite 是一个面向 **RetroArch** 的 Android 游戏内 AI 问答与画面翻译伙伴。
+玩家在 RetroArch 中按下 AI Service 热键后，可以直接用语音询问当前游戏里的问题，
+或说“翻译”让 RetroSprite 读取当前暂停画面。普通问答会优先基于本地
+Game Knowledge Pack（GKP）给出短、准、低剧透、可追溯来源的回答；画面翻译只在
+玩家明确触发时调用用户自己配置的 BYOK API。
 
 ```text
 RetroArch AI Service 热键
@@ -23,9 +24,11 @@ RetroSprite 不会让 LLM 裸答。
 
 ## 当前版本状态
 
-RetroSprite 当前处在发布前最后测试阶段：Hotkey Voice Overlay + 本地 GKP 问答主路径已接通，
-新增的当前画面翻译也已接入同一个热键语音入口。当前重点验证真实 RetroArch 热键、语音识别、
-GKP 命中、画面翻译、短答 TTS、Diagnostics 和六个内置游戏包。
+RetroSprite 当前处在 M17.1 / M18 发布候选硬化阶段：Hotkey Voice Overlay、本地 GKP
+问答、BYOK 当前画面翻译、短答 TTS、Diagnostics 和 6 个内置真实游戏包已经形成可运行闭环。
+最新版本重点收敛在真机可复现质量：热键语音请求可通过调试注入复现，ASR 会记录音频采样、
+读帧错误和峰值音量，Diagnostics 会直接解释 ASR / GKP / 截图 / BYOK API / 权限 / 超时类失败，
+GKP ASR 变体和 golden regression 用真实 RG476H 热键语音样本持续回归。
 
 这仍是 preview 阶段，不是“支持所有游戏”的通用攻略机器人。当前 APK 面向测试、演示和早期反馈；
 正式使用前请先确认你的游戏属于下方支持列表。
@@ -58,14 +61,16 @@ RetroSprite 目前只内置支持 **6 个真实游戏**：
 
 - **RetroArch AI Service 集成**：使用 RetroArch 官方 AI Service 热键作为游戏内触发入口。
 - **本地 HTTP endpoint**：Android 前台服务默认监听 `127.0.0.1:4404`。
-- **游戏内语音 overlay**：按热键后显示短时语音波形，收集一个问题。
-- **本地 ASR**：使用 sherpa-onnx Paraformer 模型进行本地中文/英文语音识别。
-- **按需画面翻译**：说“翻译一下”“读一下”“这是什么意思”时，把当前暂停画面发送到用户配置的 BYOK 画面翻译 API，并显示完整中文译文；菜单/装备/属性画面会优先整理成可扫读的中英文对照卡片。
+- **游戏内语音 overlay**：按热键后显示短时语音波形，收集一个问题；调试请求可注入问题复现完整热键链路。
+- **本地 ASR**：使用 sherpa-onnx Paraformer 模型进行本地中文/英文语音识别，并记录采样数、读帧数、错误数和音量诊断。
+- **按需画面翻译**：说“翻译”“翻译一下”“读一下”“这是什么意思”时，把当前暂停画面发送到用户配置的 BYOK 画面翻译 API，并显示完整中文译文；菜单/装备/属性画面会优先整理成可扫读的中英文对照卡片。
 - **当前游戏 GKP 检索**：按 RetroArch label、游戏标题、平台和启用状态解析当前知识包。
+- **ASR 变体归一化**：把真机误识别样本沉淀为游戏内 observed-asr 别名和 golden regression，减少“听到了但找不到证据”的失败。
 - **低剧透回答策略**：默认轻提示，可通过追问升级为更明确或直接答案。
-- **来源与诊断**：回答保留 source id，Diagnostics 可查看 pipeline stage、LLM 状态、耗时和最新请求。
+- **来源与诊断**：回答保留 source id，Diagnostics 可查看 pipeline stage、LLM 状态、耗时、ASR 诊断和失败原因。
 - **可选 BYOK LLM**：支持 OpenAI-compatible / DeepSeek 配置，但只作为有证据时的表达和综合增强。
 - **Packs 管理**：内置 GKP 自动导入，外部 GKP 支持预检、安装、覆盖、启用/禁用和删除确认。
+- **M18 质量门禁**：新增离线 QA/report 脚本，把真实问题、ASR 误识别、无证据和补丁建议接入 backlog、golden 和发布审计。
 
 ## 安装
 
@@ -139,7 +144,7 @@ Settings -> Input -> Hotkeys -> AI Service
 5. RetroSprite 会用本地 ASR 识别问题，并从当前游戏 GKP 中检索证据。
 6. 如果命中本地证据，会在游戏内显示短回答并通过 Android TTS 朗读。
 7. 如果没有可靠证据，会说明暂时不能可靠回答，而不是猜测。
-8. 如果说“翻译一下”“读一下”“这是什么意思”，会改走当前画面翻译；翻译结果只显示中文，不朗读、不显示英文原文。
+8. 如果说“翻译”“翻译一下”“读一下”“这是什么意思”，会改走当前画面翻译；翻译结果只显示中文，不朗读、不显示英文原文。
 
 适合的提问方式：
 
@@ -150,6 +155,7 @@ Settings -> Input -> Hotkeys -> AI Service
 - `克拉肯怎么过？`
 - `不要剧透，下一步去哪？`
 - `直接告诉我具体位置。`
+- `翻译。`
 - `翻译一下。`
 - `读一下这段。`
 - `这是什么意思？`

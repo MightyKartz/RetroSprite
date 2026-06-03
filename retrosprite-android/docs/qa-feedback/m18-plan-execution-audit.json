@@ -1,0 +1,116 @@
+{
+  "schema_version": 1,
+  "objective": "M18 Eval Lab + GKP Quality Loop",
+  "status": "pass",
+  "plans": [
+    "docs/superpowers/plans/2026-06-01-m18-eval-lab-gkp-quality-loop.md"
+  ],
+  "status_report": "docs/qa-feedback/m18-status-report.md",
+  "plan_checked": 14,
+  "plan_unchecked": 0,
+  "counts": {
+    "plan_checked": 14,
+    "plan_unchecked": 0,
+    "aggregate_pass": 10,
+    "aggregate_open": 0,
+    "open_gates": 0
+  },
+  "open_blocker_categories": {},
+  "assets_edited_by_report": false,
+  "tasks": [
+    {
+      "title": "docs/superpowers/plans/2026-06-01-m18-eval-lab-gkp-quality-loop.md / Close M17 Before Starting Product Changes",
+      "checked": 1,
+      "unchecked": 0,
+      "open_items": []
+    },
+    {
+      "title": "docs/superpowers/plans/2026-06-01-m18-eval-lab-gkp-quality-loop.md / Add Offline GKP Coverage Evaluation",
+      "checked": 3,
+      "unchecked": 0,
+      "open_items": []
+    },
+    {
+      "title": "docs/superpowers/plans/2026-06-01-m18-eval-lab-gkp-quality-loop.md / Convert No-Evidence And Bad-Answer Logs Into A Backlog",
+      "checked": 3,
+      "unchecked": 0,
+      "open_items": []
+    },
+    {
+      "title": "docs/superpowers/plans/2026-06-01-m18-eval-lab-gkp-quality-loop.md / Add Safe GKP Patch Assistant",
+      "checked": 3,
+      "unchecked": 0,
+      "open_items": []
+    },
+    {
+      "title": "docs/superpowers/plans/2026-06-01-m18-eval-lab-gkp-quality-loop.md / Update Milestone Docs And Handoff",
+      "checked": 4,
+      "unchecked": 0,
+      "open_items": []
+    }
+  ],
+  "aggregate_status": [
+    {
+      "area": "GKP coverage",
+      "status": "pass",
+      "detail": "packs=6; fail_lanes=0; warn_lanes=0",
+      "category": "pass"
+    },
+    {
+      "area": "GKP backlog",
+      "status": "pass",
+      "detail": "items=10; triage_items=10; triage_status=covered_by_applied_patch=7, covered_by_device_rerun=1, covered_by_existing_golden=2; triage_categories=asr_patch_applied=7, device_rerun_passed=1, policy_golden_existing=2; review_packet_rows=7; triage_open=0; manual_asr_approval_required=no; raw_tags=voice_lifecycle_gap=1, coverage_gap=7, alias_gap=5, ranking_gap=2, asr_variant=6, spoiler_gate_gap=2",
+      "category": "pass"
+    },
+    {
+      "area": "GKP patch proposals",
+      "status": "pass",
+      "detail": "rows=7; pass=7; fail=0",
+      "category": "pass"
+    },
+    {
+      "area": "GKP patch review packet",
+      "status": "pass",
+      "detail": "rows=7; ready=0; applied=7; blocked=0; assets_edited=no",
+      "category": "pass"
+    },
+    {
+      "area": "GKP patch apply dry-run",
+      "status": "pass",
+      "detail": "rows=7; ready=0; applied=7; blocked=0; mode=dry_run; assets_edited=no",
+      "category": "pass"
+    },
+    {
+      "area": "GKP asset mutation guard",
+      "status": "pass",
+      "detail": "guard=pass; mode=approved_patch; dirty=10; expected=10; unexpected=0; apply_report=yes; apply_mode=apply",
+      "category": "pass"
+    },
+    {
+      "area": "GKP ASR voice replay handoff",
+      "status": "pass",
+      "detail": "patch_rows=7; voice_cases=7; apply_report=applied; assets_edited=no; apply_command=yes; replay_command=yes; pass_criteria=yes",
+      "category": "pass"
+    },
+    {
+      "area": "Hotkey voice matrix",
+      "status": "pass",
+      "detail": "gate=observational; total=7; observed_rows=7; strict_pass=no; pass=4; fail=3; blocked=0; not_run=0; missing=0; categories=asr_variant=1, source_mismatch=2; results=build/hotkey-voice-qa/20260603-200807/results.tsv",
+      "category": "pass"
+    },
+    {
+      "area": "Command contract audit",
+      "status": "pass",
+      "detail": "inputs=18; pass=54; fail=0; missing=0",
+      "category": "pass"
+    },
+    {
+      "area": "M18 quality loop handoff",
+      "status": "pass",
+      "detail": "loop_status=ready_for_ongoing_rc_cycle; ready=none; blocked=none; open_areas=none; missing_fragments=0",
+      "category": "pass"
+    }
+  ],
+  "open_gates": [],
+  "next_actions": []
+}

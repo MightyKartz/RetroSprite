@@ -1,0 +1,4 @@
+game_label	question	raw_question	normalized_question	issue_type	feedback	output_mode	pipeline_stage	answer_type	source_ids	expected	actual	evidence	notes
+super_nintendo__Final Fantasy VI (USA)	翻译			example_translation_gap	example	screen_translation				Replace with the expected readable Chinese or bilingual menu behavior.	Replace with what the tester saw.	build/rc-device-evidence/<timestamp>	Replace this example row before importing real notes.
+md__Shining Force II	气合之玉怎么用？			example_ranking_gap	example		evidence		sf2.characters	sf2.promotion	Answer used an unrelated source.		Replace this example row before importing real notes.
+gba__黄金太阳	这个地方要去哪			example_coverage_gap	example					A grounded low-spoiler next step.	No useful answer yet.		Replace this example row before importing real notes.

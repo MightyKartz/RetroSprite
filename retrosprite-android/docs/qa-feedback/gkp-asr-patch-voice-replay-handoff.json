@@ -1,0 +1,322 @@
+{
+  "apply_report": {
+    "assets_edited": "no",
+    "status": "applied"
+  },
+  "approval": {
+    "required": true,
+    "required_phrase": "I approve gkp patch review packet 20260601 hotkey voice"
+  },
+  "assets_edited_by_handoff": false,
+  "case_filter": "sf2_vigor_ball_observed,sf2_localized_term,golden_sun_ivan_observed,ff6_magicite_observed,chrono_marle_observed,ff6_magicite_observed,phantasy_star_tech_skill_smoke",
+  "counts": {
+    "patch_rows": 7,
+    "voice_cases": 7
+  },
+  "patch_rows": [
+    {
+      "alias_row": {
+        "canonical_term": "气合之玉怎么用",
+        "entity_id": "item.vigor-ball",
+        "kind": "observed_asr",
+        "notes": "Observed RG476H hotkey voice transcript for 气合之玉怎么用.",
+        "source": "observed_asr",
+        "term": "契河之域怎么",
+        "weight": 0.78
+      },
+      "detail": "already applied to bundled GKP assets",
+      "golden_row": {
+        "expected_entity_ids": [
+          "item.vigor-ball"
+        ],
+        "expected_intent": "usage",
+        "expected_normalized_question": "气合之玉怎么用",
+        "game_id": "shining_force_ii_md",
+        "language": "zh",
+        "notes": "Observed RG476H hotkey voice transcript for 气合之玉怎么用; evidence docs/qa-feedback/gkp-quality-backlog.md + build/hotkey-voice-qa/20260603-073814/results.tsv.",
+        "progress_gate": "elven_town",
+        "qa_id": "qa.sf2.asr.item-vigor-ball.57e5a96c.zh",
+        "question": "契河之域怎么",
+        "source_refs": [
+          "sf2.promotion"
+        ],
+        "spoiler_level": "medium"
+      },
+      "pack_dir": "app/src/main/assets/gkp/shining-force-ii-md",
+      "pack_id": "community.shining-force-ii-md",
+      "status": "applied"
+    },
+    {
+      "alias_row": {
+        "canonical_term": "气合之玉怎么用",
+        "entity_id": "item.vigor-ball",
+        "kind": "observed_asr",
+        "notes": "Observed RG476H hotkey voice transcript for 气合之玉怎么用.",
+        "source": "observed_asr",
+        "term": "契河之域怎么用",
+        "weight": 0.78
+      },
+      "detail": "already applied to bundled GKP assets",
+      "golden_row": {
+        "expected_entity_ids": [
+          "item.vigor-ball"
+        ],
+        "expected_intent": "usage",
+        "expected_normalized_question": "气合之玉怎么用",
+        "game_id": "shining_force_ii_md",
+        "language": "zh",
+        "notes": "Observed RG476H hotkey voice transcript for 气合之玉怎么用; evidence docs/qa-feedback/gkp-quality-backlog.md + build/hotkey-voice-qa/20260603-073814/results.tsv.",
+        "progress_gate": "elven_town",
+        "qa_id": "qa.sf2.asr.item-vigor-ball.7aa48b89.zh",
+        "question": "契河之域怎么用",
+        "source_refs": [
+          "sf2.promotion"
+        ],
+        "spoiler_level": "medium"
+      },
+      "pack_dir": "app/src/main/assets/gkp/shining-force-ii-md",
+      "pack_id": "community.shining-force-ii-md",
+      "status": "applied"
+    },
+    {
+      "alias_row": {
+        "canonical_term": "伊凡是不是伊万",
+        "entity_id": "npc.ivan",
+        "kind": "observed_asr",
+        "notes": "Observed RG476H hotkey voice transcript for 伊凡是不是伊万.",
+        "source": "observed_asr",
+        "term": "依凡士不是一晚",
+        "weight": 0.78
+      },
+      "detail": "already applied to bundled GKP assets",
+      "golden_row": {
+        "expected_entity_ids": [
+          "npc.ivan"
+        ],
+        "expected_intent": "name_mapping",
+        "expected_normalized_question": "伊凡是不是伊万",
+        "game_id": "golden_sun_gba",
+        "language": "zh",
+        "notes": "Observed RG476H hotkey voice transcript for 伊凡是不是伊万; evidence docs/qa-feedback/gkp-quality-backlog.md + build/hotkey-voice-qa/20260603-073814/results.tsv.",
+        "progress_gate": "early_game",
+        "qa_id": "qa.gs.asr.npc-ivan.31272c5b.zh",
+        "question": "依凡士不是一晚",
+        "source_refs": [
+          "gs.localized_name_audit"
+        ],
+        "spoiler_level": "light"
+      },
+      "pack_dir": "app/src/main/assets/gkp/golden-sun-gba-zh",
+      "pack_id": "community.golden-sun-gba-zh",
+      "status": "applied"
+    },
+    {
+      "alias_row": {
+        "canonical_term": "魔石系统是什么",
+        "entity_id": "mechanic.magicite",
+        "kind": "observed_asr",
+        "notes": "Observed RG476H hotkey voice transcript for 魔石系统是什么.",
+        "source": "observed_asr",
+        "term": "我时系统是什么",
+        "weight": 0.78
+      },
+      "detail": "already applied to bundled GKP assets",
+      "golden_row": {
+        "expected_entity_ids": [
+          "mechanic.magicite"
+        ],
+        "expected_intent": "mechanic",
+        "expected_normalized_question": "魔石系统是什么",
+        "game_id": "final_fantasy_vi_snes",
+        "language": "zh",
+        "notes": "Observed RG476H hotkey voice transcript for 魔石系统是什么; evidence docs/qa-feedback/gkp-quality-backlog.md + build/hotkey-voice-qa/20260603-073814/results.tsv.",
+        "progress_gate": "early_game",
+        "qa_id": "qa.ff6.asr.mechanic-magicite.754fb479.zh",
+        "question": "我时系统是什么",
+        "source_refs": [
+          "ff6.magicite_wiki"
+        ],
+        "spoiler_level": "light"
+      },
+      "pack_dir": "app/src/main/assets/gkp/final-fantasy-vi-snes-zh",
+      "pack_id": "community.final-fantasy-vi-snes-zh",
+      "status": "applied"
+    },
+    {
+      "alias_row": {
+        "canonical_term": "玛尔是谁",
+        "entity_id": "npc.marle",
+        "kind": "observed_asr",
+        "notes": "Observed RG476H hotkey voice transcript for 玛尔是谁.",
+        "source": "observed_asr",
+        "term": "麦尔是谁",
+        "weight": 0.78
+      },
+      "detail": "already applied to bundled GKP assets",
+      "golden_row": {
+        "expected_entity_ids": [
+          "npc.marle"
+        ],
+        "expected_intent": "name_mapping",
+        "expected_normalized_question": "玛尔是谁",
+        "game_id": "chrono_trigger_snes",
+        "language": "zh",
+        "notes": "Observed RG476H hotkey voice transcript for 玛尔是谁; evidence docs/qa-feedback/gkp-quality-backlog.md + build/hotkey-voice-qa/20260603-073814/results.tsv.",
+        "progress_gate": "start",
+        "qa_id": "qa.ct.asr.npc-marle.6e32f46d.zh",
+        "question": "麦尔是谁",
+        "source_refs": [
+          "ct.project_notes"
+        ],
+        "spoiler_level": "light"
+      },
+      "pack_dir": "app/src/main/assets/gkp/chrono-trigger-snes-zh",
+      "pack_id": "community.chrono-trigger-snes-zh",
+      "status": "applied"
+    },
+    {
+      "alias_row": {
+        "canonical_term": "魔石系统是什么",
+        "entity_id": "mechanic.magicite",
+        "kind": "observed_asr",
+        "notes": "Observed RG476H hotkey voice transcript for 魔石系统是什么.",
+        "source": "observed_asr",
+        "term": "五十系统是什么",
+        "weight": 0.78
+      },
+      "detail": "already applied to bundled GKP assets",
+      "golden_row": {
+        "expected_entity_ids": [
+          "mechanic.magicite"
+        ],
+        "expected_intent": "mechanic",
+        "expected_normalized_question": "魔石系统是什么",
+        "game_id": "final_fantasy_vi_snes",
+        "language": "zh",
+        "notes": "Observed RG476H hotkey voice transcript for 魔石系统是什么; evidence docs/qa-feedback/gkp-quality-backlog.md + build/hotkey-voice-qa/20260603-073814/results.tsv.",
+        "progress_gate": "early_game",
+        "qa_id": "qa.ff6.asr.mechanic-magicite.e2b7d3fc.zh",
+        "question": "五十系统是什么",
+        "source_refs": [
+          "ff6.magicite_wiki"
+        ],
+        "spoiler_level": "light"
+      },
+      "pack_dir": "app/src/main/assets/gkp/final-fantasy-vi-snes-zh",
+      "pack_id": "community.final-fantasy-vi-snes-zh",
+      "status": "applied"
+    },
+    {
+      "alias_row": {
+        "canonical_term": "技巧和技能有什么区别",
+        "entity_id": "mechanic.techniques",
+        "kind": "observed_asr",
+        "notes": "Observed RG476H hotkey voice transcript for 技巧和技能有什么区别.",
+        "source": "observed_asr",
+        "term": "气巧和技能有什么区别",
+        "weight": 0.78
+      },
+      "detail": "already applied to bundled GKP assets",
+      "golden_row": {
+        "expected_entity_ids": [
+          "mechanic.techniques"
+        ],
+        "expected_intent": "mechanic",
+        "expected_normalized_question": "技巧和技能有什么区别",
+        "game_id": "phantasy_star_iv_md",
+        "language": "zh",
+        "notes": "Observed RG476H hotkey voice transcript for 技巧和技能有什么区别; evidence docs/qa-feedback/gkp-quality-backlog.md + build/hotkey-voice-qa/20260603-073814/results.tsv.",
+        "progress_gate": "start",
+        "qa_id": "qa.ps4.asr.mechanic-techniques.1e50103b.zh",
+        "question": "气巧和技能有什么区别",
+        "source_refs": [
+          "ps4.techniques_wiki"
+        ],
+        "spoiler_level": "none"
+      },
+      "pack_dir": "app/src/main/assets/gkp/phantasy-star-iv-md-zh",
+      "pack_id": "community.phantasy-star-iv-md-zh",
+      "status": "applied"
+    }
+  ],
+  "paths": {
+    "apply_report": "docs/qa-feedback/gkp-patch-apply-dry-run-20260601-hotkey-voice.md",
+    "markdown_output": "docs/qa-feedback/gkp-asr-patch-voice-replay-handoff.md",
+    "review_packet": "docs/qa-feedback/gkp-patch-review-packet-20260601-hotkey-voice.md",
+    "voice_cases": "scripts/hotkey_voice_qa_cases.tsv"
+  },
+  "schema_version": 1,
+  "status": "ready",
+  "voice_cases": [
+    {
+      "case_name": "sf2_vigor_ball_observed",
+      "expected_answer_type": "usage",
+      "expected_source": "sf2.promotion",
+      "expected_stage": "evidence",
+      "label": "md__Shining Force II",
+      "notes": "Observed ASR should normalize 契合之欲/契合之域 to 气合之玉 when the recognizer produces that transcript.",
+      "pack_id": "shining-force-ii-md",
+      "spoken_prompt": "气合之玉怎么用？"
+    },
+    {
+      "case_name": "sf2_localized_term",
+      "expected_answer_type": "usage",
+      "expected_source": "sf2.promotion",
+      "expected_stage": "evidence",
+      "label": "md__Shining Force II",
+      "notes": "Localized item name / ASR-prone term.",
+      "pack_id": "shining-force-ii-md",
+      "spoken_prompt": "气合之玉怎么用？"
+    },
+    {
+      "case_name": "golden_sun_ivan_observed",
+      "expected_answer_type": "name_mapping",
+      "expected_source": "gs.localized_name_audit",
+      "expected_stage": "evidence",
+      "label": "gba__黄金太阳",
+      "notes": "Observed ASR should normalize 一凡/亿万/依凡是不是意碗 variants when the recognizer produces that transcript.",
+      "pack_id": "golden-sun-gba-zh",
+      "spoken_prompt": "伊凡是不是伊万？"
+    },
+    {
+      "case_name": "ff6_magicite_observed",
+      "expected_answer_type": "mechanic",
+      "expected_source": "ff6.magicite_wiki",
+      "expected_stage": "evidence",
+      "label": "super_nintendo__Final Fantasy VI (USA)",
+      "notes": "Observed ASR should normalize 魔石系统 variants, including noisy 同时系统 suffixes, clipped 扶食系统是什, 我石心统是什么么, 核实系是什, 国时系统是什么, and 国十系统是什么 when the recognizer produces those transcripts.",
+      "pack_id": "final-fantasy-vi-snes-zh",
+      "spoken_prompt": "魔石系统是什么？"
+    },
+    {
+      "case_name": "chrono_marle_observed",
+      "expected_answer_type": "name_mapping",
+      "expected_source": "ct.project_notes",
+      "expected_stage": "evidence",
+      "label": "sfc__Chrono Trigger (USA)",
+      "notes": "Observed ASR should normalize 迈尔/纳尔 variants when the recognizer produces that transcript.",
+      "pack_id": "chrono-trigger-snes-zh",
+      "spoken_prompt": "玛尔是谁？"
+    },
+    {
+      "case_name": "ff6_magicite_observed",
+      "expected_answer_type": "mechanic",
+      "expected_source": "ff6.magicite_wiki",
+      "expected_stage": "evidence",
+      "label": "super_nintendo__Final Fantasy VI (USA)",
+      "notes": "Observed ASR should normalize 魔石系统 variants, including noisy 同时系统 suffixes, clipped 扶食系统是什, 我石心统是什么么, 核实系是什, 国时系统是什么, and 国十系统是什么 when the recognizer produces those transcripts.",
+      "pack_id": "final-fantasy-vi-snes-zh",
+      "spoken_prompt": "魔石系统是什么？"
+    },
+    {
+      "case_name": "phantasy_star_tech_skill_smoke",
+      "expected_answer_type": "mechanic",
+      "expected_source": "ps4.techniques_wiki",
+      "expected_stage": "evidence",
+      "label": "genesis__Phantasy_Star_IV",
+      "notes": "Passing smoke for Phantasy Star IV; observed ASR should normalize 气巧/继巧/记巧 clipped variants.",
+      "pack_id": "phantasy-star-iv-md-zh",
+      "spoken_prompt": "技巧和技能有什么区别？"
+    }
+  ]
+}

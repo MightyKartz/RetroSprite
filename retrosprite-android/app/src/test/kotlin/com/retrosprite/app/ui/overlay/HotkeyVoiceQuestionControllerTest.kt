@@ -753,6 +753,43 @@ class HotkeyVoiceQuestionControllerTest {
     }
 
     @Test
+    fun `hotkey voice session carries audio capture diagnostics into overlay snapshot`() = runTest {
+        val renderer = FakeRenderer()
+        val coordinator = HotkeyVoiceOverlayCoordinator(
+            renderer = renderer,
+            canDrawOverlays = { true },
+            scheduleAutoHide = {},
+            cancelAutoHide = {},
+        )
+        val voice = FakeVoiceInputProvider(
+            finalTranscript = "什么时候转职？",
+            asrSampleCount = 48_000L,
+            asrAudioReadCount = 12L,
+            asrAudioReadErrorCount = 0L,
+            asrPeakAmplitude = 0.18f,
+            asrLastFrameAmplitude = 0.04f,
+        )
+        val controller = HotkeyVoiceQuestionController(
+            coordinator = coordinator,
+            voiceInput = voice,
+            responseGenerator = CapturingGenerator("20 级以后可以转职。\n来源：sf2.promotion"),
+            speechOutput = FakeSpeechOutputProvider(),
+            loggerProvider = { RequestLogger() },
+            scope = this,
+        )
+
+        controller.onHotkey(event())
+        advanceUntilIdle()
+
+        val snapshot = coordinator.debugSnapshot()
+        assertEquals(48_000L, snapshot.asr_sample_count)
+        assertEquals(12L, snapshot.asr_audio_read_count)
+        assertEquals(0L, snapshot.asr_audio_read_error_count)
+        assertEquals(0.18f, snapshot.asr_peak_amplitude)
+        assertEquals(0.04f, snapshot.asr_last_frame_amplitude)
+    }
+
+    @Test
     fun `translation intent uses hotkey screenshot and skips normal QA pipeline`() = runTest {
         val renderer = FakeRenderer()
         val coordinator = HotkeyVoiceOverlayCoordinator(
@@ -888,6 +925,44 @@ class HotkeyVoiceQuestionControllerTest {
     }
 
     @Test
+    fun `debug injected translation question bypasses microphone and translates screenshot`() = runTest {
+        val renderer = FakeRenderer()
+        val coordinator = HotkeyVoiceOverlayCoordinator(
+            renderer = renderer,
+            canDrawOverlays = { true },
+            scheduleAutoHide = {},
+            cancelAutoHide = {},
+        )
+        val voice = FakeVoiceInputProvider("should not be used")
+        val translationPipeline = RecordingScreenTranslationPipeline(
+            ScreenTranslationResult(
+                translatedText = "菜单\nITEM 道具",
+                pages = listOf("菜单\nITEM 道具"),
+                providerName = "fake-api",
+                model = "fake-model",
+            )
+        )
+        val controller = HotkeyVoiceQuestionController(
+            coordinator = coordinator,
+            voiceInput = voice,
+            responseGenerator = CapturingGenerator("normal answer"),
+            screenTranslationPipeline = translationPipeline,
+            screenTranslationIntentClassifier = ScreenTranslationIntentClassifier(),
+            speechOutput = FakeSpeechOutputProvider(),
+            loggerProvider = { RequestLogger() },
+            scope = this,
+        )
+
+        controller.onHotkey(event(imageBase64 = "menu_image").copy(injectedQuestion = "翻译"))
+        advanceUntilIdle()
+
+        assertEquals(0, voice.startCount)
+        assertEquals(1, translationPipeline.callCount)
+        assertEquals("menu_image", translationPipeline.imageBase64)
+        assertEquals("菜单\nITEM 道具", lastTranslationText(renderer))
+    }
+
+    @Test
     fun `screen translation keeps every result page visible for ten seconds`() = runTest {
         val renderer = FakeRenderer()
         val coordinator = HotkeyVoiceOverlayCoordinator(
@@ -977,6 +1052,11 @@ class HotkeyVoiceQuestionControllerTest {
     private class FakeVoiceInputProvider(
         private val finalTranscript: String,
         private val partialTranscript: String? = null,
+        private val asrSampleCount: Long? = null,
+        private val asrAudioReadCount: Long? = null,
+        private val asrAudioReadErrorCount: Long? = null,
+        private val asrPeakAmplitude: Float? = null,
+        private val asrLastFrameAmplitude: Float? = null,
     ) : VoiceInputProvider {
         private val _state = MutableStateFlow(UiVoiceInputState(engineLabel = "fake"))
         override val state: StateFlow<UiVoiceInputState> = _state
@@ -992,6 +1072,11 @@ class HotkeyVoiceQuestionControllerTest {
                 isListening = true,
                 transcript = partialTranscript,
                 engineLabel = "fake",
+                asrSampleCount = asrSampleCount,
+                asrAudioReadCount = asrAudioReadCount,
+                asrAudioReadErrorCount = asrAudioReadErrorCount,
+                asrPeakAmplitude = asrPeakAmplitude,
+                asrLastFrameAmplitude = asrLastFrameAmplitude,
             )
             kotlinx.coroutines.yield()
             _state.value = UiVoiceInputState(
@@ -1000,6 +1085,11 @@ class HotkeyVoiceQuestionControllerTest {
                 transcript = finalTranscript,
                 transcriptEventId = startCount.toLong(),
                 engineLabel = "fake",
+                asrSampleCount = asrSampleCount,
+                asrAudioReadCount = asrAudioReadCount,
+                asrAudioReadErrorCount = asrAudioReadErrorCount,
+                asrPeakAmplitude = asrPeakAmplitude,
+                asrLastFrameAmplitude = asrLastFrameAmplitude,
             )
         }
 

@@ -28,7 +28,7 @@ class GkpV0PreflightValidatorTest {
         assertEquals("gkp.v0", report.schemaVersion)
         assertEquals(42, report.knowledgeRows)
         assertEquals(6, report.sourceCount)
-        assertEquals(50, report.goldenRows)
+        assertEquals(52, report.goldenRows)
         assertEquals("已声明", report.licenseStatus)
         assertEquals(GkpSignatureStatus.Unsigned.id, report.signatureStatus)
         assertTrue(report.contentDigest.orEmpty().matches(Regex("[a-f0-9]{64}")))

@@ -110,6 +110,11 @@ class HotkeyVoiceOverlayCoordinatorTest {
             asrRequiredStableMillis = 650L,
             asrEndpointArmed = true,
             asrFinalFlushMillis = 2_000L,
+            asrSampleCount = 48_000L,
+            asrAudioReadCount = 12L,
+            asrAudioReadErrorCount = 0L,
+            asrPeakAmplitude = 0.18f,
+            asrLastFrameAmplitude = 0.04f,
         )
         assertEquals("listening", coordinator.debugSnapshot().lifecycle_phase)
         assertEquals("Answering", coordinator.debugSnapshot().lifecycle_phase_label)
@@ -144,6 +149,11 @@ class HotkeyVoiceOverlayCoordinatorTest {
         assertEquals(650L, snapshot.asr_required_stable_ms)
         assertEquals(true, snapshot.asr_endpoint_armed)
         assertEquals(2_000L, snapshot.asr_final_flush_ms)
+        assertEquals(48_000L, snapshot.asr_sample_count)
+        assertEquals(12L, snapshot.asr_audio_read_count)
+        assertEquals(0L, snapshot.asr_audio_read_error_count)
+        assertEquals(0.18f, snapshot.asr_peak_amplitude)
+        assertEquals(0.04f, snapshot.asr_last_frame_amplitude)
         assertEquals(10_000L, snapshot.started_at)
         assertEquals(12_345L, snapshot.finished_at)
         assertEquals("answer_completed", snapshot.finish_reason)

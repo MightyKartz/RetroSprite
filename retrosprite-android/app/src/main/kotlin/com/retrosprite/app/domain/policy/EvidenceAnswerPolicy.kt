@@ -222,7 +222,7 @@ class EvidenceAnswerPolicy(
             "我还没有足够证据回答这个问题。请补充版本、位置或换个更具体的问法。"
 
         const val INCOMPLETE_QUESTION_FRAGMENT_TEXT: String =
-            "我没听清完整问题。请再说一遍，尽量带上角色、道具、地点或目标。"
+            "没听清这个问题，可以再按一次热键重问。也可以说得更具体一点，比如角色、道具、地点或目标。"
 
         const val ROUTE_NEEDS_PROGRESS_TEXT: String =
             "我还不知道你的当前进度。你现在在哪个城镇、刚打完哪场战斗，或刚收到哪个角色？"

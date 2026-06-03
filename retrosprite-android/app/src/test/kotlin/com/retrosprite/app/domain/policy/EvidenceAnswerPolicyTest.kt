@@ -83,7 +83,7 @@ class EvidenceAnswerPolicyTest {
     }
 
     @Test
-    fun `no evidence for incomplete question fragment asks player to repeat complete question`() =
+    fun `no evidence for incomplete question fragment asks player to retry hotkey question`() =
         runTest {
             val decision = policy.decide(
                 results = emptyList(),
@@ -95,7 +95,7 @@ class EvidenceAnswerPolicyTest {
             )
 
             val answer = decision as AnswerDecision.DirectAnswer
-            assertTrue(answer.text.contains("没听清完整问题"))
+            assertTrue(answer.text.contains("没听清这个问题，可以再按一次热键重问"))
             assertFalse(answer.text.contains("没有足够证据"))
             assertTrue(answer.text.contains("这个道具怎么获得？"))
         }

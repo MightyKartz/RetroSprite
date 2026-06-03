@@ -1,0 +1,6 @@
+id	game_label	screen_type	trigger_phrase	expected_layout	expected_language	number_policy	evidence_required
+ff6_dialogue	super_nintendo__Final Fantasy VI (USA)	dialogue	翻译	chinese_only	zh	no_numbers	manual_screenshot
+ff6_main_menu	super_nintendo__Final Fantasy VI (USA)	menu	翻译	bilingual_rows	en_zh	preserve_numbers	manual_screenshot
+ff6_status	super_nintendo__Final Fantasy VI (USA)	status	翻译	grouped_labels	zh	preserve_hp_mp_level_exp	manual_screenshot
+chrono_equipment	sfc__Chrono Trigger (USA)	equipment	翻译	bilingual_rows	en_zh	preserve_numbers	manual_screenshot
+multi_page_any	any	mixed	翻译	paged_overlay	zh_or_en_zh	ten_seconds_per_page	manual_screenshot

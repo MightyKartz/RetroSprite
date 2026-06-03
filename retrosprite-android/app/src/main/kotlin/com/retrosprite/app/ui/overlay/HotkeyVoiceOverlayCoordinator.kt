@@ -61,6 +61,11 @@ data class HotkeyVoiceOverlayRenderState(
     val asrRequiredStableMillis: Long? = null,
     val asrEndpointArmed: Boolean? = null,
     val asrFinalFlushMillis: Long? = null,
+    val asrSampleCount: Long? = null,
+    val asrAudioReadCount: Long? = null,
+    val asrAudioReadErrorCount: Long? = null,
+    val asrPeakAmplitude: Float? = null,
+    val asrLastFrameAmplitude: Float? = null,
 )
 
 interface HotkeyVoiceOverlayRenderer {
@@ -157,6 +162,11 @@ class HotkeyVoiceOverlayCoordinator(
         asrRequiredStableMillis: Long? = null,
         asrEndpointArmed: Boolean? = null,
         asrFinalFlushMillis: Long? = null,
+        asrSampleCount: Long? = null,
+        asrAudioReadCount: Long? = null,
+        asrAudioReadErrorCount: Long? = null,
+        asrPeakAmplitude: Float? = null,
+        asrLastFrameAmplitude: Float? = null,
     ) {
         val event = activeEvent ?: return
         val nextMicLive = micLive ?: false
@@ -175,6 +185,13 @@ class HotkeyVoiceOverlayCoordinator(
             asrRequiredStableMillis ?: debugSnapshot.asr_required_stable_ms
         val nextAsrEndpointArmed = asrEndpointArmed ?: debugSnapshot.asr_endpoint_armed
         val nextAsrFinalFlushMillis = asrFinalFlushMillis ?: debugSnapshot.asr_final_flush_ms
+        val nextAsrSampleCount = asrSampleCount ?: debugSnapshot.asr_sample_count
+        val nextAsrAudioReadCount = asrAudioReadCount ?: debugSnapshot.asr_audio_read_count
+        val nextAsrAudioReadErrorCount =
+            asrAudioReadErrorCount ?: debugSnapshot.asr_audio_read_error_count
+        val nextAsrPeakAmplitude = asrPeakAmplitude ?: debugSnapshot.asr_peak_amplitude
+        val nextAsrLastFrameAmplitude =
+            asrLastFrameAmplitude ?: debugSnapshot.asr_last_frame_amplitude
         debugSnapshot = event.toDebugSnapshot(
             lifecyclePhase = phase.lifecycleDebugName(),
             lifecyclePhaseLabel = phase.statusLabel(),
@@ -201,6 +218,11 @@ class HotkeyVoiceOverlayCoordinator(
             asrRequiredStableMillis = nextAsrRequiredStableMillis,
             asrEndpointArmed = nextAsrEndpointArmed,
             asrFinalFlushMillis = nextAsrFinalFlushMillis,
+            asrSampleCount = nextAsrSampleCount,
+            asrAudioReadCount = nextAsrAudioReadCount,
+            asrAudioReadErrorCount = nextAsrAudioReadErrorCount,
+            asrPeakAmplitude = nextAsrPeakAmplitude,
+            asrLastFrameAmplitude = nextAsrLastFrameAmplitude,
             startedAt = debugSnapshot.started_at ?: clockMillis(),
             updatedAt = clockMillis(),
         )
@@ -230,6 +252,11 @@ class HotkeyVoiceOverlayCoordinator(
                 asrRequiredStableMillis = nextAsrRequiredStableMillis,
                 asrEndpointArmed = nextAsrEndpointArmed,
                 asrFinalFlushMillis = nextAsrFinalFlushMillis,
+                asrSampleCount = nextAsrSampleCount,
+                asrAudioReadCount = nextAsrAudioReadCount,
+                asrAudioReadErrorCount = nextAsrAudioReadErrorCount,
+                asrPeakAmplitude = nextAsrPeakAmplitude,
+                asrLastFrameAmplitude = nextAsrLastFrameAmplitude,
             )
         )
     }
@@ -294,6 +321,11 @@ private fun RetroArchHotkeyEvent.toDebugSnapshot(
     asrRequiredStableMillis: Long? = null,
     asrEndpointArmed: Boolean? = null,
     asrFinalFlushMillis: Long? = null,
+    asrSampleCount: Long? = null,
+    asrAudioReadCount: Long? = null,
+    asrAudioReadErrorCount: Long? = null,
+    asrPeakAmplitude: Float? = null,
+    asrLastFrameAmplitude: Float? = null,
     startedAt: Long? = null,
     updatedAt: Long? = null,
 ): DebugHotkeyVoiceOverlayResponse =
@@ -327,6 +359,11 @@ private fun RetroArchHotkeyEvent.toDebugSnapshot(
         asr_required_stable_ms = asrRequiredStableMillis,
         asr_endpoint_armed = asrEndpointArmed,
         asr_final_flush_ms = asrFinalFlushMillis,
+        asr_sample_count = asrSampleCount,
+        asr_audio_read_count = asrAudioReadCount,
+        asr_audio_read_error_count = asrAudioReadErrorCount,
+        asr_peak_amplitude = asrPeakAmplitude,
+        asr_last_frame_amplitude = asrLastFrameAmplitude,
         started_at = startedAt,
         updated_at = updatedAt,
     )

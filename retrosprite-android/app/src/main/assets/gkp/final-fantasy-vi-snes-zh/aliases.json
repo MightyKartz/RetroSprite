@@ -26,7 +26,7 @@
     {"term": "无石系统", "entity_id": "mechanic.magicite", "weight": 0.78, "kind": "observed_asr", "source": "observed_asr", "canonical_term": "魔石系统", "notes": "Observed MacBook-speaker Paraformer transcript for 魔石系统."},
     {"term": "无石系统是什么", "entity_id": "mechanic.magicite", "weight": 0.78, "kind": "observed_asr", "source": "observed_asr", "canonical_term": "魔石系统是什么", "notes": "Observed MacBook-speaker Paraformer transcript for 魔石系统是什么."},
     {"term": "何石系统是什么", "entity_id": "mechanic.magicite", "weight": 0.78, "kind": "observed_asr", "source": "observed_asr", "canonical_term": "魔石系统是什么", "notes": "Observed MacBook-speaker Paraformer transcript for 魔石系统是什么."},
-    {"term": "无时", "entity_id": "mechanic.magicite", "weight": 0.70, "kind": "observed_asr", "source": "observed_asr", "canonical_term": "魔石", "notes": "Observed shorter Paraformer variant for 魔石; scoped to FF6 only."},
+    {"term": "无时", "entity_id": "mechanic.magicite", "weight": 0.7, "kind": "observed_asr", "source": "observed_asr", "canonical_term": "魔石", "notes": "Observed shorter Paraformer variant for 魔石; scoped to FF6 only."},
     {"term": "魔石系统", "entity_id": "mechanic.magicite", "weight": 1.0},
     {"term": "魔石学习", "entity_id": "mechanic.magicite", "weight": 0.9},
     {"term": "幻兽", "entity_id": "mechanic.espers", "weight": 1.0},
@@ -102,6 +102,14 @@
     {"term": "帝国兵", "entity_id": "enemy.imperial-soldier", "weight": 0.9},
     {"term": "帝国士兵", "entity_id": "enemy.imperial-soldier", "weight": 0.9},
     {"term": "普通怪物", "entity_id": "enemy.monster-bucket", "weight": 0.8},
-    {"term": "野外怪", "entity_id": "enemy.monster-bucket", "weight": 0.8}
+    {"term": "野外怪", "entity_id": "enemy.monster-bucket", "weight": 0.8},
+    {"canonical_term": "魔石系统是什么", "entity_id": "mechanic.magicite", "kind": "observed_asr", "notes": "Observed RG476H hotkey voice transcript for 魔石系统是什么.", "source": "observed_asr", "term": "我时系统是什么", "weight": 0.78},
+    {"canonical_term": "魔石系统是什么", "entity_id": "mechanic.magicite", "kind": "observed_asr", "notes": "Observed RG476H hotkey voice transcript for 魔石系统是什么.", "source": "observed_asr", "term": "五十系统是什么", "weight": 0.78},
+    {"canonical_term": "魔石系统是什么", "entity_id": "mechanic.magicite", "kind": "observed_asr", "notes": "Observed RG476H hotkey voice transcript suffix after noisy prefix for 魔石系统是什么; evidence build/hotkey-voice-qa/20260603-190957/results.tsv.", "source": "observed_asr", "term": "同时系统是什么", "weight": 0.78},
+    {"canonical_term": "魔石系统是什么", "entity_id": "mechanic.magicite", "kind": "observed_asr", "notes": "Observed RG476H hotkey voice transcript with clipped tail for 魔石系统是什么; evidence build/hotkey-voice-qa/20260603-195821/results.tsv.", "source": "observed_asr", "term": "扶食系统是什", "weight": 0.78},
+    {"canonical_term": "魔石系统是什么", "entity_id": "mechanic.magicite", "kind": "observed_asr", "notes": "Observed RG476H hotkey voice transcript for 魔石系统是什么; evidence build/hotkey-voice-qa/20260603-200152/results.tsv.", "source": "observed_asr", "term": "我石心统是什么么", "weight": 0.78},
+    {"canonical_term": "魔石系统是什么", "entity_id": "mechanic.magicite", "kind": "observed_asr", "notes": "Observed RG476H hotkey voice transcript with clipped tail for 魔石系统是什么; evidence build/hotkey-voice-qa/20260603-200807/results.tsv.", "source": "observed_asr", "term": "核实系是什", "weight": 0.78},
+    {"canonical_term": "魔石系统是什么", "entity_id": "mechanic.magicite", "kind": "observed_asr", "notes": "Observed RG476H hotkey voice transcript for 魔石系统是什么; evidence build/hotkey-voice-qa/20260603-205255/results.tsv.", "source": "observed_asr", "term": "国时系统是什么", "weight": 0.78},
+    {"canonical_term": "魔石系统是什么", "entity_id": "mechanic.magicite", "kind": "observed_asr", "notes": "Observed RG476H hotkey voice transcript for 魔石系统是什么; evidence build/hotkey-voice-qa/20260603-210531/results.tsv.", "source": "observed_asr", "term": "国十系统是什么", "weight": 0.78}
   ]
 }

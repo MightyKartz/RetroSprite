@@ -5,6 +5,7 @@ phantasy-star-iv-md-zh	genesis__Phantasy_Star_IV	技巧和技能有什么区别�
 langrisser-ii-md-zh	md__Langrisser II (Japan)	指挥官是什么？	l2.project_notes	evidence	skipped	text	指挥官是什么？
 chrono-trigger-snes-zh	sfc__Chrono Trigger (USA)	时间条战斗怎么理解？	ct.project_notes	evidence	skipped	text	时间条战斗怎么理解？
 final-fantasy-vi-snes-zh	super_nintendo__Final Fantasy VI (USA)	魔石系统是什么？	ff6.magicite_wiki	evidence	skipped	text	魔石系统是什么？
+phantasy-star-iv-tech-skill-qiqiao-observed	genesis__Phantasy_Star_IV	气巧和技能有什么区别	ps4.techniques_wiki	evidence	skipped	hotkey_voice:text	技巧和技能有什么区别
 sf2-vigor-ball-observed	md__Shining Force II	契合之域怎么用	sf2.promotion	evidence	skipped	hotkey_voice:text	气合之玉怎么用
 sf2-kraken-pan-observed	md__Shining Force II	克拉盆怎么	sf2.enemy_boss_notes	evidence	skipped	hotkey_voice:text	克拉肯怎么过
 golden-sun-ivan-observed	gba__黄金太阳	一凡是不是亿万	gs.localized_name_audit	evidence	skipped	hotkey_voice:text	伊凡是不是伊万
@@ -20,5 +21,6 @@ chrono-atb-challenge-observed	sfc__Chrono Trigger (USA)	时间挑战斗怎么理
 ff6-magicite-observed	super_nintendo__Final Fantasy VI (USA)	无时系统是什么	ff6.magicite_wiki	evidence	skipped	hotkey_voice:text	魔石系统是什么
 ff6-magicite-stone-observed	super_nintendo__Final Fantasy VI (USA)	无石系统是什么	ff6.magicite_wiki	evidence	skipped	hotkey_voice:text	魔石系统是什么
 ff6-magicite-heshi-observed	super_nintendo__Final Fantasy VI (USA)	何石系统是什么	ff6.magicite_wiki	evidence	skipped	hotkey_voice:text	魔石系统是什么
+ff6-magicite-fifty-observed	super_nintendo__Final Fantasy VI (USA)	五十系统是什么	ff6.magicite_wiki	evidence	skipped	hotkey_voice:text	魔石系统是什么
 langrisser-mercenary-observed	md__Langrisser II (Japan)	拥兵有什么用	l2.project_notes	evidence	skipped	hotkey_voice:text	佣兵有什么用
 phantasy-star-combo-observed	genesis__Phantasy_Star_IV	组合计要不要一开始研究	ps4.project_notes	evidence	skipped	hotkey_voice:text	组合技要不要一开始研究

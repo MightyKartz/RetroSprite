@@ -76,7 +76,31 @@ class HotkeyVoiceQuestionController(
 
     private suspend fun runVoiceQuestionAfterOverlayStarted(event: RetroArchHotkeyEvent) {
         val recognitionContext = recognitionContextFor(event)
-        val voiceState = coroutineScope {
+        val injectedQuestion = event.injectedQuestion.trim().takeIf { it.isNotBlank() }
+        val voiceState = if (injectedQuestion != null) {
+            delay(INJECTED_PREPARING_LINGER_MS)
+            coordinator.renderVoiceState(
+                phase = HotkeyVoiceOverlayPhase.Listening,
+                amplitude = 0.22f,
+                message = "Mic live",
+                micLive = true,
+                showTranscriptHud = showTranscriptHudProvider(),
+            )
+            delay(INJECTED_LISTENING_LINGER_MS)
+            coordinator.renderVoiceState(
+                phase = HotkeyVoiceOverlayPhase.Listening,
+                amplitude = 0.18f,
+                message = "Mic live",
+                micLive = true,
+                transcript = injectedQuestion,
+                showTranscriptHud = showTranscriptHudProvider(),
+                asrCommitReason = "debug_injected_question",
+                asrFinalText = injectedQuestion,
+                asrSelectedTranscript = injectedQuestion,
+            )
+            delay(INJECTED_TRANSCRIPT_LINGER_MS)
+            null
+        } else coroutineScope {
             val initialEventId = voiceInput.state.value.transcriptEventId
             val progressJob = launch {
                 voiceInput.state.collect { state ->
@@ -114,6 +138,11 @@ class HotkeyVoiceQuestionController(
                             asrRequiredStableMillis = state.asrRequiredStableMillis,
                             asrEndpointArmed = state.asrEndpointArmed,
                             asrFinalFlushMillis = state.asrFinalFlushMillis,
+                            asrSampleCount = state.asrSampleCount,
+                            asrAudioReadCount = state.asrAudioReadCount,
+                            asrAudioReadErrorCount = state.asrAudioReadErrorCount,
+                            asrPeakAmplitude = state.asrPeakAmplitude,
+                            asrLastFrameAmplitude = state.asrLastFrameAmplitude,
                         )
                     }
                 }
@@ -131,7 +160,7 @@ class HotkeyVoiceQuestionController(
             progressJob.cancelAndJoin()
             final
         }
-        val question = voiceState?.transcript?.trim().orEmpty()
+        val question = injectedQuestion ?: voiceState?.transcript?.trim().orEmpty()
         val requestLabel = recognitionContext.label
         val screenTranslationQuestion =
             screenTranslationIntentClassifier.normalizeScreenTranslationRequest(question)
@@ -159,6 +188,11 @@ class HotkeyVoiceQuestionController(
                 asrRequiredStableMillis = voiceState?.asrRequiredStableMillis,
                 asrEndpointArmed = voiceState?.asrEndpointArmed,
                 asrFinalFlushMillis = voiceState?.asrFinalFlushMillis,
+                asrSampleCount = voiceState?.asrSampleCount,
+                asrAudioReadCount = voiceState?.asrAudioReadCount,
+                asrAudioReadErrorCount = voiceState?.asrAudioReadErrorCount,
+                asrPeakAmplitude = voiceState?.asrPeakAmplitude,
+                asrLastFrameAmplitude = voiceState?.asrLastFrameAmplitude,
             )
             finishVoiceSessionAfter(
                 RECOVERY_LINGER_MS,
@@ -192,6 +226,11 @@ class HotkeyVoiceQuestionController(
             asrRequiredStableMillis = voiceState?.asrRequiredStableMillis,
             asrEndpointArmed = voiceState?.asrEndpointArmed,
             asrFinalFlushMillis = voiceState?.asrFinalFlushMillis,
+            asrSampleCount = voiceState?.asrSampleCount,
+            asrAudioReadCount = voiceState?.asrAudioReadCount,
+            asrAudioReadErrorCount = voiceState?.asrAudioReadErrorCount,
+            asrPeakAmplitude = voiceState?.asrPeakAmplitude,
+            asrLastFrameAmplitude = voiceState?.asrLastFrameAmplitude,
         )
 
         val logger = loggerProvider()
@@ -337,6 +376,11 @@ class HotkeyVoiceQuestionController(
             asrRequiredStableMillis = voiceState?.asrRequiredStableMillis,
             asrEndpointArmed = voiceState?.asrEndpointArmed,
             asrFinalFlushMillis = voiceState?.asrFinalFlushMillis,
+            asrSampleCount = voiceState?.asrSampleCount,
+            asrAudioReadCount = voiceState?.asrAudioReadCount,
+            asrAudioReadErrorCount = voiceState?.asrAudioReadErrorCount,
+            asrPeakAmplitude = voiceState?.asrPeakAmplitude,
+            asrLastFrameAmplitude = voiceState?.asrLastFrameAmplitude,
         )
 
         val logger = loggerProvider()
@@ -464,6 +508,9 @@ class HotkeyVoiceQuestionController(
         private const val VOICE_TIMEOUT_MS: Long = 20_000L
         private const val SPEECH_TIMEOUT_MS: Long = 15_000L
         private const val LISTENING_VISUAL_LINGER_MS: Long = 220L
+        private const val INJECTED_PREPARING_LINGER_MS: Long = 650L
+        private const val INJECTED_LISTENING_LINGER_MS: Long = 650L
+        private const val INJECTED_TRANSCRIPT_LINGER_MS: Long = 500L
         private const val SCREEN_TRANSLATION_TIMEOUT_MS: Long = 35_000L
         private const val TRANSLATION_PAGE_LINGER_MS: Long = 10_000L
         private const val TRANSLATION_LAST_PAGE_LINGER_MS: Long = 10_000L

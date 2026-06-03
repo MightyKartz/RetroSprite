@@ -1,7 +1,7 @@
 # RetroSprite RAG-Anything GKP Production Tooling Plan
 
 > Date: 2026-05-19
-> Status: implementation plan
+> Status: historical implementation plan; current M17 release scope uses the six real bundled GKP packs listed in README, not `sample-2048`.
 > Scope: use RAG-Anything as an offline Game Knowledge Pack production tool, not as the Android runtime retriever.
 > Related docs: `GKP_V0_SCHEMA.md`, `NEXT_IMPLEMENTATION_PLAN.md`, `TEST_COVERAGE.md`
 
@@ -62,7 +62,7 @@ RetroSprite should keep:
 4. Keep every generated knowledge row traceable to a source id and locator.
 5. Prevent copied long-form walkthrough text, ROM data, executable code, and unreviewed LLM claims from entering GKP packages.
 6. Produce packs that pass existing Android-side parser, lint, retrieval, and answer policy tests.
-7. Make the pipeline useful for `sample-2048` first, then one guide-heavy classic game and one mechanics-heavy game.
+7. Historical pilot target was `sample-2048`; current M17 builder validation should use real bundled GKP fixtures instead.
 
 ## 4. Non-Goals
 
@@ -629,7 +629,7 @@ Goal: lock the product boundary.
 | --- | --- | --- |
 | Document RAG-Anything usage boundary | this plan | Android runtime remains unchanged |
 | Add `.gitignore` rules for builder workspaces | repo config | raw sources and generated workdirs are not accidentally committed |
-| Decide first pilot pack | plan update | `sample-2048` remains first target |
+| Decide first pilot pack | plan update | Historical target was `sample-2048`; current M17 validation should use real bundled GKP fixtures |
 
 ### G1 - Builder Scaffold
 
@@ -678,9 +678,9 @@ Goal: export reviewed candidates into valid GKP packages.
 | QA writer | `qa_goldens.jsonl` | golden ids are stable |
 | Changelog writer | `changelog.md` | pack version is recorded |
 
-### G5 - `sample-2048` Expansion
+### G5 - Historical `sample-2048` Expansion
 
-Goal: use the builder on the current bundled sample pack.
+Goal: originally, use the builder on the bundled sample pack. For M17 and later, use this only as historical context; new validation should target real bundled GKP data.
 
 Target coverage:
 
@@ -776,9 +776,9 @@ For the tool:
 Start with G1 and G2 only:
 
 1. scaffold `tools/gkp-builder`;
-2. parse a tiny `sample-2048` source note through the RAG-Anything adapter;
+2. for historical reproduction only, parse a tiny `sample-2048` source note through the RAG-Anything adapter; for current M17 work, use a small real-GKP source note instead;
 3. normalize it into `content_blocks.jsonl`;
-4. export a reviewed GKP identical in behavior to the current sample;
+4. export a reviewed GKP identical in behavior to the chosen fixture;
 5. run existing Android GKP lint and golden tests.
 
 After that works, add extraction prompts and review workflow. This keeps the first implementation grounded in RetroSprite's current runtime instead of building an impressive but disconnected content pipeline.

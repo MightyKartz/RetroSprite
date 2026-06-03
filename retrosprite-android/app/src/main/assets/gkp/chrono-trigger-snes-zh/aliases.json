@@ -95,6 +95,7 @@
     {"term": "机器人敌人", "entity_id": "enemy.robot", "weight": 0.9},
     {"term": "机械敌人", "entity_id": "enemy.robot", "weight": 0.9},
     {"term": "恐龙人", "entity_id": "enemy.reptite", "weight": 0.9},
-    {"term": "Reptites", "entity_id": "enemy.reptite", "weight": 1.0}
+    {"term": "Reptites", "entity_id": "enemy.reptite", "weight": 1.0},
+    {"canonical_term": "玛尔是谁", "entity_id": "npc.marle", "kind": "observed_asr", "notes": "Observed RG476H hotkey voice transcript for 玛尔是谁.", "source": "observed_asr", "term": "麦尔是谁", "weight": 0.78}
   ]
 }

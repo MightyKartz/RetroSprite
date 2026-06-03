@@ -24,6 +24,7 @@ class AndroidHotkeyVoiceOverlayController(
     loggerProvider: () -> RequestLogger,
     showTranscriptHudProvider: () -> Boolean = { true },
     screenTranslationPipeline: ScreenTranslationPipeline? = null,
+    prepareMicrophoneCapture: () -> Unit = {},
     displayMillis: Long = DEFAULT_DISPLAY_MILLIS,
 ) : RetroArchHotkeyListener {
 
@@ -61,6 +62,7 @@ class AndroidHotkeyVoiceOverlayController(
         scope = mainScope,
         showTranscriptHudProvider = showTranscriptHudProvider,
         screenTranslationPipeline = screenTranslationPipeline,
+        prepareMicrophoneCapture = prepareMicrophoneCapture,
     )
 
     override fun onHotkey(event: RetroArchHotkeyEvent) {

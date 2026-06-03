@@ -95,6 +95,47 @@ class GkpV0ParserTest {
     }
 
     @Test
+    fun `expands game title aliases into retroarch labels`() {
+        val manifestText = """
+            {
+              "schema_version": "gkp.v0",
+              "pack_id": "community.ff6-test",
+              "pack_version": "0.1.0",
+              "trust_level": "community",
+              "game": {
+                "game_id": "final_fantasy_vi_snes",
+                "title": "Final Fantasy VI / 最终幻想 VI",
+                "platform": "snes",
+                "region": null,
+                "languages": ["zh"],
+                "retroarch_system_ids": ["snes", "super_nes"],
+                "retroarch_labels": ["snes__Final Fantasy VI"],
+                "title_aliases": ["最终幻想6", "最终幻想VI", "Final Fantasy 6"],
+                "rom_identity": {"crc32": null, "sha1": null}
+              },
+              "contents": {
+                "knowledge": ["knowledge/entities.jsonl"],
+                "aliases": "aliases.json"
+              }
+            }
+        """.trimIndent()
+        val knowledgeText = """
+            {"entity_id":"note.identity","entity_type":"note","canonical_name":"Final Fantasy VI / 最终幻想 VI","language":"zh","aliases":["最终幻想6"],"description_short":"Final Fantasy VI 是一款 16-bit RPG。","description_long":null,"progress_gate":"start","spoiler_level":"none","source_refs":["test.source"],"confidence":"community","answer_templates":[]}
+        """.trimIndent()
+
+        val parsed = parser.parse(
+            manifestText = manifestText,
+            knowledgeFiles = mapOf("knowledge/entities.jsonl" to knowledgeText),
+            aliasFiles = mapOf("aliases.json" to """{"language":"zh","aliases":[]}"""),
+        )
+
+        assertTrue(parsed.game.retroarchLabels.contains("snes__Final Fantasy VI"))
+        assertTrue(parsed.game.retroarchLabels.contains("snes__最终幻想6"))
+        assertTrue(parsed.game.retroarchLabels.contains("super_nes__最终幻想6"))
+        assertTrue(parsed.game.retroarchLabels.contains("super_nes__Final Fantasy 6"))
+    }
+
+    @Test
     fun `merges aliases file terms into parsed knowledge rows`() {
         val manifestText = """
             {

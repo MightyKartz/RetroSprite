@@ -24,6 +24,14 @@
       "gba__黄金太阳-开启的封印",
       "gba__黄金太阳 开启的封印"
     ],
+    "title_aliases": [
+      "Golden Sun",
+      "Golden_Sun",
+      "黄金太阳",
+      "黄金太阳-开启的封印",
+      "黄金太阳 开启的封印",
+      "黄金の太陽 開かれし封印"
+    ],
     "rom_identity": {
       "crc32": null,
       "sha1": null

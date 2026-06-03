@@ -40,6 +40,7 @@ class HotkeyVoiceQuestionController(
     private val loggerProvider: () -> RequestLogger,
     private val scope: CoroutineScope,
     private val showTranscriptHudProvider: () -> Boolean = { true },
+    private val prepareMicrophoneCapture: () -> Unit = {},
 ) : RetroArchHotkeyListener {
 
     private var activeJob: Job? = null
@@ -148,6 +149,7 @@ class HotkeyVoiceQuestionController(
                 }
             }
 
+            prepareMicrophoneCapture()
             voiceInput.startListening(recognitionContext)
             val final = withTimeoutOrNull(VOICE_TIMEOUT_MS) {
                 voiceInput.state

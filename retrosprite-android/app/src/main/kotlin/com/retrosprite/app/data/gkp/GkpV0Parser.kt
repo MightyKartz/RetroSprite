@@ -55,17 +55,31 @@ class GkpV0Parser(
         val gameObject = manifest.obj("game")
         val gameId = gameObject.string("game_id")
         val romIdentity = gameObject.objOrNull("rom_identity")
+        val platform = gameObject.string("platform")
+        val retroarchSystemIds = gameObject.arrayOrEmpty("retroarch_system_ids")
+            .map { it.jsonPrimitive.content.trim() }
+            .filter { it.isNotEmpty() }
+            .distinct()
+        val explicitRetroarchLabels = gameObject.arrayOrEmpty("retroarch_labels")
+            .map { it.jsonPrimitive.content }
+        val titleAliases = gameObject.arrayOrEmpty("title_aliases")
+            .map { it.jsonPrimitive.content }
         val game = GameDomain(
             gameId = gameId,
             packId = manifest.string("pack_id"),
             title = gameObject.string("title"),
-            platform = gameObject.string("platform"),
+            platform = platform,
             region = gameObject.stringOrNull("region"),
             languages = gameObject.array("languages").map { it.jsonPrimitive.content },
             romCrc32 = romIdentity?.stringOrNull("crc32"),
             romSha1 = romIdentity?.stringOrNull("sha1"),
-            retroarchSystemIds = gameObject.arrayOrEmpty("retroarch_system_ids").map { it.jsonPrimitive.content },
-            retroarchLabels = gameObject.arrayOrEmpty("retroarch_labels").map { it.jsonPrimitive.content },
+            retroarchSystemIds = retroarchSystemIds,
+            retroarchLabels = identityRetroarchLabels(
+                platform = platform,
+                retroarchSystemIds = retroarchSystemIds,
+                explicitRetroarchLabels = explicitRetroarchLabels,
+                titleAliases = titleAliases,
+            ),
             coverageTier = manifest.stringOrNull("coverage_tier"),
             packVersion = manifest.string("pack_version"),
             schemaVersion = schemaVersion,
@@ -203,6 +217,27 @@ class GkpV0Parser(
             .filter { it.entityId == entityId && it.term.isNotBlank() }
             .distinctBy { "${it.term}\u0000${it.kind}\u0000${it.canonicalTerm.orEmpty()}" }
         return copy(aliases = merged, aliasMetadata = metadata)
+    }
+
+    private fun identityRetroarchLabels(
+        platform: String,
+        retroarchSystemIds: List<String>,
+        explicitRetroarchLabels: List<String>,
+        titleAliases: List<String>,
+    ): List<String> {
+        val systems = retroarchSystemIds.ifEmpty { listOf(platform) }
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+        val generated = systems.flatMap { system ->
+            titleAliases
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
+                .map { title -> "${system}__${title}" }
+        }
+        return (explicitRetroarchLabels + generated)
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .distinct()
     }
 
     private fun JsonObject.obj(name: String): JsonObject =

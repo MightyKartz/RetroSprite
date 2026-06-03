@@ -24,6 +24,15 @@
       "mega_drive__梦幻之星4",
       "md__梦幻之星IV 千年纪的终结"
     ],
+    "title_aliases": [
+      "Phantasy Star IV",
+      "Phantasy Star 4",
+      "Phantasy_Star_IV",
+      "梦幻之星IV",
+      "梦幻之星4",
+      "梦幻之星IV 千年纪的终结",
+      "梦幻之星4 千年纪的终结"
+    ],
     "rom_identity": {
       "crc32": null,
       "sha1": null

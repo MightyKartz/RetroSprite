@@ -44,6 +44,7 @@ class LabelGameResolverTest {
     fun `canonicalizes mega drive platform aliases to md`() = runTest {
         assertEquals("md", resolver.resolve("mega_drive__光明力量2").platform)
         assertEquals("md", resolver.resolve("megadrive__Shining Force II").platform)
+        assertEquals("md", resolver.resolve("mega_drive_genesis__Shining Force II").platform)
         assertEquals("md", resolver.resolve("genesis__Shining Force II").platform)
         assertEquals("md", resolver.resolve("Sega - Mega Drive - Genesis__光明力量2").platform)
     }
@@ -54,6 +55,7 @@ class LabelGameResolverTest {
         assertEquals("gba", resolver.resolve("Game Boy Advance__Golden Sun").platform)
         assertEquals("snes", resolver.resolve("sfc__Chrono Trigger").platform)
         assertEquals("snes", resolver.resolve("super_nintendo__Final Fantasy VI").platform)
+        assertEquals("snes", resolver.resolve("super_nes__最终幻想6").platform)
     }
 
     @Test

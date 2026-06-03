@@ -95,6 +95,7 @@ Allowed identifier characters: lowercase letters, digits, dots, underscores, and
     "languages": ["zh", "en"],
     "retroarch_system_ids": ["2048"],
     "retroarch_labels": ["2048__"],
+    "title_aliases": ["2048"],
     "rom_identity": {
       "crc32": null,
       "sha1": null
@@ -129,11 +130,19 @@ Allowed identifier characters: lowercase letters, digits, dots, underscores, and
 | `game.languages` | yes | Non-empty array |
 | `game.retroarch_system_ids` | no | System ids observed from RetroArch labels |
 | `game.retroarch_labels` | no | Exact labels observed from RetroArch, useful for empty-game labels like `2048__` |
+| `game.title_aliases` | no | Identity-only game title variants. Parser expands `retroarch_system_ids × title_aliases` into runtime labels. Do not put character, item, skill, ASR, or menu aliases here. |
 | `game.rom_identity.crc32` | no | Optional ROM/content identity. Never store ROM content. |
 | `game.rom_identity.sha1` | no | Optional ROM/content identity. Never store ROM content. |
 | `trust_level` | yes | `official`, `community`, `personal`, or `sample` |
 | `signature` | no | Optional signature declaration for registry packages. Local imports may be unsigned. |
 | `contents` | yes | Relative paths inside this pack |
+
+Identity aliases are intentionally separate from knowledge aliases:
+
+- Use `game.retroarch_labels` for exact labels observed from real RetroArch requests.
+- Use `game.title_aliases` for title-only variants such as English names, Chinese names, roman/Arabic numeral variants, and common localized names.
+- Use `aliases.json` and knowledge-row `aliases` for player question terms, ASR repair, character names, item names, skills, menus, and locations.
+- Runtime import expands `title_aliases` with `retroarch_system_ids`; this improves AI Service label matching without `.lpl` import, ROM scanning, or libretro database bundling.
 
 Optional signature declaration shape:
 

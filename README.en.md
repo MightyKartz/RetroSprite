@@ -36,7 +36,10 @@ inject a question through the same overlay path, ASR now records sample counts,
 audio read counts, read errors, peak amplitude, and last-frame amplitude,
 Diagnostics explains ASR / GKP / screenshot / BYOK API / permission / timeout
 failures, and observed RG476H voice transcripts are turned into scoped GKP
-aliases plus golden regressions.
+aliases plus golden regressions. The final release build also hardens game
+identity matching: GKPs can declare `title_aliases`, and RetroSprite expands
+those titles across RetroArch system ids so supported games are less likely to
+miss just because the current label uses a different system or title spelling.
 
 This is not a universal walkthrough bot. The formal v0.1.0 release supports only
 the six games below; other games may reach the endpoint, but they should not be
@@ -56,6 +59,16 @@ RetroSprite currently supports exactly **six** bundled real games:
 | **Final Fantasy VI / 最终幻想 VI** | Super Nintendo / Super Famicom | `community.final-fantasy-vi-snes-zh` |
 
 The old `sample-2048` and `sample-relay-station` demo packs are no longer bundled.
+
+## Key Features
+
+- **RetroArch AI Service hotkey flow**: press the in-game hotkey, speak a short question, and receive an overlay answer.
+- **Local ASR**: sherpa-onnx handles Chinese / English voice recognition on device.
+- **Current-game GKP retrieval**: resolves supported games from RetroArch labels, system ids, title aliases, and pack state.
+- **Low-spoiler answers**: starts with hints and only becomes more direct when the player asks.
+- **BYOK screen translation**: sends the current paused screenshot only when the player explicitly asks for translation.
+- **Diagnostics**: records ASR metrics, pipeline stage, source ids, LLM status, latency, failures, and feedback.
+- **Formal APK distribution**: v0.1.0 is release-signed and ships with SHA-256 verification.
 
 ## Installation
 

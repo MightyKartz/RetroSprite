@@ -101,8 +101,10 @@ class RepositoryGameResolverTest {
                         "final_fantasy_vi_snes",
                         "Final Fantasy VI / 最终幻想 VI",
                         "snes",
+                        retroarchSystemIds = listOf("snes", "sfc", "super_nintendo", "playstation", "psx", "ps1"),
                         retroarchLabels = listOf(
                             "playstation__Final Fantasy Anthology - Final Fantasy VI",
+                            "sfc__最终幻想6",
                         ),
                     ),
                     game("golden_sun_gba", "Golden Sun / 黄金太阳", "gba"),
@@ -126,13 +128,20 @@ class RepositoryGameResolverTest {
             "playstation__Final Fantasy Anthology - Final Fantasy VI" to "final_fantasy_vi_snes",
             "super_nintendo__Final Fantasy VI (USA)" to "final_fantasy_vi_snes",
             "snes__最终幻想VI" to "final_fantasy_vi_snes",
+            "super_nes__最终幻想6" to "final_fantasy_vi_snes",
+            "ps1__最终幻想6" to "final_fantasy_vi_snes",
+            "psx__Final Fantasy VI" to "final_fantasy_vi_snes",
+            "playstation__Final Fantasy 6" to "final_fantasy_vi_snes",
             "game_boy_advance__黄金太阳-开启的封印" to "golden_sun_gba",
             "gba__Golden Sun (USA)" to "golden_sun_gba",
             "md__Langrisser II (Japan)" to "langrisser_ii_md",
             "mega_drive__梦幻模拟战2" to "langrisser_ii_md",
+            "mega_drive_genesis__梦幻模拟战2" to "langrisser_ii_md",
             "genesis__Phantasy_Star_IV" to "phantasy_star_iv_md",
+            "mega_drive_genesis__Phantasy Star IV" to "phantasy_star_iv_md",
             "md__梦幻之星IV 千年纪的终结" to "phantasy_star_iv_md",
             "Sega - Mega Drive - Genesis__光明力量2" to "shining_force_ii_md",
+            "mega_drive_genesis__光明力量2" to "shining_force_ii_md",
             "md__光明與黑暗續戰篇Ⅱ 古代的封印" to "shining_force_ii_md",
         )
 
@@ -140,6 +149,39 @@ class RepositoryGameResolverTest {
             val identity = resolver.resolve(label)
 
             assertEquals("label=<$label>", expectedGameId, identity.gameId)
+            assertEquals("label=<$label>", "gkp_index", identity.source)
+        }
+    }
+
+    @Test
+    fun `resolves parser-generated title alias labels across system aliases`() = runTest {
+        val resolver = RepositoryGameResolver(
+            FakeGameRepository(
+                listOf(
+                    game(
+                        "final_fantasy_vi_snes",
+                        "Final Fantasy VI / 最终幻想 VI",
+                        "snes",
+                        retroarchSystemIds = listOf("snes"),
+                        retroarchLabels = listOf(
+                            "snes__Final Fantasy VI",
+                            "snes__最终幻想6",
+                            "snes__太空战士6",
+                        ),
+                    ),
+                )
+            )
+        )
+
+        val cases = listOf(
+            "super_nes__最终幻想6",
+            "super_famicom__太空战士6",
+            "sfc__Final Fantasy VI",
+        )
+        cases.forEach { label ->
+            val identity = resolver.resolve(label)
+
+            assertEquals("label=<$label>", "final_fantasy_vi_snes", identity.gameId)
             assertEquals("label=<$label>", "gkp_index", identity.source)
         }
     }

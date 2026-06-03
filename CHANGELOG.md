@@ -9,6 +9,7 @@
 - 发布首个正式 GitHub Release APK：`RetroSprite-v0.1.0-release.apk` 使用项目 release key 签名，并随 Release 提供 SHA-256 校验文件，适合普通用户长期下载。
 - 形成 RetroArch AI Service 热键语音主路径：游戏内短时语音 overlay、本地 sherpa-onnx ASR、当前游戏 GKP 检索、AnswerPolicy、短答 HUD 和 Android TTS 可完整闭环。
 - 内置 6 个真实游戏 GKP Lite：Shining Force II、Golden Sun、Phantasy Star IV、Langrisser II、Chrono Trigger、Final Fantasy VI。
+- GKP manifest 新增 `game.title_aliases`，用于声明游戏标题级身份别名；导入时会按 `retroarch_system_ids × title_aliases` 展开 RetroArch label。
 - 新增 BYOK 当前画面翻译：玩家明确说“翻译”“翻译一下”“读一下”“这是什么意思”时，才把当前暂停截图发送到用户配置的 SiliconFlow / OpenRouter / OpenAI-compatible 视觉模型。
 - 新增 Diagnostics 质量闭环：展示 pipeline stage、source ids、LLM 状态、延迟、ASR 音频指标、失败归因和用户反馈，便于定位真机热键、GKP、截图、BYOK API、权限和超时问题。
 - 新增正式 APK release signing 配置：Gradle 可读取本地 `keystore.properties` 或 `RETROSPRITE_RELEASE_*` 环境变量，为 release build 使用项目发布证书签名。
@@ -19,6 +20,12 @@
 
 - README 中文默认首页、英文 README 和 Android README 补充正式签名包安装说明、发布脚本入口和密钥安全边界。
 - `.gitignore` 明确排除 Android release keystore、`keystore.properties` 和本地 release 密钥目录，降低误提交风险。
+- 当前游戏解析支持 `mega_drive_genesis`、`super_nes` 等更多 RetroArch system id 变体，并能用 GKP 标题别名跨系统匹配。
+
+### 修复
+
+- 修复支持游戏在不同 RetroArch label 写法、系统 id 或中文/英文/罗马数字标题变体下可能无法解析到对应 GKP 的问题。
+- 修复热键语音进入 ASR 前 endpoint 前台状态未刷新，可能导致麦克风捕获不稳定的问题。
 
 ### 限制
 

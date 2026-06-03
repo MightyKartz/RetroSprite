@@ -58,6 +58,11 @@ class GkpV0FixtureLintTest {
         assertNonBlank(game.string("title"), "game.title")
         assertNonBlank(game.string("platform"), "game.platform")
         assertTrue("game.languages must be non-empty", game.array("languages").isNotEmpty())
+        val titleAliases = game.array("title_aliases").map { it.jsonPrimitive.content }
+        assertTrue("game.title_aliases must not be empty", titleAliases.isNotEmpty())
+        titleAliases.forEach { alias ->
+            assertNonBlank(alias, "game.title_aliases[]")
+        }
 
         val contents = manifest.obj("contents")
         val knowledgePaths = contents.array("knowledge").map { it.jsonPrimitive.content }

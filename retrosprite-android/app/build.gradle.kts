@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -5,9 +7,56 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
+val releaseSigningProperties = Properties().apply {
+    val propertiesFile = rootProject.file("keystore.properties")
+    if (propertiesFile.isFile) {
+        propertiesFile.inputStream().use { load(it) }
+    }
+}
+
+fun releaseSigningValue(propertyName: String, envName: String): String? {
+    return (releaseSigningProperties.getProperty(propertyName) ?: System.getenv(envName))
+        ?.trim()
+        ?.takeIf { it.isNotEmpty() }
+}
+
+val releaseStoreFilePath = releaseSigningValue(
+    "storeFile",
+    "RETROSPRITE_RELEASE_STORE_FILE"
+)
+val releaseStorePassword = releaseSigningValue(
+    "storePassword",
+    "RETROSPRITE_RELEASE_STORE_PASSWORD"
+)
+val releaseKeyAlias = releaseSigningValue(
+    "keyAlias",
+    "RETROSPRITE_RELEASE_KEY_ALIAS"
+)
+val releaseKeyPassword = releaseSigningValue(
+    "keyPassword",
+    "RETROSPRITE_RELEASE_KEY_PASSWORD"
+)
+val hasReleaseSigningConfig = listOf(
+    releaseStoreFilePath,
+    releaseStorePassword,
+    releaseKeyAlias,
+    releaseKeyPassword
+).all { it != null }
+
 android {
     namespace = "com.retrosprite.app"
     compileSdk = 34
+
+    signingConfigs {
+        if (hasReleaseSigningConfig) {
+            create("release") {
+                storeFile = rootProject.file(releaseStoreFilePath!!)
+                storePassword = releaseStorePassword!!
+                keyAlias = releaseKeyAlias!!
+                keyPassword = releaseKeyPassword!!
+            }
+        }
+    }
 
     defaultConfig {
         applicationId = "com.retrosprite.app"
@@ -29,6 +78,9 @@ android {
 
     buildTypes {
         release {
+            if (hasReleaseSigningConfig) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),

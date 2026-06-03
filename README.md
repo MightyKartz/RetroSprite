@@ -83,18 +83,20 @@ RetroSprite 目前只内置支持 **6 个真实游戏**：
 
 ### 2. 下载 APK
 
-从 GitHub Releases 下载最新的 RetroSprite preview APK：
+从 GitHub Releases 下载最新的 RetroSprite APK：
 
 [https://github.com/MightyKartz/RetroSprite/releases](https://github.com/MightyKartz/RetroSprite/releases)
 
-当前 preview APK 是 debug-signed，用于测试和预览分发，不是 Play Store 或生产签名版本。
+普通用户长期使用应选择 `RetroSprite-*-release.apk` 这类正式签名包。标有
+`preview`、`debug` 或 `app-debug.apk` 的包只用于测试、演示和早期反馈；debug-signed
+包与正式 release-signed 包通常不能直接互相覆盖升级。
 
 ### 3. 安装 APK
 
 在 Android 设备上安装下载的 APK：
 
 ```bash
-adb install -r app-debug.apk
+adb install -r RetroSprite-v0.1.0-release.apk
 ```
 
 也可以直接在设备上打开 APK 安装。若系统提示“安装未知来源应用”，请按 Android 系统提示为当前文件管理器或浏览器授予安装权限。
@@ -278,6 +280,18 @@ cd retrosprite-android
 JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home" ./gradlew :app:testDebugUnitTest
 ```
 
+构建正式签名 APK：
+
+```bash
+cd retrosprite-android
+./scripts/generate_release_keystore.sh  # 首次正式发布前执行一次
+# 填写 keystore.properties 中的本地密码后：
+TAG=v0.1.0 ./scripts/build_release_apk.sh
+```
+
+正式包会输出到 `app/build/release-artifacts/`，同时生成 `.sha256` 和签名证书校验文本。
+完整发布流程见 [正式 APK 签名与 GitHub Release 发布指南](./retrosprite-android/docs/RELEASE_SIGNING.md)。
+
 运行发布前推荐检查：
 
 ```bash
@@ -342,6 +356,7 @@ cd retrosprite-android
 - [真实游戏 GKP Lite 生产模板](./retrosprite-android/docs/REAL_GAME_GKP_EXPANSION_TEMPLATE.md)
 - [RetroArch AI Service 协议参考](./retrosprite-android/docs/PROTOCOL_REFERENCE.md)
 - [测试覆盖说明](./retrosprite-android/docs/TEST_COVERAGE.md)
+- [正式 APK 签名与 GitHub Release 发布指南](./retrosprite-android/docs/RELEASE_SIGNING.md)
 
 ## 设计边界
 
@@ -361,7 +376,7 @@ RetroSprite 明确避免这些路径：
 - 5 个 Retro JRPG/SRPG 包是 GKP Lite，不是完整攻略包。
 - 语音识别会受环境噪声、BGM、发音、设备麦克风影响。
 - 热键语音主路径需要 RetroArch AI Service 正确配置。
-- 当前 APK 是 preview/debug-signed 构建，不是生产签名发行版。
+- preview/debug-signed APK 只适合测试；普通用户长期下载应使用 GitHub Release 中的正式签名 APK。
 
 ## 许可证与第三方声明
 

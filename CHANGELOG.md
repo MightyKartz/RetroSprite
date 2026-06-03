@@ -2,6 +2,19 @@
 
 本文件记录 RetroSprite 面向 GitHub Release 的项目级更新。各 GKP 包仍保留自己的 `changelog.md`，用于记录单个游戏知识包的内容变化。
 
+## Unreleased
+
+### 新增
+
+- 新增正式 APK release signing 配置：Gradle 可读取本地 `keystore.properties` 或 `RETROSPRITE_RELEASE_*` 环境变量，为 release build 使用项目发布证书签名。
+- 新增 `generate_release_keystore.sh` 与 `build_release_apk.sh`：支持生成本地 keystore、clean release build、单元测试、`apksigner verify`、debug 证书拦截和 SHA-256 校验文件输出。
+- 新增正式 APK 签名与 GitHub Release 发布指南，明确普通用户长期下载应使用 release-signed APK，preview/debug APK 只用于测试。
+
+### 改进
+
+- README 中文默认首页、英文 README 和 Android README 补充正式签名包安装说明、发布脚本入口和密钥安全边界。
+- `.gitignore` 明确排除 Android release keystore、`keystore.properties` 和本地 release 密钥目录，降低误提交风险。
+
 ## v0.1.0-preview.8 - 2026-06-03
 
 ### 新增

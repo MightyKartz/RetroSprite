@@ -6,25 +6,27 @@
 >
 > 仓库首页版 README 见 [../README.md](../README.md)；本文保留 Android App 的详细构建、联调和目录说明。
 
-**当前阶段：M17.1 / M18 收口 · Release Candidate Quality Loop**
+**当前阶段：v0.1.0 正式 GitHub Release · Release-signed APK**
 
-**当前开发重点：冻结功能面，用 M18 质量闭环关闭 M17.1 真实设备风险。**热键语音问答、GKP 本地检索、BYOK 画面翻译、设置/诊断和 6 个内置真实游戏包都已经形成可运行闭环；下一步不扩模型、不扩 GKP、不加大 UI 面，而是把真实失败样本转成 backlog、patch proposal、golden regression 和真机 replay。详见 [M18 Eval Lab And GKP Quality Loop Plan](./docs/superpowers/plans/2026-06-01-m18-eval-lab-gkp-quality-loop.md)。
+**当前正式版本：v0.1.0。**RetroSprite 已经可以通过 GitHub Release 分发 release-signed APK，
+面向普通用户长期下载和后续同签名升级。热键语音问答、GKP 本地检索、BYOK 画面翻译、
+设置/诊断和 6 个内置真实游戏包都已经形成可运行闭环。正式 APK 发布流程见
+[docs/RELEASE_SIGNING.md](./docs/RELEASE_SIGNING.md)。
 
-**当前阻塞：M18 Hotkey voice matrix 仍有 2 条失败行。**2026-06-02 RG476H endpoint/GKP smoke 已通过；新的 AudioRecord 诊断显示早前 `muted_recovery / blank_partial` 主要由 Mac 播放音量过低导致。当前 7 条 hotkey voice matrix 已全部提交 fresh `hotkey_voice` 请求并通过 5/7；剩余失败是 `source_mismatch` 和 `asr_variant`，记录在 [hotkey voice matrix report](./docs/qa-feedback/hotkey-voice-matrix-report.md)。下一步只围绕这 2 条失败做 evidence -> backlog -> scoped patch proposal -> regression -> real-device replay。
-
-**M17 之后的下一阶段：M18 Eval Lab + GKP Quality Loop。**M18 不扩新游戏、不改默认模型路线，而是把真实玩家问题、无 evidence、ASR 误识别和 GKP 覆盖缺口转成可复现的评测报告、backlog、GKP patch proposal 和 golden 回归。详见 [M18 Eval Lab And GKP Quality Loop Plan](./docs/superpowers/plans/2026-06-01-m18-eval-lab-gkp-quality-loop.md)。2026-06-02 起，M18 不再包含人工 ASR 审批、5 个屏幕翻译手工矩阵、内容版权人工确认；这些可以作为 release/QA 事项保留，但不属于 M18 aggregate status、next-action queue 或 offline gate。
+**后续质量闭环：M18 Eval Lab + GKP Quality Loop。**v0.1.0 后不急于扩新游戏、不改默认模型路线，
+而是把真实玩家问题、无 evidence、ASR 误识别和 GKP 覆盖缺口转成可复现的评测报告、backlog、
+GKP patch proposal 和 golden 回归。详见
+[M18 Eval Lab And GKP Quality Loop Plan](./docs/superpowers/plans/2026-06-01-m18-eval-lab-gkp-quality-loop.md)。
 
 **后续方向仍是：GKP Lite + Optional BYOK LLM。**每个游戏的首个支持版本不再要求完整攻略级 GKP，而是先做轻量、可信、可测试的 GKP Lite；外部 LLM 继续由玩家自主选择是否启用、使用什么 provider/model，只作为证据综合、跨语言映射和表达增强层。没有 LLM 时 RetroSprite 仍应离线可用；没有本地证据时不允许 LLM 裸答具体攻略事实。
 
 RetroArch AI Service → Android 本地 endpoint → 热键唤醒 RetroSprite 游戏内语音 overlay → 本地 ASR → GKP/AnswerPolicy → 短答 TTS 这条主路径已经接通并进入体验打磨。Home 页文字提问、pending hotkey 问题和 debug curl 仍保留为设置验证与开发 fallback；玩家主体验应是在 RetroArch 中按热键呼出科技感语音波形，不需要频繁回到 App 里操作。
 
-当前 Debug APK 默认打包 `sherpa-onnx-streaming-paraformer-bilingual-zh-en`
-int8 三件套（`encoder.int8.onnx`、`decoder.int8.onnx`、`tokens.txt`），
-通过 sherpa-onnx `OnlineParaformerModelConfig` 做本地 streaming ASR。该路径不启用
-sherpa 原生热词；游戏专属名词靠当前 GKP 的别名/ASR 变体和
-`GameTermNormalizer` 做游戏域内修复，不能退化成跨游戏全局替换。Paraformer 资产约
-226 MB；2026-06-01 本地 `assembleDebug` 产物约 251 MB，APK 内未再打包旧
-14M Zipformer 资产。真机可用性仍以 RG476H 安装、启动、录音和连续问答测试为准。
+当前 APK 默认打包 sherpa-onnx 本地 ASR 资产，通过 sherpa-onnx streaming ASR 路径完成
+中文/英文语音识别。该路径不启用 sherpa 原生热词；游戏专属名词靠当前 GKP 的别名/ASR
+变体和 `GameTermNormalizer` 做游戏域内修复，不能退化成跨游戏全局替换。发布或测试 APK
+前必须使用 clean build，尤其是改过 ASR 模型、大型 assets 或 native libs 后，避免
+Gradle/ZIP 增量打包留下旧产物空洞。真机可用性仍以 RG476H 安装、启动、录音和连续问答测试为准。
 
 **当前真实支持游戏：仅 6 个。**RetroSprite 目前内置支持：
 **Shining Force II / 光明力量2**（`community.shining-force-ii-md`）、
@@ -92,6 +94,23 @@ adb forward tcp:4404 tcp:4404
 ./scripts/android_avd_smoke.sh
 ```
 
+### 5. 构建正式发布 APK
+
+普通用户长期下载应使用 release-signed APK，而不是 debug-signed preview APK。首次正式发布前生成本地 release keystore：
+
+```bash
+cd retrosprite-android
+./scripts/generate_release_keystore.sh
+```
+
+填写本地 `keystore.properties` 后构建正式包：
+
+```bash
+TAG=v0.1.0 ./scripts/build_release_apk.sh
+```
+
+产物会输出到 `app/build/release-artifacts/`，包含 APK、SHA-256 校验文件和签名证书校验文本。完整流程见 [docs/RELEASE_SIGNING.md](./docs/RELEASE_SIGNING.md)。
+
 ---
 
 ## 文档导航 · Docs
@@ -101,6 +120,7 @@ adb forward tcp:4404 tcp:4404
 | [docs/RETROARCH_SETUP.md](./docs/RETROARCH_SETUP.md) | RetroArch AI Service 完整配置步骤 + 故障排查 |
 | [docs/PHASE0_VERIFICATION.md](./docs/PHASE0_VERIFICATION.md) | Phase 0 验收清单（自动化 + 手动） |
 | [docs/PROTOCOL_REFERENCE.md](./docs/PROTOCOL_REFERENCE.md) | RetroArch AI Service 请求 / 响应字段速查 |
+| [docs/RELEASE_SIGNING.md](./docs/RELEASE_SIGNING.md) | 正式 APK 签名、clean release build 和 GitHub Release 上传流程 |
 | [docs/ARCHITECTURE_AND_PRODUCT_TIERS.md](./docs/ARCHITECTURE_AND_PRODUCT_TIERS.md) | 主程序、GKP builder、GKP Lite、expanded/deep 覆盖、Pro 商业层和可选 LLM 的当前口径 |
 | [docs/GKP_V0_SCHEMA.md](./docs/GKP_V0_SCHEMA.md) | GKP v0 schema、pack 结构与 lint 规则 |
 | [docs/GKP_LITE_OPTIONAL_LLM_DIRECTION.md](./docs/GKP_LITE_OPTIONAL_LLM_DIRECTION.md) | GKP Lite + 玩家可选 LLM 的后续产品与架构方向 |

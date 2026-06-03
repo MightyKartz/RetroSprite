@@ -25,10 +25,11 @@ local evidence.
 
 ## Status
 
-RetroSprite is in the M17.1 / M18 release-candidate hardening phase. The hotkey
-voice overlay, local ASR, GKP retrieval, on-demand current-screen translation,
-short-answer TTS, diagnostics, and six bundled real game packs now form the
-current runnable loop.
+RetroSprite v0.1.0 is the first formal GitHub release intended for long-term
+user downloads. The Android APK is signed with the project release key and ships
+with a SHA-256 checksum. The hotkey voice overlay, local ASR, GKP retrieval,
+on-demand current-screen translation, short-answer TTS, diagnostics, and six
+bundled real game packs now form the current runnable loop.
 
 The latest work focuses on real-device reproducibility: debug hotkey requests can
 inject a question through the same overlay path, ASR now records sample counts,
@@ -37,8 +38,9 @@ Diagnostics explains ASR / GKP / screenshot / BYOK API / permission / timeout
 failures, and observed RG476H voice transcripts are turned into scoped GKP
 aliases plus golden regressions.
 
-This is not a universal walkthrough bot. Use it only with the supported games below
-unless you are developing or testing new GKPs.
+This is not a universal walkthrough bot. The formal v0.1.0 release supports only
+the six games below; other games may reach the endpoint, but they should not be
+expected to produce reliable grounded answers.
 
 ## Supported Games
 
@@ -63,19 +65,23 @@ Requirements:
 - RetroArch Android with AI Service support.
 - A supported game from the list above.
 
-Download the latest preview APK from GitHub Releases:
+Download the latest RetroSprite APK from GitHub Releases:
 
 [https://github.com/MightyKartz/RetroSprite/releases](https://github.com/MightyKartz/RetroSprite/releases)
+
+Long-term user builds should use `RetroSprite-v0.1.0-release.apk`, which is signed
+with the project release key. Packages named `preview`, `debug`, or
+`app-debug.apk` are for testing and early feedback; debug-signed builds usually
+cannot be upgraded in place to release-signed builds.
 
 Install with adb:
 
 ```bash
-adb install -r app-debug.apk
+adb install -r RetroSprite-v0.1.0-release.apk
 ```
 
 Or open the APK on the Android device and allow installation from the current
-browser or file manager. Preview APKs are debug-signed and intended for testing,
-not production distribution.
+browser or file manager.
 
 On first launch, allow the permissions RetroSprite asks for:
 
@@ -169,6 +175,19 @@ Install the debug build:
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
+Build a release-signed APK:
+
+```bash
+cd retrosprite-android
+./scripts/generate_release_keystore.sh  # run once before the first production release
+# Fill keystore.properties with the local passwords, then:
+TAG=v0.1.0 ./scripts/build_release_apk.sh
+```
+
+The signed APK, SHA-256 checksum, and certificate verification output are written
+to `app/build/release-artifacts/`. See the [release signing guide](./retrosprite-android/docs/RELEASE_SIGNING.md)
+for the full GitHub Release workflow.
+
 Host-side endpoint check:
 
 ```bash
@@ -211,6 +230,7 @@ curl -fsS -X POST 'http://127.0.0.1:18080/debug/ask?output=text' \
 - [GKP v0 schema](./retrosprite-android/docs/GKP_V0_SCHEMA.md)
 - [Protocol reference](./retrosprite-android/docs/PROTOCOL_REFERENCE.md)
 - [Test coverage](./retrosprite-android/docs/TEST_COVERAGE.md)
+- [Release signing guide](./retrosprite-android/docs/RELEASE_SIGNING.md)
 - [Changelog](./CHANGELOG.md)
 
 ## Boundaries

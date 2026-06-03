@@ -83,6 +83,7 @@ internal fun String.toCanonicalRetroPlatform(): String {
         .trim('_')
     return when (key) {
         "mega_drive",
+        "mega_drive_genesis",
         "megadrive",
         "genesis",
         "sega_mega_drive_genesis",
@@ -96,6 +97,7 @@ internal fun String.toCanonicalRetroPlatform(): String {
 
         "super_nintendo",
         "super_nintendo_entertainment_system",
+        "super_nes",
         "super_famicom",
         "sfc",
         "snes" -> "snes"

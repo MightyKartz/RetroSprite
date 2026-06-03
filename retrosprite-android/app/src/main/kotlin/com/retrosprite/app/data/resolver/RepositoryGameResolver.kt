@@ -88,9 +88,10 @@ class RepositoryGameResolver(
         val searched = titleCandidates.flatMap { candidate ->
             gameRepository.searchByLabel(platform, candidate)
         }
-        val platformGames = gameRepository.searchByLabel(platform, "")
+        val platformGames = gameRepository.listAll()
+            .filter { it.supportsRetroPlatform(platform) }
         val candidates = (searched + platformGames)
-            .filter { it.platform.toCanonicalRetroPlatform() == platform }
+            .filter { it.supportsRetroPlatform(platform) }
             .distinctBy { it.gameId }
         val queryKeys = titleMatchKeys(title)
         val labelKey = label.retroArchLabelKey()
@@ -193,6 +194,10 @@ class RepositoryGameResolver(
         val explicitLabels = retroarchLabels.map { it.retroArchLabelKey() }
         return if (explicitLabels.contains(labelKey)) EXPLICIT_LABEL_SCORE else 0.0
     }
+
+    private fun GameDomain.supportsRetroPlatform(platform: String): Boolean =
+        this.platform.toCanonicalRetroPlatform() == platform ||
+            retroarchSystemIds.any { it.toCanonicalRetroPlatform() == platform }
 
     private fun titleMatchScore(
         queryKeys: Set<String>,

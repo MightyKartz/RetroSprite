@@ -69,6 +69,33 @@ class HotkeyVoiceQuestionControllerTest {
     }
 
     @Test
+    fun `hotkey voice prepares microphone foreground mode before starting ASR`() = runTest {
+        val renderer = FakeRenderer()
+        val coordinator = HotkeyVoiceOverlayCoordinator(
+            renderer = renderer,
+            canDrawOverlays = { true },
+            scheduleAutoHide = { action -> action() },
+            cancelAutoHide = {},
+        )
+        val calls = mutableListOf<String>()
+        val voice = FakeVoiceInputProvider("什么时候转职？", onStart = { calls += "start_asr" })
+        val controller = HotkeyVoiceQuestionController(
+            coordinator = coordinator,
+            voiceInput = voice,
+            responseGenerator = CapturingGenerator("角色至少 20 级才能转职。"),
+            speechOutput = FakeSpeechOutputProvider(),
+            loggerProvider = { RequestLogger() },
+            scope = this,
+            prepareMicrophoneCapture = { calls += "prepare_mic_fgs" },
+        )
+
+        controller.onHotkey(event())
+        advanceUntilIdle()
+
+        assertEquals(listOf("prepare_mic_fgs", "start_asr"), calls)
+    }
+
+    @Test
     fun `hotkey voice renders compact answer card with local source`() = runTest {
         val renderer = FakeRenderer()
         val coordinator = HotkeyVoiceOverlayCoordinator(
@@ -1057,6 +1084,7 @@ class HotkeyVoiceQuestionControllerTest {
         private val asrAudioReadErrorCount: Long? = null,
         private val asrPeakAmplitude: Float? = null,
         private val asrLastFrameAmplitude: Float? = null,
+        private val onStart: () -> Unit = {},
     ) : VoiceInputProvider {
         private val _state = MutableStateFlow(UiVoiceInputState(engineLabel = "fake"))
         override val state: StateFlow<UiVoiceInputState> = _state
@@ -1067,6 +1095,7 @@ class HotkeyVoiceQuestionControllerTest {
         override suspend fun startListening(context: AsrRecognitionContext?) {
             startCount += 1
             lastContext = context
+            onStart()
             _state.value = UiVoiceInputState(
                 isAvailable = true,
                 isListening = true,

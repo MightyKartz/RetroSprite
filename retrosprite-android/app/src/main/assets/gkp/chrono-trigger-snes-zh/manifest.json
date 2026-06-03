@@ -24,6 +24,13 @@
       "sfc__时空之轮",
       "snes__超时空之钥"
     ],
+    "title_aliases": [
+      "Chrono Trigger",
+      "Chrono_Trigger",
+      "时空之轮",
+      "超时空之钥",
+      "クロノ・トリガー"
+    ],
     "rom_identity": {
       "crc32": null,
       "sha1": null

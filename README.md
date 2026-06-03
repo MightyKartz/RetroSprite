@@ -29,7 +29,9 @@ release key 签名，并随 Release 提供 SHA-256 校验文件。Hotkey Voice O
 问答、BYOK 当前画面翻译、短答 TTS、Diagnostics 和 6 个内置真实游戏包已经形成可运行闭环。
 最新版本重点收敛在真机可复现质量：热键语音请求可通过调试注入复现，ASR 会记录音频采样、
 读帧错误和峰值音量，Diagnostics 会直接解释 ASR / GKP / 截图 / BYOK API / 权限 / 超时类失败，
-GKP ASR 变体和 golden regression 用真实 RG476H 热键语音样本持续回归。
+GKP ASR 变体和 golden regression 用真实 RG476H 热键语音样本持续回归。最终发布版还强化了
+RetroArch 游戏身份匹配：GKP 可以声明 `title_aliases`，运行时会按不同 RetroArch system id
+自动展开标题标签，减少“游戏受支持但当前 label 没匹配上”的情况。
 
 这不是“支持所有游戏”的通用攻略机器人。正式版只承诺下方 6 个游戏的 GKP Lite 支持；
 其它游戏可以触发 endpoint，但不会有稳定本地证据。
@@ -62,10 +64,10 @@ RetroSprite 目前只内置支持 **6 个真实游戏**：
 
 - **RetroArch AI Service 集成**：使用 RetroArch 官方 AI Service 热键作为游戏内触发入口。
 - **本地 HTTP endpoint**：Android 前台服务默认监听 `127.0.0.1:4404`。
-- **游戏内语音 overlay**：按热键后显示短时语音波形，收集一个问题；调试请求可注入问题复现完整热键链路。
+- **游戏内语音 overlay**：按热键后显示短时语音波形，收集一个问题；启动 ASR 前会刷新 endpoint 前台服务状态，降低热键语音麦克风捕获失败。
 - **本地 ASR**：使用 sherpa-onnx Paraformer 模型进行本地中文/英文语音识别，并记录采样数、读帧数、错误数和音量诊断。
 - **按需画面翻译**：说“翻译”“翻译一下”“读一下”“这是什么意思”时，把当前暂停画面发送到用户配置的 BYOK 画面翻译 API，并显示完整中文译文；菜单/装备/属性画面会优先整理成可扫读的中英文对照卡片。
-- **当前游戏 GKP 检索**：按 RetroArch label、游戏标题、平台和启用状态解析当前知识包。
+- **当前游戏 GKP 检索**：按 RetroArch label、游戏标题、平台、`retroarch_system_ids`、`title_aliases` 和启用状态解析当前知识包。
 - **ASR 变体归一化**：把真机误识别样本沉淀为游戏内 observed-asr 别名和 golden regression，减少“听到了但找不到证据”的失败。
 - **低剧透回答策略**：默认轻提示，可通过追问升级为更明确或直接答案。
 - **来源与诊断**：回答保留 source id，Diagnostics 可查看 pipeline stage、LLM 状态、耗时、ASR 诊断和失败原因。

@@ -13,6 +13,11 @@
 设置/诊断和 6 个内置真实游戏包都已经形成可运行闭环。正式 APK 发布流程见
 [docs/RELEASE_SIGNING.md](./docs/RELEASE_SIGNING.md)。
 
+v0.1.0 最终发布版补强了两个真机风险点：GKP manifest 新增 `title_aliases`，导入时会按
+`retroarch_system_ids × title_aliases` 自动生成身份标签，提升不同 RetroArch system id、
+英文/中文/罗马数字标题写法下的游戏解析命中率；热键语音启动 ASR 前会刷新 endpoint 前台服务
+状态，减少麦克风捕获在服务状态切换后失败。
+
 **后续质量闭环：M18 Eval Lab + GKP Quality Loop。**v0.1.0 后不急于扩新游戏、不改默认模型路线，
 而是把真实玩家问题、无 evidence、ASR 误识别和 GKP 覆盖缺口转成可复现的评测报告、backlog、
 GKP patch proposal 和 golden 回归。详见

@@ -24,6 +24,15 @@
       "genesis__梦幻模拟战II",
       "md__兰古利萨II"
     ],
+    "title_aliases": [
+      "Langrisser II",
+      "Langrisser 2",
+      "Langrisser_II",
+      "梦幻模拟战II",
+      "梦幻模拟战2",
+      "兰古利萨II",
+      "兰古利萨2"
+    ],
     "rom_identity": {
       "crc32": null,
       "sha1": null

@@ -27,6 +27,18 @@
       "psx__Final Fantasy Anthology - Final Fantasy VI",
       "ps1__Final Fantasy Anthology - Final Fantasy VI"
     ],
+    "title_aliases": [
+      "Final Fantasy VI",
+      "Final Fantasy 6",
+      "Final Fantasy III",
+      "Final Fantasy III (USA)",
+      "Final Fantasy Anthology - Final Fantasy VI",
+      "最终幻想VI",
+      "最终幻想6",
+      "最终幻想六",
+      "太空战士VI",
+      "太空战士6"
+    ],
     "rom_identity": {
       "crc32": null,
       "sha1": null

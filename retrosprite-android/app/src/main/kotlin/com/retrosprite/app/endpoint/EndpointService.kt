@@ -10,7 +10,9 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
@@ -26,10 +28,13 @@ import com.retrosprite.app.R
  */
 class EndpointService : Service() {
 
+    private val mainHandler = Handler(Looper.getMainLooper())
+
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {
         super.onCreate()
+        activeService = this
         ensureNotificationChannel(this)
     }
 
@@ -50,6 +55,9 @@ class EndpointService : Service() {
     }
 
     override fun onDestroy() {
+        if (activeService === this) {
+            activeService = null
+        }
         EndpointController.unbindFromService()
         super.onDestroy()
     }
@@ -80,6 +88,9 @@ class EndpointService : Service() {
         const val EXTRA_PORT = "extra_port"
         private const val TAG = "RetroSprite/Endpoint"
 
+        @Volatile
+        private var activeService: EndpointService? = null
+
         fun start(context: Context, port: Int = RetroArchEndpointServer.DEFAULT_PORT) {
             val intent = Intent(context, EndpointService::class.java).apply {
                 putExtra(EXTRA_PORT, port)
@@ -88,6 +99,25 @@ class EndpointService : Service() {
                 context.startForegroundService(intent)
             } else {
                 context.startService(intent)
+            }
+        }
+
+        fun refreshForegroundMode(context: Context, port: Int = RetroArchEndpointServer.DEFAULT_PORT) {
+            val service = activeService
+            if (service == null) {
+                start(context, port)
+                return
+            }
+            val action = Runnable {
+                runCatching { service.startInForeground(port) }
+                    .onFailure {
+                        Log.w(TAG, "Failed to refresh EndpointService foreground mode", it)
+                    }
+            }
+            if (Looper.myLooper() == Looper.getMainLooper()) {
+                action.run()
+            } else {
+                service.mainHandler.post(action)
             }
         }
 

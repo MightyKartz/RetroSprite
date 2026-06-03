@@ -26,6 +26,7 @@ import com.retrosprite.app.endpoint.RetroArchHotkeyListener
 import com.retrosprite.app.endpoint.RoomBackedRequestLogSink
 import com.retrosprite.app.endpoint.ResponseGenerator
 import com.retrosprite.app.endpoint.HotkeyWakeResponseGenerator
+import com.retrosprite.app.endpoint.EndpointService
 import com.retrosprite.app.endpoint.model.DebugHotkeyVoiceOverlayResponse
 import com.retrosprite.app.llm.DynamicLlmAdapter
 import com.retrosprite.app.llm.LlmAdapter
@@ -318,6 +319,9 @@ object ServiceLocator {
                     settingsState.value.hotkeyVoiceTranscriptHudEnabled
                 },
                 screenTranslationPipeline = screenTranslationPipeline,
+                prepareMicrophoneCapture = {
+                    EndpointService.refreshForegroundMode(appContext, portState.value)
+                },
             )
 
         val overlayPermissionProvider: OverlayPermissionProvider =
